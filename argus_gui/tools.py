@@ -1,11 +1,18 @@
-import numpy as np
+from __future__ import absolute_import
+from __future__ import print_function
+
 import cv2
+import numpy as np
 import scipy as sp
+from argus.ocam import PointUndistorter, ocam_model
+from six.moves import range
 from tqdm import *
+
 
 class Error(Exception):
     """Base class for exceptions in this module."""
     pass
+
 
 class ArgusError(Error):
     """Exception raised for errors in the input.
@@ -17,6 +24,7 @@ class ArgusError(Error):
 
     def __init__(self, value):
         self.value = value
+
     def __str__(self):
         return repr(self.value)
 
@@ -30,6 +38,8 @@ Takes:
 Returns:
     - Nx2 array of image coordinates with the origin at the bottom left
 """
+
+
 def dlt_inverse(L, xyz):
     if not hasattr(L, '__iter__'):
         raise ArgusError('DLT coefficients must be iterable')
@@ -44,10 +54,11 @@ def dlt_inverse(L, xyz):
         raise ArgusError('XYZ must be an Nx3 numpy array')
     uv = np.zeros((len(xyz), 2))
     for k in range(uv.shape[0]):
-        u = (np.dot(L[:3].T,xyz[k]) + L[3])/(np.dot(L[-3:].T,xyz[k]) + 1.)
-        v = (np.dot(L[4:7].T,xyz[k]) + L[7])/(np.dot(L[-3:].T,xyz[k]) + 1.)
+        u = (np.dot(L[:3].T, xyz[k]) + L[3]) / (np.dot(L[-3:].T, xyz[k]) + 1.)
+        v = (np.dot(L[4:7].T, xyz[k]) + L[7]) / (np.dot(L[-3:].T, xyz[k]) + 1.)
         uv[k] = [u, v]
     return uv
+
 
 # like the above function but for single xyz value
 def reconstruct_uv(L, xyz):
@@ -60,9 +71,10 @@ def reconstruct_uv(L, xyz):
         raise ArgusError('XYZ must be a numpy array')
     elif len(xyz) != 3 and len(xyz.shape) != 1:
         raise ArgusError('XYZ must be of shape (3,)')
-    u = (np.dot(L[:3].T,xyz) + L[3])/(np.dot(L[-3:].T,xyz) + 1.)
-    v = (np.dot(L[4:7].T,xyz) + L[7])/(np.dot(L[-3:].T,xyz) + 1.)
+    u = (np.dot(L[:3].T, xyz) + L[3]) / (np.dot(L[-3:].T, xyz) + 1.)
+    v = (np.dot(L[4:7].T, xyz) + L[7]) / (np.dot(L[-3:].T, xyz) + 1.)
     return np.array([u, v])
+
 
 # Get a line in the pixel coordinate system with the origin in the lower left using DLT coefficients
 # courtesy of Dr. Ty Hedrick
@@ -75,6 +87,8 @@ Takes:
 Returns:
     - m, b: slope and intercept respectively for the epipolar line in camera 2 given u,v coordinate in camera 1
 """
+
+
 def getDLTLine(u, v, c1, c2):
     z = [500., -500.]
     y = np.zeros(2)
@@ -82,20 +96,25 @@ def getDLTLine(u, v, c1, c2):
     for i in range(len(z)):
         Z = z[i]
 
-        y[i] = -(u*c1[8]*c1[6]*Z + u*c1[8]*c1[7] - u*c1[10]*Z*c1[4] - u*c1[4] + c1[0]*v*c1[10]*Z + c1[0]*v - c1[0]*c1[6]*Z - c1[0]*c1[7] - c1[2]*Z*v*c1[8] + c1[2]*Z*c1[4] - c1[3]*v*c1[8] + c1[3]*c1[4])/(u*c1[8]*c1[5] - u*c1[9]*c1[4] + c1[0]*v*c1[9] - c1[0]*c1[5] - c1[1]*v*c1[8] + c1[1]*c1[4])
+        y[i] = -(u * c1[8] * c1[6] * Z + u * c1[8] * c1[7] - u * c1[10] * Z * c1[4] - u * c1[4] + c1[0] * v * c1[
+            10] * Z + c1[0] * v - c1[0] * c1[6] * Z - c1[0] * c1[7] - c1[2] * Z * v * c1[8] + c1[2] * Z * c1[4] - c1[
+                     3] * v * c1[8] + c1[3] * c1[4]) / (
+                           u * c1[8] * c1[5] - u * c1[9] * c1[4] + c1[0] * v * c1[9] - c1[0] * c1[5] - c1[1] * v * c1[
+                       8] + c1[1] * c1[4])
 
         Y = y[i]
 
-        x[i] = -(v*c1[9]*Y + v*c1[10]*Z + v - c1[5]*Y - c1[6]*Z - c1[7])/(v*c1[8] - c1[4])
+        x[i] = -(v * c1[9] * Y + v * c1[10] * Z + v - c1[5] * Y - c1[6] * Z - c1[7]) / (v * c1[8] - c1[4])
 
-    xy = np.zeros((2,2))
+    xy = np.zeros((2, 2))
 
     for i in range(2):
-        xy[i,:] = reconstruct_uv(c2, np.asarray([x[i], y[i], z[i]]))
+        xy[i, :] = reconstruct_uv(c2, np.asarray([x[i], y[i], z[i]]))
 
-    m = (xy[1,1] - xy[0,1])/(xy[1,0] - xy[0,0])
-    b = xy[0,1] - m*xy[0,0]
+    m = (xy[1, 1] - xy[0, 1]) / (xy[1, 0] - xy[0, 0])
+    b = xy[0, 1] - m * xy[0, 0]
     return m, b
+
 
 # undistort using OpenCV
 """
@@ -105,22 +124,26 @@ Takes:
 Returns:
     - Nx2 array of undistorted pixel coordinates
 """
+
+
 def undistort_pts(pts, prof):
     if (type(prof) == list) or (type(prof) == np.ndarray):
         prof = np.array(prof)
-    
+
         # try block to discern whether or not we are using the omnidirectional model
         # define the camera matrix
         K = np.asarray([[prof[0], 0., prof[1]],
                         [0., prof[0], prof[2]],
                         [0., 0., 1.]])
-        src = np.zeros((1, pts.shape[0], 2), dtype = np.float32)
+        src = np.zeros((1, pts.shape[0], 2), dtype=np.float32)
         src[0] = pts
-        ret = cv2.undistortPoints(src, K, prof[-5:], P = K)
+        ret = cv2.undistortPoints(src, K, prof[-5:], P=K)
         return ret[0]
-        
+
     else:
-        return prof.undistort_points(pts.T).T
+        # return prof.undistort_points(pts.T).T # broken due to numpy 1d transpose no-op
+        return prof.undistort_points(pts.reshape((-1, 1))).T
+
 
 """
 Takes:
@@ -129,6 +152,7 @@ Takes:
 Returns:
     - Nx2 array of distorted pixel coordinates
 """
+
 # redistort by projecting a 3D point with arbitrary depth back into the image plane using OpenCV
 def redistort_pts(pts, prof):
     # try block to discern the use of omnidirectional model
@@ -138,20 +162,22 @@ def redistort_pts(pts, prof):
             # rotaion is the identity matrix
             # translation is zero
             prof = np.array(prof)
-            rvec = np.array([[1,0,0],[0,1,0],[0,0,1]], np.float) # rotation vector
-            tvec = np.array([0,0,0], np.float) # translation vector
-            
+            rvec = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], np.float)  # rotation vector
+            tvec = np.array([0, 0, 0], np.float)  # translation vector
+
             # define K, the camera matrix
             cameraMatrix = np.asarray([[prof[0], 0., prof[1]],
-                            [0., prof[0], prof[2]],
-                            [0., 0., 1.]])
+                                       [0., prof[0], prof[2]],
+                                       [0., 0., 1.]])
 
-            p = np.hstack((normalize(pts, prof), np.tile(1,(pts.shape[0],1))))
+            p = np.hstack((normalize(pts, prof), np.tile(1, (pts.shape[0], 1))))
             return np.reshape(cv2.projectPoints(p, rvec, tvec, cameraMatrix, prof[-5:])[0], pts.shape)
         else:
             raise ArgusError('pinhole distortion profile must contain exactly 8 coefficients')
     else:
         return prof.distort_points(pts.T).T
+
+
 """
 Takes:
     - pts: Nx2 array of pixel coordinates
@@ -159,6 +185,8 @@ Takes:
 Returns:
     - Nx2 array of normalized pixel coordinates
 """
+
+
 # normalize pixel coordinates based on focal length and optical center
 def normalize(pts, prof):
     if type(pts) == np.ndarray:
@@ -169,9 +197,10 @@ def normalize(pts, prof):
     else:
         raise ArgusErro('pts must be a numpy array')
     for k in range(len(pts)):
-        pts[k][0] = (pts[k][0] - prof[1])/prof[0]
-        pts[k][1] = (pts[k][1] - prof[2])/prof[0]
+        pts[k][0] = (pts[k][0] - prof[1]) / prof[0]
+        pts[k][1] = (pts[k][1] - prof[2]) / prof[0]
     return pts
+
 
 # solves an overdetermined linear system for DLT coefficients constructed via
 # these instructions: http://kwon3d.com/theory/dlt/dlt.html
@@ -183,6 +212,8 @@ Returns:
     - L: 11 DLT coefficients mapping the transform between image plane and 3d space
     - rmse: Root mean squared error of the mapping in pixels
 """
+
+
 def solve_dlt(xyz, uv):
     if type(xyz) == np.ndarray and type(uv) == np.ndarray:
         if len(xyz.shape) != 2 or len(uv.shape) != 2:
@@ -195,55 +226,56 @@ def solve_dlt(xyz, uv):
             raise ArgusError('uv must be an Nx2 array')
     else:
         raise ArgusError('uv and xyz must be numpy arrays')
-    
+
     # delete rows which have nans
     toDel = list()
     for k in range(uv.shape[0]):
         if True in np.isnan(uv[k]):
             toDel.append(k)
 
-    xyz = np.delete(xyz, toDel, axis = 0)
-    uv = np.delete(uv, toDel, axis = 0)
+    xyz = np.delete(xyz, toDel, axis=0)
+    uv = np.delete(uv, toDel, axis=0)
 
-    A = np.zeros((xyz.shape[0]*2, 11))
+    A = np.zeros((xyz.shape[0] * 2, 11))
 
     # construct matrix based on uv pairs and xyz coordinates
     for k in range(xyz.shape[0]):
-        A[2*k,:3] = xyz[k]
-        A[2*k,3] = 1
-        A[2*k,8:] = xyz[k]*-uv[k,0]
-        A[2*k+1,4:7] = xyz[k]
-        A[2*k+1,7] = 1
-        A[2*k+1,8:] = xyz[k]*-uv[k,1]
+        A[2 * k, :3] = xyz[k]
+        A[2 * k, 3] = 1
+        A[2 * k, 8:] = xyz[k] * -uv[k, 0]
+        A[2 * k + 1, 4:7] = xyz[k]
+        A[2 * k + 1, 7] = 1
+        A[2 * k + 1, 8:] = xyz[k] * -uv[k, 1]
 
-    B = np.zeros((uv.shape[0]*2, 1))
+    B = np.zeros((uv.shape[0] * 2, 1))
 
     for k in range(uv.shape[0]):
-        B[2*k] = uv[k,0]
-        B[2*k + 1] = uv[k,1]
+        B[2 * k] = uv[k, 0]
+        B[2 * k + 1] = uv[k, 1]
 
     # solve using numpy's least squared algorithm
-    L = np.linalg.lstsq(A,B)[0]
+    L = np.linalg.lstsq(A, B)[0]
 
     # reproject to calculate rmse
-    reconsted = np.zeros((uv.shape[0],2))
+    reconsted = np.zeros((uv.shape[0], 2))
     for k in range(uv.shape[0]):
-        u = (np.dot(L[:3].T,xyz[k]) + L[3])/(np.dot(L[-3:].T,xyz[k]) + 1.)
-        v = (np.dot(L[4:7].T,xyz[k]) + L[7])/(np.dot(L[-3:].T,xyz[k]) + 1.)
+        u = (np.dot(L[:3].T, xyz[k]) + L[3]) / (np.dot(L[-3:].T, xyz[k]) + 1.)
+        v = (np.dot(L[4:7].T, xyz[k]) + L[7]) / (np.dot(L[-3:].T, xyz[k]) + 1.)
         reconsted[k] = [u, v]
 
     errors = list()
-    #dof = float(self.ncams*2 - 3)
+    # dof = float(self.ncams*2 - 3)
 
     error = 0
     for k in range(uv.shape[0]):
-        s = np.sqrt((reconsted[k,0] - uv[k,0])**2 + (reconsted[k,1] - uv[k,1])**2)
+        s = np.sqrt((reconsted[k, 0] - uv[k, 0]) ** 2 + (reconsted[k, 1] - uv[k, 1]) ** 2)
         errors.append(s)
         error += s
 
-    rmse = error/float(uv.shape[0])
+    rmse = error / float(uv.shape[0])
 
     return L, rmse
+
 
 # solves an overdetermined linear system for xyz coordinates given uv coordinates from n cameras in a given frame
 # takes pts from all frames in a given track (pts) and DLT coefficients for the n cameras (dlt)
@@ -256,39 +288,46 @@ Takes:
 Returns:
     - XYZ: Nx3 array of 3d coordinates
 """
+
+
 def uv_to_xyz(pts, profs, dlt):
-    if (pts.shape[1]/2 != len(profs)) or (pts.shape[1]/2 != len(dlt)):
-        raise ArgusError('the length of the profile list and DLT coefficients should match the number of cameras present')
+    if (int(pts.shape[1] / 2) != len(profs)) or (int(pts.shape[1] / 2) != len(dlt)):
+        raise ArgusError(
+            'the length of the profile list and DLT coefficients should match the number of cameras present')
     # pts = pts.toarray()
-    
+
     xyzs = np.zeros((len(pts), 3))
     # for each frame
     for i in range(len(pts)):
         uvs = list()
         # for each uv pair
-        for j in range(len(pts[i])/2):
+        for j in range(int(len(pts[i]) / 2)):
             # do we have a NaN pair?
-            if not True in np.isnan(pts[i, 2*j:2*(j+1)]):
+            if not True in np.isnan(pts[i, 2 * j:2 * (j + 1)]):
                 # if not append the undistorted point and its camera number to the list
-                uvs.append([undistort_pts(pts[i, 2*j:2*(j+1)], profs[j])[0], j])
+                uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
 
         if len(uvs) > 1:
             # if we have at least 2 uv coordinates, setup the linear system
-            A = np.zeros((2*len(uvs), 3))
+            A = np.zeros((2 * len(uvs), 3))
 
             for k in range(len(uvs)):
-                A[k] = np.asarray([uvs[k][0][0]*dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0], uvs[k][0][0]*dlt[uvs[k][1]][9] - dlt[uvs[k][1]][1], uvs[k][0][0]*dlt[uvs[k][1]][10] - dlt[uvs[k][1]][2]])
-                A[k+1] = np.asarray([uvs[k][0][1]*dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4], uvs[k][0][1]*dlt[uvs[k][1]][9] - dlt[uvs[k][1]][5], uvs[k][0][1]*dlt[uvs[k][1]][10] - dlt[uvs[k][1]][6]])
+                A[k] = np.asarray([uvs[k][0][0] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0],
+                                   uvs[k][0][0] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][1],
+                                   uvs[k][0][0] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][2]])
+                A[k + 1] = np.asarray([uvs[k][0][1] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4],
+                                       uvs[k][0][1] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][5],
+                                       uvs[k][0][1] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][6]])
 
-            B = np.zeros((2*len(uvs), 1))
+            B = np.zeros((2 * len(uvs), 1))
             for k in range(len(uvs)):
                 B[k] = dlt[uvs[k][1]][3] - uvs[k][0][0]
-                B[k+1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
+                B[k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
 
             # solve it
-            xyz = np.linalg.lstsq(A,B)[0]
+            xyz = np.linalg.lstsq(A, B)[0]
             # place in the proper frame
-            xyzs[i] = xyz[:,0]
+            xyzs[i] = xyz[:, 0]
 
     # replace everything else with NaNs
     xyzs[xyzs == 0] = np.nan
@@ -313,6 +352,8 @@ Takes:
 Returns:
     - k*N array of reprojection errors
 """
+
+
 def get_repo_errors(xyzs, pts, prof, dlt):
     # error catching non-sensical inputs
     if ((not hasattr(prof, '__iter__')) or (not hasattr(dlt, '__iter__'))):
@@ -325,13 +366,13 @@ def get_repo_errors(xyzs, pts, prof, dlt):
             raise ArgusError('xyz values must be an N*(3*k) array, where k is the number of tracks')
     else:
         raise ArgusError('xyz values must be an N*(3*k) array, where k is the number of tracks')
-        
+
     # pts = pts.toarray()
     errorss = list()
     # how many tracks, for each track
-    for k in range(xyzs.shape[1]/3):
-        xyz = xyzs[:,3*k:3*(k+1)]
-        uv = pts[:,k*(2*len(prof)):(k+1)*(2*len(prof))]
+    for k in range(int(xyzs.shape[1] / 3)):
+        xyz = xyzs[:, 3 * k:3 * (k + 1)]
+        uv = pts[:, k * (2 * len(prof)):(k + 1) * (2 * len(prof))]
         errors = np.zeros(xyz.shape[0])
 
         twos = list()
@@ -341,26 +382,27 @@ def get_repo_errors(xyzs, pts, prof, dlt):
         for j in range(xyz.shape[0]):
             if not True in np.isnan(xyz[j]):
                 toSum = list()
-                for i in range(uv.shape[1]/2):
-                    if not np.isnan(uv[j, i*2]):
-                        ob = undistort_pts(np.array([uv[j, i*2:(i+1)*2]]), prof[i])[0]
-                        re = reconstruct_uv(dlt[i],xyz[j])
-                        toSum.append(((ob[0] - re[0])**2 + (ob[1] - re[1])**2))
+                for i in range(int(uv.shape[1] / 2)):
+                    if not np.isnan(uv[j, i * 2]):
+                        ob = undistort_pts(np.array([uv[j, i * 2:(i + 1) * 2]]), prof[i])[0]
+                        re = reconstruct_uv(dlt[i], xyz[j])
+                        toSum.append(((ob[0] - re[0]) ** 2 + (ob[1] - re[1]) ** 2))
                 epsilon = sum(toSum)
-                errors[j] = np.sqrt(epsilon/float(len(toSum)*2 - 3))
+                errors[j] = np.sqrt(epsilon / float(len(toSum) * 2 - 3))
                 if len(toSum) == 2:
                     twos.append(j)
                     s += errors[j]
                 if errors[j] == np.nan or errors[j] == 0:
-                    print 'Somethings wrong!', uv[j], xyz[j]
+                    print('Somethings wrong!', uv[j], xyz[j])
         # rmse error from two cameras unreliable, replace with the average rmse over all two camera situations
         if len(twos) > 1:
-            s = s/float(len(twos))
+            s = s / float(len(twos))
             errors[twos] = s
         errorss.append(errors)
     ret = np.asarray(errorss)
     ret[ret == 0] = np.nan
     return ret
+
 
 # Based on Tys code in Matlab for producing 95% CI
 """
@@ -382,10 +424,12 @@ Returns:
     weights: spline weights
     tols: spline error tolerances
 """
-def bootstrapXYZs(pts, rmses, prof, dlt, bsIter = 250, display_progress = False):
-    ret = np.zeros((pts.shape[0], 3*pts.shape[1]/(2*len(prof))))
+
+
+def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False):
+    ret = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(prof)))))
     # for each track
-    for k in range(pts.shape[1]/(2*len(prof))):
+    for k in range(int(pts.shape[1] / (2 * len(prof)))):
         # bootstrap matrix 
         xyzBS = np.zeros((pts.shape[0], 3, bsIter))
         xyzBS[xyzBS == 0] = np.nan
@@ -393,34 +437,35 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter = 250, display_progress = False)
         xyzSD = np.zeros((pts.shape[0], 3))
         xyzSD[xyzSD == 0] = np.nan
         # track (k+1)
-        track = pts[:,k*2*len(prof):(k+1)*2*len(prof)]
+        track = pts[:, k * 2 * len(prof):(k + 1) * 2 * len(prof)]
         # for each bootstrap
         if not display_progress:
             for j in range(bsIter):
                 per = np.zeros((track.shape[0], track.shape[1]))
                 for i in range(len(per)):
-                    per[i] = sp.randn(track.shape[1])*((rmses[i,k]*2)**0.5/(np.count_nonzero(~np.isnan(track[i]))/2))
+                    per[i] = sp.randn(track.shape[1]) * (
+                                (rmses[i, k] * 2) ** 0.5 / (np.count_nonzero(~np.isnan(track[i])) / 2))
                 track = track + per
-                xyzBS[:,:,j] = uv_to_xyz(track, prof, dlt)
+                xyzBS[:, :, j] = uv_to_xyz(track, prof, dlt)
         else:
-            for j in tqdm(range(bsIter)):
+            for j in tqdm(list(range(bsIter))):
                 per = np.zeros((track.shape[0], track.shape[1]))
                 for i in range(len(per)):
-                    per[i] = sp.randn(track.shape[1])*((rmses[i,k]*2)**0.5/(np.count_nonzero(~np.isnan(track[i]))/2))
+                    per[i] = sp.randn(track.shape[1]) * (
+                                (rmses[i, k] * 2) ** 0.5 / (np.count_nonzero(~np.isnan(track[i])) / 2))
                 track = track + per
-                xyzBS[:,:,j] = uv_to_xyz(track, prof, dlt)
-        xyzSD = np.std(xyzBS, axis = 2)
-        ret[:,k*3:(k+1)*3] = xyzSD
-        
+                xyzBS[:, :, j] = uv_to_xyz(track, prof, dlt)
+        xyzSD = np.std(xyzBS, axis=2)
+        ret[:, k * 3:(k + 1) * 3] = xyzSD
+
     weights = ret
     for j in range(weights.shape[1]):
-        _ = weights[:,j]/np.nanmin(weights[:,j])
+        _ = weights[:, j] / np.nanmin(weights[:, j])
         _ = np.power(_, -1)
-        weights[:,j] = _
+        weights[:, j] = _
 
     tols = np.zeros(weights.shape[1])
     for j in range(len(tols)):
-        tols[j] = np.nansum(np.multiply(weights[:,j], np.power(ret[:,j], 2)))
+        tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
 
-    return ret*1.96, weights, tols
-
+    return ret * 1.96, weights, tols
