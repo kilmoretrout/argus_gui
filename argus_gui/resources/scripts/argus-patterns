@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import argparse
+from argus_gui import PatternFinder
+from moviepy.editor import VideoFileClip
+import sys
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="finds chessboard or dot patterns in a video using OpenCV for the purpose of solving distortion equations")
+    parser.add_argument('ifile', help = 'movie to find patterns in')
+    parser.add_argument('ofile', help = 'pickle file (.pkl) to write results to')
+    parser.add_argument('--rows', default = '12', help = 'number of rows in the chessboard or dot patterns')
+    parser.add_argument('--cols', default = '9', help = 'number of columns in the chessboard or dot pattern')
+    parser.add_argument('--spacing', default = '0.2', help = 'distance in meters between the chessboard corners or center of dots')
+    parser.add_argument('--start', default = "None", help = 'time in decimal minutes. will try to find patterns from start to stop in specified video')
+    parser.add_argument('--stop', default = "None", help = 'time in decimal minutes. will try to find patterns from start to stop in specified video')
+    parser.add_argument('--display', action = 'store_true', help = 'use this argument to display the pattern recognition in progress')
+    parser.add_argument('--dots', action = 'store_true', help = 'use this argument to use a dot pattern, otherwise a chessboard is assumed')
+    args = parser.parse_args()
+    
+    rows = int(args.rows)
+    cols = int(args.cols)
+    spacing = float(args.spacing)
+    ofile = args.ofile
+    ifile = args.ifile
+
+    if args.start != "None" and args.stop != "None":
+        start = float(args.start)
+        stop = float(args.stop)
+    else:
+        clip = VideoFileClip(self.fnam.get())
+        start = 0.
+        stop = float(clip.duration)
+
+    pat = PatternFinder(rows, cols, spacing, ofile, ifile, start, stop)
+    
+    pat.display = args.display
+    pat.dots = args.dots
+    
+    s = pat.getObjectPoints()
+    pat.getPattern(s)

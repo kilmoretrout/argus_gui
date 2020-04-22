@@ -1,0 +1,1759 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+import tkFileDialog
+import tkMessageBox
+from Tkinter import *
+from threading import Thread
+
+if sys.platform == 'darwin':
+    root = Tk()
+    root.withdraw()
+    root.quit()
+
+import pyglet
+from pyglet.window import key
+from pyglet.gl import *
+import time
+
+from pyglet.gl import *
+from pyglet.graphics import *
+from pygarrayimage.arrayimage import ArrayInterfaceImage
+
+from argus_gui import ArgusColors, frameFinder
+from argus_gui.tools import *
+
+import itertools
+import math
+import copy
+import pandas
+import cv2
+import pickle
+import argus.ocam
+import sys
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import scipy as sp
+from scipy.sparse import lil_matrix, csc_matrix
+import time
+import numpy as np
+
+colors = ArgusColors()
+colors = colors.getPygletColors()
+
+# Define the colors we will use in RGBA format
+CAROLINA_BLUE = (153, 186, 221, 255) # Go Tar Heels!
+MARKER_COLOR = (255, 105, 180, 255)
+
+# popup window for skipping to specified frame
+class goToPopupWindow(object):
+    def __init__(self,master, title, numframes):
+        self.top=Toplevel(master)
+        self.top.wm_title("Argus")
+        self.top.resizable(width=FALSE, height=FALSE)
+        self.l=Label(self.top,text=title)
+        self.l.grid(row = 0, padx = 10, pady = 10)
+        self.e=Entry(self.top, width = 10)
+        self.e.focus_set()
+        self.e.grid(row = 1, padx = 10, pady = 5)
+        self.l2 = Label(self.top, text = 'out of ' + str(numframes))
+        self.l2.grid(row = 1, column = 1, padx = 5, pady = 10)
+        self.b=Button(self.top,text='Ok', padx = 10, command = self.cleanup, pady = 10)
+        self.b.grid(row = 2, padx = 5, pady = 5)
+
+        self.top.bind('<Return>', self.cleanup)
+
+    def cleanup(self, event = None):
+        self.value=self.e.get()
+        self.top.destroy()
+
+# popup window for inputting new track title
+class popupWindow(object):
+    def __init__(self, master, title):
+        top=self.top=Toplevel(master)
+        top.wm_title("Argus")
+        top.resizable(width=FALSE, height=FALSE)
+        self.l=Label(top,text=title)
+        self.l.pack(padx = 10, pady = 10)
+        self.e=Entry(top)
+        self.e.focus_set()
+        self.e.pack(padx = 10, pady = 5)
+        self.b=Button(top,text='Ok', padx = 10, command = self.cleanup, pady = 10)
+        self.b.pack(padx = 5, pady = 5)
+
+        top.bind('<Return>', self.cleanup)
+
+    def cleanup(self, event=None):
+        self.value=self.e.get()
+        self.top.destroy()
+
+# Ghostly, or sleepy window, helps Mac OS oddities
+class sleepyWindow(object):
+    def __init__(self, master):
+        top = self.top = Toplevel(master)
+        top.withdraw()
+
+    def cleanup(self):
+        self.top.destroy()
+
+
+# popup window for the options dialog
+class optionsPopupWindow(object):
+    # options as they are are passed in upon the creation of the window
+    def __init__(self, master, sync, auto, trackList, track, disp, bstrap, osparse, rgb):
+        self.top=self.top=Toplevel(master)
+        self.top.resizable(width=FALSE, height=FALSE)
+        self.top.wm_title("Options")
+        self.top.protocol('WM_DELETE_WINDOW', self.cleanup)
+
+        self.top.bind('<Return>', self.cleanup)
+
+        self.osparse = osparse
+        self.rgb = rgb
+
+        self.track = StringVar(self.top)
+        self.sync = StringVar(self.top)
+        self.auto = StringVar(self.top)
+        self.disp = StringVar(self.top)
+        self.bstrap = StringVar(self.top)
+        self.cam = StringVar(self.top)
+        self.dlt = StringVar(self.top)
+        self.oput = IntVar(self.top)
+        self.fnam = StringVar(self.top)
+        self.cg = IntVar(self.top)
+        self.track_op = IntVar(self.top)
+
+        self.cam.set(cam_fnam)
+        self.dlt.set(dlt_fnam)
+        self.fnam.set(fnam)
+
+        self.track.set(track)
+        if sync:
+            self.sync.set('1')
+        else:
+            self.sync.set('0')
+
+        if auto:
+            self.auto.set('1')
+        else:
+            self.auto.set('0')
+
+        if disp:
+            self.disp.set('0')
+        else:
+            self.disp.set('1')
+            
+        if bstrap:
+            self.bstrap.set('1')
+        else:
+            self.bstrap.set('0')
+
+        if self.osparse:
+            self.oput.set(1)
+        else:
+            self.oput.set(0)
+
+        if self.rgb:
+            self.cg.set(0)
+        else:
+            self.cg.set(1)
+            
+
+        self.trackList = trackList
+        self.dlts = list()
+
+        Label(self.top, text = "Argus-Clicker - Settings", font = ("Helvetica",20), fg = '#56A0D3').grid(row = 0, column = 0, padx = 10, pady = 10, sticky = W)
+        general = LabelFrame(self.top, text="General", padx=5, pady=5,  fg = '#56A0D3')
+        output = LabelFrame(self.top, text="Output", padx=5, pady = 5, fg = '#56A0D3')
+        display = LabelFrame(self.top, text="Display", padx=5, pady = 5, fg = '#56A0D3')
+
+        general.grid(row = 1, padx = 10, pady = 5, sticky = EW)
+        output.grid(row = 2, padx = 10, pady = 5, sticky = EW)
+        display.grid(row = 3, padx = 10, pady = 5, sticky = EW)
+        
+        Label(general, text = "Current track: ").grid(row = 0, column = 0, padx = 5, pady = 5, sticky = W)
+        specButton = Button(general, text = 'Add Track', command = self.popup, padx = 15, pady = 10)
+        specButton.grid(row = 0, column = 0, sticky = W, padx = 230, pady = 5)
+
+        self.tracks = OptionMenu(general, self.track, *trackList)
+        self.tracks.grid(row = 0, column = 0, sticky = W, padx = 105, pady = 5)
+
+        syncCheck = Checkbutton(general, text="Keep all videos in same frame", variable=self.sync)
+        syncCheck.grid(row =1, pady = 5, padx = 20, sticky = W)
+
+        autoCheck = Checkbutton(general, text="Auto-advance", variable=self.auto)
+        autoCheck.grid(row = 2, pady = 5, padx = 20, sticky = W)
+
+        self.lc = Button(general, text='Load camera profile', command = self.loadCamera, padx = 10, pady = 10)
+        self.lc.grid(row = 3, padx = 10, pady = 5, sticky = W)
+
+        camEntry = Entry(general,textvariable = self.cam, width = 60, bd = 3)
+        camEntry.grid(row = 4, padx = 5, pady = 5, sticky = W)
+        camEntry.config(state='readonly')
+
+        self.ld = Button(general, text='Load DLT coefficients', command = self.loadDLT, padx = 10, pady = 10)
+        self.ld.grid(row = 5, padx = 10, pady = 5, sticky = W)
+
+        dltEntry = Entry(general,textvariable = self.dlt, width = 60, bd = 3)
+        dltEntry.grid(row = 6, padx = 5, pady = 5, sticky = W)
+        dltEntry.config(state='readonly')
+
+        dispCheck = Checkbutton(display, text="Display current track only", variable=self.disp)
+        dispCheck.grid(row = 0, pady = 5, padx = 5, sticky = W)
+
+        Label(display, text = "Color: ").grid(row = 1, padx = 5, pady = 5, sticky = W)
+        Radiobutton(display, text="Grayscale", variable=self.cg, value=1).grid(row = 1, column = 0, pady = 5, padx = 53, sticky = W)
+        Radiobutton(display, text="RGB", variable=self.cg, value=0).grid(row = 1, column = 0, pady = 5, padx = 153, sticky = W)
+
+        """
+        Label(display, text = "Track colors: ").grid(row = 2, padx = 5, pady = 5, sticky = W)
+        Radiobutton(display, text="Alternating", variable=self.track_op, value=0).grid(row = 2, column = 0, pady = 5, padx = 100, sticky = W)
+        Radiobutton(display, text="Single", variable=self.track_op, value=1).grid(row = 2, column = 0, pady = 5, padx = 200, sticky = W)
+        """
+
+        btrapCheck = Checkbutton(output, text="Save 95% CIs, spline filtering weights, and error tolerance", variable=self.bstrap)
+        btrapCheck.grid(row = 0, pady = 5, padx = 5, sticky = W)
+        
+        Label(output, text = "Format: ").grid(row = 1, padx = 5, pady = 5, sticky = W)
+        Radiobutton(output, text="Sparse .tsv", variable=self.oput, value=1).grid(row = 1, column = 0, pady = 5, padx = 80, sticky = W)
+        Radiobutton(output, text="Dense .csv", variable=self.oput, value=0).grid(row = 1, column = 0, pady = 5, padx = 180, sticky = W)
+
+        Label(output, text = "Save location/tag:").grid(row = 2, padx = 15, pady = 5, sticky = W)
+        camEntry = Entry(output,textvariable = self.fnam, width = 38, bd = 3)
+        camEntry.grid(row = 3, padx = 5, pady = 0, sticky = W)
+
+        self.b1=Button(output,text='Specify', command=self.saveas, padx = 15, pady = 10)
+        self.b1.grid(row = 3, padx = 0, pady = 0, sticky = E)
+
+        self.b=Button(self.top,text='Ok', command=self.cleanup, padx = 10, pady = 10)
+        self.b.grid(row = 4, padx = 5, pady = 5, sticky = W)
+        
+    # popup window for inputting track name
+    def popup(self):
+        self.w=popupWindow(self.top, "Input track title")
+        self.top.wait_window(self.w.top)
+        
+        m = self.tracks.children['menu']
+        
+        # check to make sure the track name is not empty and does not already exist
+        if self.w.value != '' and not self.w.value in self.trackList:
+            self.trackList.append(self.w.value)
+            self.track.set(self.w.value)
+            m.add_command(label=self.w.value,command=lambda v=self.track,l=self.w.value:v.set(l))
+        else:
+            tkMessageBox.showwarning(
+            "Error",
+            "Track names must be unique and non-empty"
+            )
+
+    def cleanup(self, event = None):
+        if self.oput.get() == 0:
+            self.osparse = False
+        else:
+            self.osparse = True
+
+        if self.cg.get() == 0:
+            self.rgb = True
+        else:
+            self.rgb = False
+        
+        self.top.destroy()
+
+    def loadCamera(self):
+        global CameraProfile
+        global cam_fnam
+        
+        filename = tkFileDialog.askopenfilename(filetypes = [("TXT files", "*.txt")])
+        try:
+            if filename != '':
+                CameraProfile = np.loadtxt(filename)
+                if CameraProfile.shape[1] == 12:
+                    # Format the camera profile to how SBA expects it i.e. take out camera number column, image width and height, then add in skew.
+                    CameraProfile = np.delete(CameraProfile, [0,2,3,6], 1)
+                    #CameraProfile = np.insert(CameraProfile, 4, 0., axis = 1)
+                else:
+                    _ = list()
+                    for k in range(len(CameraProfile)):
+                        try:
+                            _.append(argus.ocam.PointUndistorter(argus.ocam.ocam_model.from_array(CameraProfile[k])))
+                        except:
+                            tkMessageBox.showwarning(
+                            "Error",
+                            "Could not load Camera profile!"
+                            )
+                            return
+                    CameraProfile = _
+                self.cam.set(filename)
+                cam_fnam = filename
+        except:
+            tkMessageBox.showwarning(
+            "Error",
+            "Could not load Camera profile!"
+            )
+            return
+        #print CameraProfile
+
+    def loadDLT(self):
+        global DLTCoefficients
+        global dlt_fnam
+        
+        filename = tkFileDialog.askopenfilename(filetypes = [("CSV files", "*.csv")])
+        if filename != '':
+            try:
+                DLTCoefficients = np.loadtxt(filename, delimiter = ',')
+                DLTCoefficients = DLTCoefficients.T
+                self.dlt.set(filename)
+                dlt_fnam = filename
+            except:
+                tkMessageBox.showwarning(
+                "Error",
+                "Could not load DLT coefficients!"
+                )
+                return
+
+    def saveas(self):
+        return
+
+# modified versions of code in pgedraw. returns vertices rather than having them as an attribute of a class
+def Circle((x, y), radius, color=(255, 255, 255, 255), batch = None, strip=False):
+    mode = strip and GL_LINE_LOOP or GL_TRIANGLE_FAN
+    radius = radius
+    center = (x, y)
+
+    if strip:
+        vertices = []
+    else:
+        vertices = [float(x), float(y)]
+
+    for deg in range(0, 361, 2):
+        angle = (deg * math.pi) / 180
+        vertices.extend((x + math.sin(angle)*radius, y + math.cos(angle)*radius))
+
+    pn = len(vertices) / 2
+    vertex_list = batch.add(pn, pyglet.gl.GL_POINTS, None,
+            ('v2f', vertices),
+            ('c4B', color*pn)
+    )
+    return vertex_list
+
+
+def Line(vertices, color=(255, 255, 255, 255), batch = None):
+    mode = GL_LINES
+    vertex_list = batch.add(2, mode, None,
+            ('v2f', tuple(itertools.chain(*vertices))),
+            ('c4B', color*2)
+    )
+    return vertex_list
+
+
+# global variables for options and current track
+# all windows pay attention to and modify these
+# set to defaults
+trackList = ['Track 1']
+currentTrack = 'Track 1'
+auto_advance = True
+sync = False
+displayingAllTracks = False
+current_frame = 1
+common = dict()
+load_data = None
+nCams = 0
+DLTCoefficients = None
+CameraProfile = None
+bstrap = False
+busy = False
+outputSparse = False
+fnam = ''
+rgb = True
+vx = 15
+vy = 15
+vf = 30
+
+dlt_fnam = ''
+cam_fnam = ''
+
+# Zooming constants
+ZOOM_IN_FACTOR = 1.2
+ZOOM_OUT_FACTOR = 1/ZOOM_IN_FACTOR
+
+# called once to load the CSV into a numpy array a populate the track list, expects a header
+def loadCSV(csv):
+    global load_data
+    global nCams
+    global trackList
+    global currentTrack
+
+    #print 'Called...'
+    sys.stdout.flush()
+
+    try:
+        fo = open(csv)
+        header = fo.readline()
+        newTracks = list()
+        header = header.split(',' )
+        for st in header:
+            if st.split('_')[0] not in newTracks:
+                newTracks.append(st.split('_')[0])
+
+        fo.close()
+
+        trackList = newTracks
+        currentTrack = trackList[0]
+        
+        #print 'Loading raw data from csv...'
+        sys.stdout.flush()
+        load_data = np.array(pandas.read_csv(csv, index_col = False).as_matrix(), dtype = np.float16)
+        #print load_data
+        load_data[np.isnan(load_data)] = 0
+        #print load_data
+        load_data = csc_matrix(load_data)
+        #load_data = lil_matrix(load_data)
+        nCams = len(pyglet.app.windows)
+    except:
+        tkMessageBox.showwarning(
+                "Error",
+                "Could not load CSV! Make sure it is formatted according to the documentation."
+                )
+    #print 'Done loading...'
+    sys.stdout.flush()
+
+# for sparse data files as TSVs
+def loadTSV(tsv):
+    global load_data
+    global nCams
+    global trackList
+    global currentTrack
+
+    try:
+        # load the file, expects a header
+        _ = pandas.read_csv(tsv, index_col = False, sep = '\t', skiprows = 1)
+        # read into numpy array
+        load_data = np.zeros((int(_.keys()[0]), int(_.keys()[1])), dtype = np.float16)
+        _ = _.as_matrix()
+        for k in range(len(_)):
+            load_data[int(_[k,0]) - 1, int(_[k,1]) - 1] = _[k,2]
+
+        # convert to compressed sparse matrix fro
+        load_data = csc_matrix(load_data)
+
+        nCams = len(pyglet.app.windows)
+        #print nCams
+
+        trackList = list()
+        for k in range(load_data.shape[1]/(2*nCams)):
+            trackList.append('Track ' + str(k + 1))
+
+        currentTrack = trackList[0]
+    except:
+        tkMessageBox.showwarning(
+                "Error",
+                "Could not load TSV! Make sure it is formatted according to the documentation."
+                )
+
+# main class which displays the movie's individual frames and allows users to mark points
+class clickerWindow(pyglet.window.Window):
+    def __init__(self, movie, offsets, n, end, factor, last = False):
+        self.frameFinder = frameFinder(movie, end, factor = factor, offset = offsets[n - 1], rgb = rgb)
+        pyglet.window.Window.__init__(self, width=int(float(self.frameFinder.ow)/factor), height=int(float(self.frameFinder.oh)/factor), visible=True, resizable = False)
+        self.movie = movie
+        self.offsets = offsets
+        self.n = n
+        self.end = end
+        self.points = dict()
+        self.current = 1
+        self.displayingFrameNumber = True
+        self.displayingDLTLines = False
+        self.set_caption('{0} - Frame {1}'.format(movie.split('/')[-1], 1))
+        self.folder = ''
+        self.current_marker = None
+
+        # create array to keep track of offset changes
+        self.offsets_output = np.zeros(self.end)
+        self.offsets_output[:] = np.nan
+
+        if self.n == 1:
+            self.base = True
+        else:
+            self.base = False
+
+        self.trackingColors = list()
+        self.previous = list()
+        self.autoTracking = False
+
+        # batches for fast drawing
+        self.main_batch = pyglet.graphics.Batch()
+        self.track_batch = pyglet.graphics.Batch()
+        self.background = pyglet.graphics.OrderedGroup(0)
+        self.dlt_batch = pyglet.graphics.Batch()
+
+        img = self.frameFinder.getFrame(1)
+        #self.frame = frame(self.makePygletImage(img), 0, 0, batch=self.main_batch, group=self.background)
+        #self.img = self.makePygletImage(img)
+        if img is not None:
+            self.img = ArrayInterfaceImage(img).texture
+        else:
+            self.img = None
+
+        # current mouse coordinate for getting a zoomed view finder
+        self.x = 0
+        self.y = 0
+        self.view = None
+
+        # modifiable boolean for showing the zoomed view finder
+        self.show_view = True
+
+        # dictionaries for storing OpenGL vertices and deleting later if needed
+        self.drawnPoints = dict()
+        self.drawnLines = dict()
+
+        #Initialize camera values
+        self.left   = 0
+        self.right  = self.frameFinder.ow
+        self.bottom = 0
+        self.top    = self.frameFinder.oh
+        self.zoom_level = 1
+        self.zoomed_width  = self.frameFinder.ow
+        self.zoomed_height = self.frameFinder.oh
+
+        self.updateTracks()
+
+        # It's the strangest thing...       
+        if last and sys.platform == 'darwin':
+            root = Tk()
+            root.withdraw()
+            root.after(100, root.destroy)
+            w = sleepyWindow(root)
+            root.wait_window(w.top)
+        
+    # only called upon loading a CSV. Pretty slow to define tons of vertices.
+    def drawTracks(self):
+        self.updateTracks()
+        track = currentTrack
+
+        positions = self.points[track].A
+        nz = list(set(self.points[track].nonzero()[0]))
+
+        radius = 3
+
+        if self.current - 1 in nz:
+            self.current_marker = Circle(tuple(positions[self.current - 1]), 5, MARKER_COLOR , self.track_batch)
+
+        for k in nz:
+            self.drawnPoints[track][k] = Circle(tuple(positions[k]), radius, colors[trackList.index(track) % len(colors)], self.track_batch)
+
+        for k in nz:
+            if k+1 in nz:
+                t = tuple([positions[k], positions[k+1]])
+                self.drawnLines[track][k] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+                
+        if displayingAllTracks:
+            for track in self.points.keys():
+                if track != currentTrack:
+                    positions = self.points[track].A
+                    nz = list(set(self.points[track].nonzero()[0]))
+                    for k in nz:
+                        if k+1 in nz:
+                            t = tuple([positions[k], positions[k+1]])
+                            self.drawnLines[track][k] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+
+    # called when the user decides to display all the tracks
+    def drawTheRest(self):
+        self.updateTracks()
+        for track in self.points.keys():
+            positions = self.points[track].A
+            nz = list(set(self.points[track].nonzero()[0]))
+
+            radius = 3
+
+            if track != currentTrack:
+                #print 'drawing the rest...'
+                for k in nz:
+                    if k+1 in nz:
+                        t = tuple([positions[k], positions[k+1]])
+                        self.drawnLines[track][k] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+
+    # called when the user decides not to display all the tracks
+    def deleteTheRest(self):
+        for track in self.points.keys():
+            if track != currentTrack:
+                for k in range(len(self.drawnPoints[track])):
+                    if self.drawnPoints[track][k] is not None:
+                        self.drawnPoints[track][k].delete()
+                        self.drawnPoints[track][k] = None
+
+                for k in range(len(self.drawnLines[track])):
+                    if self.drawnLines[track][k] is not None:
+                        self.drawnLines[track][k].delete()
+                        self.drawnLines[track][k] = None
+
+    # called when the user changes tracks
+    def changeTrack(self, oldTrack):
+        start_time = time.clock()
+        #print 'Changing track...'
+        radius = 3
+
+        for k in range(len(self.drawnPoints[oldTrack])):
+            if self.drawnPoints[oldTrack][k] is not None:
+                self.drawnPoints[oldTrack][k].delete()
+                self.drawnPoints[oldTrack][k] = None
+
+        if not displayingAllTracks:
+            #print 'Deleting old lines for ' + oldTrack
+            for k in range(len(self.drawnLines[oldTrack])):
+                if self.drawnLines[oldTrack][k] is not None:
+                    self.drawnLines[oldTrack][k].delete()
+                    self.drawnLines[oldTrack][k] = None
+
+        positions = self.points[currentTrack].A
+        nz = list(set(self.points[currentTrack].nonzero()[0]))
+
+        if not self.current_marker is None:
+            self.current_marker.delete()
+            self.current_marker = None
+
+        if self.current - 1 in nz:
+            self.current_marker = Circle(tuple(positions[self.current - 1]), 5, MARKER_COLOR , self.track_batch)
+
+        for k in nz:
+            self.drawnPoints[currentTrack][k] = Circle(tuple(positions[k]), radius, colors[trackList.index(currentTrack) % 4], self.track_batch)
+
+        if not displayingAllTracks:
+            for k in nz:
+                if k+1 in nz:
+                    t = tuple([positions[k], positions[k+1]])
+                    self.drawnLines[currentTrack][k] = Line(t, colors[trackList.index(currentTrack) % 4], self.track_batch)
+
+    # shift-click-and-drag to pan around the current frame
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        # Move camera
+        if modifiers & key.MOD_SHIFT:
+            left   = self.left - dx*self.zoom_level
+            right  = self.right - dx*self.zoom_level
+            bottom = self.bottom - dy*self.zoom_level
+            top    = self.top - dy*self.zoom_level
+
+            if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow and top <= self.frameFinder.oh:
+                self.left, self.right, self.bottom, self.top = left, right, bottom, top
+                self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+
+    # draw a new point
+    def drawNew(self, x, y):
+        track = currentTrack
+        radius = 3
+
+        self.points[currentTrack][self.current - 1] = np.array([x, y])
+        self.offsets_output[self.current - 1] = self.frameFinder.offset
+
+        positions = self.points[track].A
+        nz = list(set(self.points[track].nonzero()[0]))
+        if self.drawnPoints[track][self.current - 1] is not None:
+            self.drawnPoints[track][self.current - 1].delete()
+            self.drawnPoints[track][self.current - 1] = Circle(tuple(positions[self.current - 1]), radius, colors[trackList.index(track) % len(colors)], self.track_batch)
+        else:
+            self.drawnPoints[track][self.current - 1] = Circle(tuple(positions[self.current - 1]), radius, colors[trackList.index(track) % len(colors)], self.track_batch)
+
+        if self.current - 1 > 0:
+            if self.current - 2 in nz:
+                t = list()
+                t.append(positions[self.current - 2])
+                t.append(positions[self.current - 1])
+                t = tuple(t)
+                if self.drawnLines[track][self.current - 2] is not None:
+                    self.drawnLines[track][self.current - 2].delete()
+                    self.drawnLines[track][self.current - 2] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+                else:
+                    self.drawnLines[track][self.current - 2] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+            if self.current in nz and positions[self.current][0] != 0.:
+                #print positions[self.current][0]
+                t = list()
+                t.append(positions[self.current - 1])
+                t.append(positions[self.current])
+                t = tuple(t)
+                if self.drawnLines[track][self.current - 1] is not None:
+                    self.drawnLines[track][self.current - 1].delete()
+                self.drawnLines[track][self.current - 1] = Line(t, colors[trackList.index(track) % len(colors)], self.track_batch)
+
+        if not self.current_marker is None:
+            self.current_marker.delete()
+            self.current_marker = None
+
+        if self.current - 1 in nz:
+            self.current_marker = Circle(tuple(positions[self.current - 1]), 5, MARKER_COLOR , self.track_batch)
+
+    def changeMarker(self):
+        self.updateTracks()
+        track = currentTrack
+        
+        positions = self.points[track].A
+        nz = list(set(self.points[track].nonzero()[0]))
+
+        if not self.current_marker is None:
+            self.current_marker.delete()
+            self.current_marker = None
+
+        if self.current - 1 in nz:
+            self.current_marker = Circle(tuple(positions[self.current - 1]), 5, MARKER_COLOR , self.track_batch)
+
+    # delete a point
+    def deletePoint(self):
+        track = currentTrack
+
+        if not self.current_marker is None:
+            self.current_marker.delete()
+            self.current_marker = None 
+
+        if self.drawnPoints[track][self.current - 1] is not None:
+            self.drawnPoints[track][self.current - 1].delete()
+            self.drawnPoints[track][self.current - 1] = None
+        if self.drawnLines[track][self.current - 2] is not None:
+            self.drawnLines[track][self.current - 2].delete()
+            self.drawnLines[track][self.current - 2] = None
+        if self.drawnLines[track][self.current - 1] is not None:
+            self.drawnLines[track][self.current - 1].delete()
+            self.drawnLines[track][self.current - 1] = None
+
+    # doesn't really get a bezier curve, just draws lines in between 70 points on the distorted epipolar line
+    def getBezierCurve(self, m, b, prof):
+        pts = list()
+        for k in range(-10,60):
+            pts.append(np.asarray([self.frameFinder.ow*k/49., m*(self.frameFinder.ow*k/49.) + b]))
+        ret = redistort_pts(np.asarray(pts), prof)
+        ret = np.reshape(ret, (len(pts), 2))
+        for k in range(len(ret)):
+            ret[k] = ret[k]
+        return list(ret)
+
+    # fills the batch for epipolar lines, drawn in Carolina Blue. Go tar heels!
+    def makeDLTBatch(self, points):
+        for k in range(len(points) - 1):
+            t = tuple([points[k], points[k+1]])
+            Line(t, CAROLINA_BLUE, self.dlt_batch)
+
+    # Zooms in using OpenGL.  Has bounds so that none of the screen ever has blank space
+    def on_mouse_scroll(self, x, y, dx, dy):
+        # Get scale factor
+        f = ZOOM_IN_FACTOR if dy > 0 else ZOOM_OUT_FACTOR if dy < 0 else 1
+        # If zoom_level is in the proper range
+        if .05 < self.zoom_level*f < 5:
+
+            zoom_level = f*self.zoom_level
+
+            mouse_x = float(x)/self.width
+            mouse_y = float(y)/self.height
+
+            mouse_x_in_world = self.left   + mouse_x*self.zoomed_width
+            mouse_y_in_world = self.bottom + mouse_y*self.zoomed_height
+
+            zoomed_width  = f*self.zoomed_width
+            zoomed_height = f*self.zoomed_height
+
+            left   = mouse_x_in_world - mouse_x*zoomed_width
+            right  = mouse_x_in_world + (1 - mouse_x)*zoomed_width
+            bottom = mouse_y_in_world - mouse_y*zoomed_height
+            top    = mouse_y_in_world + (1 - mouse_y)*zoomed_height
+
+            # Check bounds 
+            if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow and top <= self.frameFinder.oh and zoomed_width <= self.frameFinder.ow and zoomed_height <= self.frameFinder.oh:
+                self.left, self.right, self.bottom, self.top, self.zoomed_width, self.zoomed_height = left, right, bottom, top, zoomed_width, zoomed_height
+                self.zoom_level = zoom_level
+                self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+
+    # uses Hedrick's function to get a slope and intercept for the Epipolar lines
+    def getEpipolarLines(self):
+        self.updateTracks()
+        uvs = list()
+        tmp = list()
+        c2 = DLTCoefficients[self.n - 1]
+        for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+            if self is not window:
+                try:
+                    uvs.append([window.n, window.points[currentTrack][self.current - 1].toarray()[0]])
+                except:
+                    pass
+        uvs = sorted(uvs)
+        for uv in uvs:
+            if not True in (uv[1] == 0):
+                c1 = DLTCoefficients[uv[0] - 1]
+                u = uv[1][0]
+                v = uv[1][1]
+                if CameraProfile is not None:
+                    _ = undistort_pts(np.asarray([u,v]), CameraProfile[uv[0] - 1])[0]
+                    u = _[0]
+                    v = _[1]
+                m, b = getDLTLine(u, v, c1, c2)
+                if CameraProfile is None:
+                    tmp.append(np.asarray([0,b]))
+                    tmp.append(np.asarray([self.frameFinder.ow, m*self.frameFinder.ow + b]))
+                else:
+                    tmp = self.getBezierCurve(m, b, CameraProfile[uv[0] - 1])
+                self.makeDLTBatch(tmp)
+
+    # makes sure all the dictionaries have the proper keys
+    def updateTracks(self):
+        for track in trackList:
+            try:
+                self.points[track]
+            except:
+                #_ = np.zeros((self.end,2))
+                #_[_ == 0] = np.nan
+                self.points[track] = csc_matrix((self.end,2))
+
+            try:
+                self.drawnPoints[track]
+                self.drawnLines[track]
+            except:
+                self.drawnPoints[track] = list()
+                self.drawnLines[track] = list()
+                for k in range(self.points[track].shape[0]):
+                    self.drawnPoints[track].append(None)
+                for k in range(self.points[track].shape[0] - 1):
+                    self.drawnLines[track].append(None)
+
+    # called by each window upon saving.  Fills a common dictionary with its tracks which is then written to a CSV using pandas.
+    def fillCommonDictionary(self):
+        global common
+        
+        uvs = dict()
+        for track in self.points.keys():
+            uvs[track] = copy.copy(self.points[track].toarray())
+            uvs[track][uvs[track] == 0] = np.nan
+            common[track + '_cam_' + str(self.n) + '_x'] = uvs[track][:,0]
+            common[track + '_cam_' + str(self.n) + '_y'] = uvs[track][:,1]
+        #print 'Filled dictionary for camera ' + str(self.n)
+
+    # called for each window after the common dictionary is filled. probably a more intuitive way to grab parts rather than indexing them
+    def loadPoints(self):
+        global load_data
+        # for each track, load in your points
+        matching = True
+        
+        #print 'Loading points for camera ' + str(self.n)
+        sys.stdout.flush()
+        for track in sorted(self.points.keys()):
+            #print 'Loading track {0}'.format(track)
+            sys.stdout.flush()
+            k = sorted(trackList).index(track)
+            _ = load_data[:,2*k*nCams + 2*(self.n - 1) : 2*k*nCams + 2*(self.n - 1) + 2]
+            self.points[track] = _
+            if _.shape[0] > self.end:
+                #print 'Frames dont match!'
+                matching = False
+        self.clearBatch()
+        #print 'Drawing tracks...'
+        sys.stdout.flush()
+        start_time = time.clock()
+        
+        self.drawTracks()
+        #print 'Took {0} seconds to draw tracks'.format(time.clock() - start_time)
+        
+        return matching
+
+    def on_draw(self):
+        # Initialize Projection matrix
+        glMatrixMode( GL_PROJECTION )
+        glLoadIdentity()
+
+        # Initialize Modelview matrix
+        glMatrixMode( GL_MODELVIEW )
+        glLoadIdentity()
+        # Save the default modelview matrix
+        glPushMatrix()
+
+        # Clear window with ClearColor
+        glClear( GL_COLOR_BUFFER_BIT )
+
+        # Set orthographic projection matrix
+        if self.x != 0 and self.y != 0:
+            try:
+                view = self.frameFinder.getViewFinder(self.current, self.x, self.y, vx, vy, vf, self.autoTracking)
+            except:
+                view = None
+            #print self.x, self.y
+            if view is not None:
+                self.view = ArrayInterfaceImage(view).texture
+        glOrtho( self.left, self.right, self.bottom, self.top, 1, -1 )
+        if self.current != current_frame and sync:
+            im = self.frameFinder.getFrame(current_frame)
+            
+            #view = self.frameFinder.getViewFinder(current_frame, self.x, self.y, 5, 5)
+            if im is not None:
+                #self.background = pyglet.graphics.OrderedGroup(0)
+                #self.frame = frame(self.makePygletImage(im), 0, 0, batch=self.main_batch, group=self.background)
+                self.img = ArrayInterfaceImage(im).texture
+            else:
+                self.img = None
+            self.current = current_frame
+            self.changeMarker()
+        # If there exists a frame relative to the first camera, display it. else you get a black screen
+        if self.img is not None:
+            self.img.blit(0,0, width = self.frameFinder.ow, height = self.frameFinder.oh)
+        if self.view is not None and self.show_view:
+            self.view.blit(self.frameFinder.ow - vf*vx,0, width = vx*vf, height = vy*vf)
+        # if DLT coefficients are present, draw epipolar lines in Carolina Blue
+        if DLTCoefficients is not None:
+            self.dlt_batch = pyglet.graphics.Batch()
+            self.getEpipolarLines()
+            self.dlt_batch.draw()
+        if not busy:
+            if not self.base:
+                self.set_caption('{0} - Frame {1}, Offset: {2}'.format(self.movie.split('/')[-1], self.current, self.frameFinder.offset))
+            else:
+                self.set_caption('{0} - Frame {1} (Base camera)'.format(self.movie.split('/')[-1], self.current))
+        else:
+            self.set_caption('{0} - Working...'.format(self.movie.split('/')[-1]))
+        self.track_batch.draw()
+
+        glPopMatrix()
+
+    def tick(self):
+        global sync
+        
+        if sync:
+            sync = False
+        if self.autoTracking:
+            uv = self.points[currentTrack][self.current - 2].toarray()[0]
+            pts = self.points[currentTrack].A
+
+            if self.frameFinder.kf is None:
+                nz = sorted(list(set(self.points[currentTrack].nonzero()[0])))
+                ind = [self.current - 2]
+                for k in range(20):
+                    if self.current - (3 + k) in nz:
+                        ind = [self.current - (3 + k)] + ind
+                    else:
+                        break
+                if len(ind) >= 2:
+                    self.frameFinder.makeKalman(pts[ind])
+            if uv[0] != 0:
+                try:
+                    pos = self.frameFinder.CrossTrack(uv[0]-vx, (self.frameFinder.oh - uv[1]) - vy, 2*vx, 2*vy)
+                    if self.frameFinder.kf is not None:
+                        self.frameFinder.update_kalman(pos)
+                except Exception, e:
+                    #print e
+                    self.autoTracking = False
+                    pyglet.clock.unschedule(up)
+                    return
+                #print pos
+                if not True in np.isnan(pos):
+                    self.drawNew(pos[0], pos[1])
+                im = self.frameFinder.getFrame(self.current + 1)
+                if im is not None:
+                    self.img = ArrayInterfaceImage(im).texture
+                    self.current += 1
+                    current_frame = self.current
+                    if sync:
+                        self.updateAllWindows()
+                    self.updateSelf()
+            else:
+                self.autoTracking = False
+                pyglet.clock.unschedule(up)
+                return
+    # called to make sure everybody gets the changes made by one window
+    def updateAllWindows(self):
+        for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+            if self is not window:
+                window.switch_to()
+                window.updateTracks()
+                window.changeMarker()
+                window.dispatch_events()
+                window.dispatch_event('on_draw')
+                window.flip()
+
+    def denseToSparse(self, arr):
+        # create a sparse data file with rows and columns indexed by the natural numbers
+        # as per MATLAB etiquette
+        row = list()
+        col = list()
+        val = list()
+        for k in range(len(arr)):
+            for j in range(arr.shape[1]):
+                if not np.isnan(arr[k,j]):
+                    row.append(k + 1)
+                    col.append(j + 1)
+                    val.append(arr[k,j])
+
+        out = np.zeros((len(row) + 1, 3))
+        out[1:,0] = np.array(row)
+        out[1:,1] = np.array(col)
+        out[1:,2] = np.array(val)
+        out[0,0] = len(arr)
+        out[0,1] = arr.shape[1]
+        out[0,2] = len(row)
+        return out
+
+    def saveSparse(self, saveas = True):
+        global fnam
+
+        if sys.platform != 'darwin':
+            root = Tk()
+            root.withdraw()
+
+        if saveas or fnam == '':
+            filename = tkFileDialog.asksaveasfilename(filetypes = [("All files", "*.*")
+                                                             ], initialfile = fnam.split('/')[-1])
+        else:
+            filename = fnam
+
+        if filename != '':
+            fnam = filename
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.fillCommonDictionary()
+
+            offsets_out = list()
+
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                offsets_out.append(window.offsets_output)
+
+            offsets_out = np.array(offsets_out).T
+            
+            # get the header
+            cols = sorted(common.keys())
+            # stack all the columns together
+            _ = common[cols[0]]
+            _ = np.reshape(_, (_.shape[0], 1))
+            for k in range(1, len(cols)):
+                _ = np.hstack((_,np.reshape(common[cols[k]], (_.shape[0], 1))))
+            pts = _
+
+            dataf = pandas.DataFrame(self.denseToSparse(pts), columns = ['Row', 'Column', 'Entry'])
+            dataf[['Row', 'Column']] = dataf[['Row','Column']].astype(np.uint32)
+            dataf.iloc[0].apply(np.uint32)
+            if DLTCoefficients is not None and CameraProfile is not None:
+                # make a data frame for the xyz coordinates for all tracks and all frames
+                xyzss = list()
+                for j in range(pts.shape[1]/(2*len(CameraProfile))):
+                    xyzs = uv_to_xyz(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], CameraProfile, DLTCoefficients)
+                    #cPickle.dump(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], open('points' + str(j) + '.p', 'wb'))
+                    xyzss.append(xyzs)
+                xyzss = np.asarray(xyzss)
+                _ = xyzss[0]
+                for k in range(1, len(xyzss)):
+                    _ = np.hstack((_, xyzss[k]))
+
+                dataf1 = pandas.DataFrame(self.denseToSparse(_), columns = ['Row', 'Column', 'Entry'])
+                dataf1[['Row', 'Column']] = dataf1[['Row','Column']].astype(np.uint32)
+                dataf1.iloc[0].apply(np.uint32)
+
+                # save offsets (always non-sparse)
+                datafo = pandas.DataFrame(offsets_out, columns = ['camera_{0}'.format(u) for u in range(1, len(pyglet.app.windows) + 1)])
+                datafo.to_csv(filename + '-offsets.csv', index = False, na_rep = 'NaN')
+
+                # get reprojection errors for all 3d points and make a data frame for it
+                repoErrs = get_repo_errors(_, pts, CameraProfile, DLTCoefficients).T
+                dataf2 = pandas.DataFrame(self.denseToSparse(repoErrs), columns = ['Row', 'Column', 'Entry'])
+                dataf2[['Row', 'Column']] = dataf2[['Row','Column']].astype(np.uint32)
+                dataf2.iloc[0].apply(np.uint32)
+
+                if bstrap:
+                    CIs, weights, tols = bootstrapXYZs(pts, repoErrs, CameraProfile, DLTCoefficients)
+                    upper = _ + CIs
+                    lower = _ - CIs
+                    
+                    _ = np.zeros((upper.shape[0], upper.shape[1]*2))
+                    _[_ == 0] = np.nan
+                    for k in range(upper.shape[1]/3):
+                        _[:,2*k*3:2*(k+1)*3] = np.concatenate((lower[:,k*3:(k+1)*3], upper[:,k*3:(k+1)*3]), axis = 1)
+                    dataf3 = pandas.DataFrame(self.denseToSparse(_), columns = ['Row', 'Column', 'Entry'])
+                    dataf3[['Row', 'Column']] = dataf3[['Row','Column']].astype(np.uint32)
+                    dataf3.iloc[0].apply(np.uint32)
+                    
+                    dataf3.to_csv(filename + '-xyz-cis.tsv', index = False, na_rep = 'NaN', sep = '/t')
+
+                    pandas.DataFrame(self.denseToSparse(weights), columns = ['Row', 'Column', 'Entry']).to_csv(filename + '-spline-weights.tsv', index = False, na_rep = 'NaN', sep = '\t')
+                    #pickle.dump(tols, open('tols.p', 'w'))
+                    pandas.DataFrame(self.denseToSparse(np.reshape(tols, (1,len(xyz_cols)))), columns = ['Row', 'Column', 'Entry']).to_csv(filename + '-spline-error-tolerances.tsv', index = False, na_rep = 'NaN', sep = '\t')
+                
+                # write the data frames to CSV
+                dataf1.to_csv(filename + '-xyzpts.tsv', index = False, na_rep = 'NaN', sep = '\t')
+                dataf2.to_csv(filename + '-xyzres.tsv', index = False, na_rep = 'NaN', sep = '\t')
+            else:
+                # for matlab compatibility, make a residual file, even if we can't reproject
+                _ = np.zeros((self.end, len(trackList)))
+                _[:,:] = np.nan
+                dataf2 = pandas.DataFrame(_, columns = sorted(trackList))
+                dataf2.to_csv(filename + '-xyzres.csv', index = False, na_rep = 'NaN')
+            dataf.to_csv(filename + '-xypts.tsv', index = False, na_rep = 'NaN', sep = '\t')
+            tkMessageBox.showinfo('Write successful!', 'TSVs successfully written to ' + filename)
+        return
+
+    def saveNonSparse(self, saveas = True):
+        global fnam
+
+        if sys.platform != 'darwin':
+            root = Tk()
+            root.withdraw()
+        
+        if saveas or fnam == '':
+            filename = tkFileDialog.asksaveasfilename(filetypes = [("All files", "*.*")
+                                                             ], initialfile = fnam.split('/')[-1])
+        else:
+            filename = fnam
+    
+        if filename != '':
+            fnam = filename
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.fillCommonDictionary()
+            
+            # get the header
+            cols = sorted(common.keys())
+            # stack all the columns together
+            _ = common[cols[0]]
+            _ = np.reshape(_, (_.shape[0], 1))
+            for k in range(1, len(cols)):
+                _ = np.hstack((_,np.reshape(common[cols[k]], (_.shape[0], 1))))
+            # make a dataframe from the marked pixel coordinates
+            dataf = pandas.DataFrame(_, columns = cols)
+            pts = dataf.as_matrix()
+
+            offsets_out = list()
+
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                offsets_out.append(window.offsets_output)
+
+            offsets_out = np.array(offsets_out).T
+
+            # save offsets (always non-sparse)
+            datafo = pandas.DataFrame(offsets_out, columns = ['camera_{0}'.format(u) for u in range(1, len(pyglet.app.windows) + 1)])
+            datafo.to_csv(filename + '-offsets.csv', index = False, na_rep = 'NaN')
+
+            # if we have DLT coefficients and intrinsic camera information, triangulate and write the 3D coordinates frame-by-frame
+            if DLTCoefficients is not None and CameraProfile is not None:
+                # make a data frame for the xyz coordinates for all tracks and all frames
+                xyzss = list()
+                for j in range(pts.shape[1]/(2*len(CameraProfile))):
+                    xyzs = uv_to_xyz(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], CameraProfile, DLTCoefficients)
+                    #cPickle.dump(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], open('points' + str(j) + '.p', 'wb'))
+                    xyzss.append(xyzs)
+                xyzss = np.asarray(xyzss)
+                _ = xyzss[0]
+                for k in range(1, len(xyzss)):
+                    _ = np.hstack((_, xyzss[k]))
+                    
+                xyz_cols = list()
+                sTracks = sorted(trackList)
+                for k in range(len(trackList)):
+                    xyz_cols.append(sTracks[k] + '_x')
+                    xyz_cols.append(sTracks[k] + '_y')
+                    xyz_cols.append(sTracks[k] + '_z')
+                dataf1 = pandas.DataFrame(_, columns = xyz_cols)
+
+                # get reprojection errors for all 3d points and make a data frame for it
+                repoErrs = get_repo_errors(_, pts, CameraProfile, DLTCoefficients).T
+                cols = sorted(trackList)
+                dataf2 = pandas.DataFrame(repoErrs, columns = cols)
+
+                if bstrap:
+                    cols = list()
+                    for k in range(len(trackList)):
+                        cols.append(sTracks[k] + '_x_lower')
+                        cols.append(sTracks[k] + '_y_lower')
+                        cols.append(sTracks[k] + '_z_lower')
+                        cols.append(sTracks[k] + '_x_upper')
+                        cols.append(sTracks[k] + '_y_upper')
+                        cols.append(sTracks[k] + '_z_upper')
+                    
+                    CIs, weights, tols = bootstrapXYZs(pts, repoErrs, CameraProfile, DLTCoefficients)
+                    upper = dataf1.as_matrix() + CIs
+                    lower = dataf1.as_matrix() - CIs
+                    
+                    _ = np.zeros((upper.shape[0], upper.shape[1]*2))
+                    _[_ == 0] = np.nan
+                    for k in range(upper.shape[1]/3):
+                        _[:,2*k*3:2*(k+1)*3] = np.concatenate((lower[:,k*3:(k+1)*3], upper[:,k*3:(k+1)*3]), axis = 1)
+                    dataf3 = pandas.DataFrame(_, columns = cols)
+                    dataf3.to_csv(filename + '-xyz-cis.csv', index = False, na_rep = 'NaN')
+
+                    pandas.DataFrame(weights, columns = xyz_cols).to_csv(filename + '-spline-weights.csv', index = False, na_rep = 'NaN')
+                    #pickle.dump(tols, open('tols.p', 'w'))
+                    pandas.DataFrame(np.reshape(tols, (1,len(xyz_cols))), columns = xyz_cols).to_csv(filename + '-spline-error-tolerances.csv', index = False, na_rep = 'NaN')
+                
+                # write the data frames to CSV
+                dataf1.to_csv(filename + '-xyzpts.csv', index = False, na_rep = 'NaN')
+                dataf2.to_csv(filename + '-xyzres.csv', index = False, na_rep = 'NaN')
+            else:
+                # for matlab compatibility, make a residual file, even if we can't reproject
+                _ = np.zeros((self.end, len(trackList)))
+                _[:,:] = np.nan
+                dataf2 = pandas.DataFrame(_, columns = sorted(trackList))
+                dataf2.to_csv(filename + '-xyzres.csv', index = False, na_rep = 'NaN')
+            dataf.to_csv(filename + '-xypts.csv', index = False, na_rep = 'NaN')
+            tkMessageBox.showinfo('Write successful!', 'CSVs successfully written to ' + filename)
+
+    # pretty self explanatory
+    def updateSelf(self):
+        self.switch_to()
+        self.updateTracks()
+        self.dispatch_events()
+        self.dispatch_event('on_draw')
+        self.flip()
+
+    def clearBatch(self):
+        self.track_batch = pyglet.graphics.Batch()
+        self.drawnPoints = dict()
+        self.drawnLines = dict()
+        return
+
+    # nests potentially long operations to let the user know that the program is working hard
+    def toggleBusy(self):
+        global busy
+        
+        if not busy:
+            busy = True
+        else:
+            busy = False
+
+        self.updateAllWindows()
+        self.updateSelf()
+
+    def plotTracks(self, track_indices = np.arange(len(trackList))):
+        #print 'Filling common dictionary...'
+        for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+            window.fillCommonDictionary()
+        #print 'Done filling...'
+        # get the header
+        cols = sorted(common.keys())
+        # stack all the columns together
+        _ = common[cols[0]]
+        _ = np.reshape(_, (_.shape[0], 1))
+        for k in range(1, len(cols)):
+            _ = np.hstack((_,np.reshape(common[cols[k]], (_.shape[0], 1))))
+        pts = _
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # make a data frame for the xyz coordinates for all tracks and all frames
+        xyzss = list()
+        #print 'Reconstructing...'
+        for j in range(pts.shape[1]/(2*len(CameraProfile))):
+            #print 'Reconstructing track ' + str(j + 1)
+            xyzs = uv_to_xyz(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], CameraProfile, DLTCoefficients)
+            #print 'Found ' + str(np.count_nonzero(~np.isnan(xyzs))/3) + ' non-empty 3D points'
+            #cPickle.dump(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], open('points' + str(j) + '.p', 'wb'))
+            xyzss.append(xyzs)
+
+        colors = ArgusColors().getMatplotlibColors()
+
+        #print 'Plotting...'
+        #print len(track_indices)
+        for k in range(len(track_indices)):
+            xyz = xyzss[track_indices[k]]
+            x = xyz[:,0]
+            y = xyz[:,1]
+            z = xyz[:,2]
+            ax.plot(x,y,z,color = colors[k % len(colors)])
+
+        plt.show(block = False)
+        #plt.close()
+
+    def deleteTrack(self, track):
+        # delete the sparse array of points
+        del self.points[track]
+
+        # delete all drawn OpenGL vertices
+        for k in range(len(self.drawnPoints[track])):
+            if self.drawnPoints[track][k] is not None:
+                self.drawnPoints[track][k].delete()
+
+        for k in range(len(self.drawnLines[track])):
+            if self.drawnLines[track][k] is not None:
+                self.drawnLines[track][k].delete()
+
+        # delete the dictionary keys and lists themselves
+        del self.drawnPoints[track]
+        del self.drawnLines[track]
+
+    def on_key_press(self, symbol, modifiers):
+        global sync
+        global auto_advance
+        global trackList
+        global currentTrack
+        global current_frame
+        global load_data
+        global displayingAllTracks
+        global busy
+        global bstrap
+        global outputSparse
+        global rgb
+        global vx
+        global vy
+
+        # brings up options dialog
+        if symbol == key.O:
+            self.toggleBusy()
+            
+            # make an options window and wait for it
+            root = Tk()
+            root.withdraw()
+            w = optionsPopupWindow(root, sync, auto_advance, trackList, currentTrack, displayingAllTracks, bstrap, outputSparse, rgb)
+            root.wait_window(w.top)
+
+            if w.sync.get() == '1':
+                sync = True
+            else:
+                sync = False
+
+            if w.auto.get() == '1':
+                auto_advance = True
+            else:
+                auto_advance = False
+
+            if w.disp.get() == '1':
+                newDisp = False
+            else:
+                newDisp = True
+
+            if w.bstrap.get() == '1':
+                bstrap = True
+            else:
+                bstrap = False
+
+            outputSparse = w.osparse
+            rgb = w.rgb
+
+            trackList = w.trackList
+
+            root = None
+
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.updateTracks()
+
+            # if the current track changed and the displaying of the rest of the tracks did not
+            if currentTrack != w.track.get() and newDisp == displayingAllTracks:
+                oldTrack = currentTrack
+                currentTrack = w.track.get()
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.changeTrack(oldTrack)
+            # if the current track changed and the displaying of other tracks was turned on
+            elif currentTrack != w.track.get() and newDisp:
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.drawTheRest()
+                oldTrack = currentTrack
+                currentTrack = w.track.get()
+                displayingAllTracks = newDisp
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.changeTrack(oldTrack)
+            # if the current track changed and the displaying of other tracks was turned off
+            elif currentTrack != w.track.get():
+                oldTrack = currentTrack
+                currentTrack = w.track.get()
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.changeTrack(oldTrack)
+                    window.deleteTheRest()
+            # if the track did not change but we turned on displaying the rest
+            elif newDisp != displayingAllTracks and newDisp:
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.drawTheRest()
+            # if the track did not change but we turned off the displaying of the rest of tracks
+            elif newDisp != displayingAllTracks and not newDisp:
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.deleteTheRest()
+
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.frameFinder.rgb = rgb
+                im = window.frameFinder.getFrame(window.current)
+                if im is not None:
+                    #self.background = pyglet.graphics.OrderedGroup(0)
+                    #self.frame = frame(self.makePygletImage(im), 0, 0, batch=self.main_batch, group=self.background)
+                    window.img = ArrayInterfaceImage(im).texture
+
+            currentTrack = w.track.get()
+            displayingAllTracks = newDisp
+
+            self.toggleBusy()
+            self.updateAllWindows()
+        # turns on color-based contour autotracking
+        elif symbol == key.A:
+            self.frameFinder.destroy_kalman()
+            self.frameFinder.track_image = None
+            if self.autoTracking:
+                self.autoTracking = False
+                pyglet.clock.unschedule(up)
+            else:
+                self.autoTracking = True
+                pyglet.clock.schedule(up)
+        elif symbol == key.V:
+            if self.show_view:
+                self.show_view = False
+            else:
+                self.show_view = True
+            self.updateSelf()
+        # skips one frame ahead
+        elif symbol == key.F and (modifiers == 0 or modifiers == 16):
+            im = self.frameFinder.getFrame(self.current + 1)
+            if im is not None:
+                self.img = ArrayInterfaceImage(im).texture
+            if self.current + 1 <= self.end:
+                self.current += 1
+                current_frame = self.current
+                self.changeMarker()
+                if sync:
+                    self.updateAllWindows()
+        # skips one frame ahead
+        elif symbol == key.F and modifiers & key.MOD_SHIFT:
+            im = self.frameFinder.getFrame(self.current + 50)
+            if im is not None:
+                self.img = ArrayInterfaceImage(im).texture
+            if self.current + 50 <= self.end:
+                self.current += 50
+                current_frame = self.current
+                self.changeMarker()
+                if sync:
+                    self.updateAllWindows()
+        # skips one frame behind
+        elif symbol == key.B and (modifiers == 0 or modifiers == 16):
+            im = self.frameFinder.getFrame(self.current - 1)
+            if im is not None:
+                self.img = ArrayInterfaceImage(im).texture
+            if self.current - 1 > 0:
+                self.current -= 1
+                current_frame = self.current
+                self.changeMarker()
+                if sync:
+                    self.updateAllWindows()
+        elif symbol == key.B and modifiers & key.MOD_SHIFT:
+            im = self.frameFinder.getFrame(self.current - 50)
+            if im is not None:
+                self.img = ArrayInterfaceImage(im).texture
+            if self.current - 50 > 0:
+                self.current -= 50
+                current_frame = self.current
+                self.changeMarker()
+                if sync:
+                    self.updateAllWindows()           
+        elif symbol == key.C and modifiers & key.MOD_SHIFT:
+            filename = tkFileDialog.askdirectory()
+            self.folder = filename
+        elif symbol == key.C and modifiers & key.MOD_ALT:
+            if self.folder != '':
+                self.frameFinder.capture(self.folder)
+            else:
+                if sys.platform != 'darwin':
+                    root = Tk()
+                    root.withdraw()
+                tkMessageBox.showwarning(
+                "Error",
+                "Must specify a directory before taking snapshots"
+                )
+                return
+        # go to frame
+        elif symbol == key.G:
+            root = Tk()
+            root.withdraw()
+            w = goToPopupWindow(root, 'Go to frame: ', self.end)
+            root.wait_window(w.top)
+            
+            try:
+                int(w.value)
+            except:
+                tkMessageBox.showwarning(
+                "Error",
+                "Frame to go to must be a valid integer"
+                )
+                return
+            
+            root = None
+            
+            im = self.frameFinder.getFrame(int(w.value))
+            if 1 <= int(w.value) <= self.end:
+                self.current = int(w.value)
+                current_frame = self.current
+                self.changeMarker()
+                if sync:
+                    self.updateAllWindows()
+                if im is not None:
+                    self.img = ArrayInterfaceImage(im).texture
+                else:
+                    self.img = None
+            else:
+                tkMessageBox.showwarning(
+                "Error",
+                "Frame out of bounds"
+                )
+        # changes track to the next one in the list
+        elif symbol == key.PERIOD:
+            start_time = time.clock()
+            
+            oldTrack = currentTrack
+            if trackList.index(currentTrack) + 1 < len(trackList):
+                currentTrack = trackList[trackList.index(currentTrack) + 1]
+            else:
+                currentTrack = trackList[0]
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.changeTrack(oldTrack)
+            self.updateAllWindows()
+
+            #print 'Changing tracks took {0} seconds'.format(time.clock() - start_time)
+        # changes track to the previous one in the list
+        elif symbol == key.COMMA:
+            oldTrack = currentTrack
+            if trackList.index(currentTrack) - 1 >= 0:
+                currentTrack = trackList[trackList.index(currentTrack) - 1]
+            else:
+                currentTrack = trackList[-1]
+            for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                window.changeTrack(oldTrack)
+            self.updateAllWindows()
+        # toggle the display of frame number in the current window
+        elif symbol == key.F and modifiers & key.MOD_CTRL:
+            if self.displayingFrameNumber:
+                self.displayingFrameNumber = False
+            else:
+                self.displayingFrameNumber = True
+        # reset to the original view of the entire frame
+        elif symbol == key.R:
+            self.left   = 0
+            self.right  = self.frameFinder.ow
+            self.bottom = 0
+            self.top    = self.frameFinder.oh
+            self.zoom_level = 1
+            self.zoomed_width  = self.frameFinder.ow
+            self.zoomed_height = self.frameFinder.oh
+            self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+        # saving points to a CSV file
+        elif symbol == key.S:
+            if modifiers & key.MOD_CTRL:
+                saveas = True
+            else:
+                saveas = False
+            
+            self.toggleBusy()
+            if outputSparse:
+                self.saveSparse(saveas)
+            else:
+                self.saveNonSparse(saveas)
+            self.toggleBusy()
+        elif symbol == key.X:
+            self.toggleBusy()
+            if sync:
+                sync = False
+            else:
+                sync = True
+            self.updateAllWindows()
+            self.toggleBusy()
+        # skip to next marked point
+        elif symbol == key.RIGHT:
+            for k in range(self.current, self.points[currentTrack].shape[0]):
+                if not True in (self.points[currentTrack][k].toarray() == 0):
+                    im = self.frameFinder.getFrame(k + 1)
+                
+                    self.current = k + 1
+                    current_frame = self.current
+                    if sync:
+                        self.updateAllWindows()
+                    if im is not None:
+                        self.img = ArrayInterfaceImage(im).texture
+                    else:
+                        self.img = None
+                    break
+        # skip to previously marked point
+        elif symbol == key.LEFT:
+            for k in range(2, self.current):
+                if not True in (self.points[currentTrack][self.current - k].toarray() == 0):
+                    im = self.frameFinder.getFrame(self.current - k + 1)
+                
+                    self.current = self.current - k + 1
+                    current_frame = self.current
+                    if sync:
+                        self.updateAllWindows()
+                    if im is not None:
+                        self.img = ArrayInterfaceImage(im).texture
+                    else:
+                        self.img = None
+                    break
+        elif symbol == key.UP:
+            if not self.base:
+                self.frameFinder.offset = self.frameFinder.offset + 1
+                im = self.frameFinder.getFrame(self.current)
+                if im is not None:
+                    self.img = ArrayInterfaceImage(im).texture
+        elif symbol == key.DOWN:
+            if not self.base:
+                self.frameFinder.offset = self.frameFinder.offset - 1
+                im = self.frameFinder.getFrame(self.current)
+                if im is not None:
+                    self.img = ArrayInterfaceImage(im).texture
+        elif symbol == key.I:
+            if vx - 1 >= 5:
+                vx -= 1
+        elif symbol == key.Y:
+            if vx + 1 <= 30:
+                vx += 1
+        elif symbol == key.U:
+            if vy - 1 >= 5:
+                vy -= 1
+        elif symbol == key._7:
+            if vy + 1 <= 30:
+                vy += 1
+        # clearing all tracks from the current window
+        elif symbol == key.C and (modifiers == 0 or modifiers == 16):
+            if sys.platform != 'darwin':
+                root = Tk()
+                root.withdraw()
+            result = tkMessageBox.askquestion("Clear all tracks for camera " + str(self.n), "Are you sure?", icon = 'warning')
+            if result == 'yes':
+                self.points = dict()
+                self.clearBatch()
+                self.updateTracks()
+        elif symbol == key.D and modifiers & key.MOD_SHIFT:
+            if sys.platform != 'darwin':
+                root = Tk()
+                root.withdraw()
+            if len(trackList) > 1:
+                result = tkMessageBox.askquestion("Delete track '{0}'?".format(currentTrack), "Are you sure?", icon = 'warning')
+                if result == 'yes':
+                    oldTrack = currentTrack
+                    trackList.remove(currentTrack)
+                    if len(trackList) != 0:
+                        currentTrack = trackList[0]
+                    for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                        window.changeTrack(oldTrack)
+                        window.deleteTrack(oldTrack)
+                    self.updateAllWindows()
+            else:
+                tkMessageBox.showwarning(
+                    "Error",
+                    "Cannot delete track, must have at least one track to work with"
+                    )
+            #self.trackingColors = list()
+        # loading points from a CSV file
+        elif symbol == key.L:
+            self.toggleBusy()
+            if sys.platform != 'darwin':
+                root = Tk()
+                root.withdraw()
+            filename = tkFileDialog.askopenfilename()
+            if filename != '' and filename.split('.')[-1] == 'csv':
+                loadCSV(filename)
+    
+            elif filename != '' and filename.split('.')[-1] == 'tsv':
+                outputSparse = True
+                
+                loadTSV(filename)
+
+            if load_data is not None:
+                offsetMatches = list()
+                for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+                    window.points = dict()
+                    window.updateTracks()
+                    offsetMatches.append(window.loadPoints())
+                    window.updateSelf()
+                if False in offsetMatches:
+                    tkMessageBox.showwarning(
+                    "Warning",
+                    "Offsets may be wrong. There are more frames in the loaded CSV than there are in the first camera"
+                    )
+
+                load_data = None
+            self.toggleBusy()
+        # delete the point in the current frame and track
+        elif symbol == key.D and (modifiers == 0 or modifiers == 16):
+            positions = copy.copy(self.points[currentTrack])
+            positions[self.current - 1] = np.asarray([0., 0.])
+            positions.eliminate_zeros()
+            self.points[currentTrack] = positions
+            self.deletePoint()
+        # plot 3D tracks if we have dlt coefficients and camera profile
+        elif symbol == key.P:
+            self.toggleBusy()
+            # if we have DLT coefficients and intrinsic camera information, triangulate and write the 3D coordinates frame-by-frame
+            if DLTCoefficients is not None and CameraProfile is not None:
+                #print 'Tryin to plot all tracks...'
+                self.plotTracks(track_indices = np.arange(len(trackList)))
+            else:
+                if sys.platform != 'darwin':
+                    root = Tk()
+                    root.withdraw()
+                tkMessageBox.showwarning(
+                "Error",
+                "Must have DLT coefficients and a camera profile to obtain 3D coordinates"
+                )
+            self.toggleBusy()
+        elif symbol == key.P and modifiers & key.MOD_CTRL:
+            self.toggleBusy()
+            if DLTCoefficients is not None and CameraProfile is not None:
+                self.plotTracks(track_indices = [trackList.index(currentTrack)])
+            else:
+                if sys.platform != 'darwin':
+                    root = Tk()
+                    root.withdraw()
+                tkMessageBox.showwarning(
+                "Error",
+                "Must have DLT coefficients and a camera profile to obtain 3D coordinates"
+                )
+            self.toggleBusy()
+        
+                     
+                 
+
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        global sync
+        global auto_advance
+        global trackList
+        global currentTrack
+        global current_frame
+        if currentTrack != '' and (modifiers == 16 or modifiers == 0):
+            self.drawNew(float(x)/self.width*self.zoomed_width + self.left, float(y)/self.height*self.zoomed_height + self.bottom)
+            if auto_advance:
+                im = self.frameFinder.getFrame(self.current + 1)
+                if im is not None and self.current + 1 <= self.end:
+                    #self.background = pyglet.graphics.OrderedGroup(0)
+                    #self.frame = frame(self.makePygletImage(im), 0, 0, batch=self.main_batch, group=self.background)
+                    self.img = ArrayInterfaceImage(im).texture
+                    self.current += 1
+                    self.changeMarker()
+                    current_frame = self.current
+                    if sync:
+                        self.updateAllWindows()
+        elif modifiers & key.MOD_CTRL:
+            self.trackingColors.append(self.frameFinder.getColor(np.asarray([float(x)/self.width*self.zoomed_width + self.left, float(y)/self.height*self.zoomed_height + self.bottom])))
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.x = float(x)/self.width*self.zoomed_width + self.left
+        self.y = self.frameFinder.oh - (float(y)/self.height*self.zoomed_height + self.bottom)
+
+# function scheduled everytime autotracking is turned on to create a loop. it is unscheduled when autotracking is turned off
+def up(dt):
+    for window in [u for u in pyglet.app.windows if type(u) != ghostWindow]:
+        window.tick()
+    #time.sleep(0.1)
+
+# checks if there are other windows besides the Ghost Window
+def checkToClose(dt):
+    windows = [u for u in pyglet.app.windows]
+    if len(windows) == 1:
+        if type(windows[0]) == ghostWindow:
+            windows[0].close()
+    
+# ghost window by Ty
+class ghostWindow(pyglet.window.Window):
+    def __init__(self):
+        #print("init ghost window")
+        pyglet.window.Window.__init__(self, width=10, height=10, visible=False, resizable=False)
+
+if __name__ == '__main__':
+    end = int(sys.argv[2])
+    movies = sys.argv[1].split('@')
+    offsets = map(int, sys.argv[3].split('@'))
+    res = sys.argv[4]
+    if res == 'Low':
+        factor = 4
+    elif res == 'Medium':
+        factor = 2
+    elif res == 'High':
+        factor = 1
+        
+    if sys.platform == 'win32':
+        ghostWindow()
+
+    for k in range(len(movies)):
+        if k != len(movies) - 1:
+            clickerWindow(movies[k], offsets, k + 1, end, factor)
+        else:
+            clickerWindow(movies[k], offsets, k + 1, end, factor, True)
+            
+    if sys.platform == 'win32':
+        pyglet.clock.schedule_interval(checkToClose, .5)
+    pyglet.app.run()
+
