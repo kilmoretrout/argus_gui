@@ -487,7 +487,7 @@ class sbaArgusDriver():
 def parseCSVs(csv):
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
-        return dataf.as_matrix()
+        return dataf.values()
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
         fo = open(csv)

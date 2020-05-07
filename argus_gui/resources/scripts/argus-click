@@ -506,7 +506,7 @@ def load_csv(csv):
         current_track_global = track_list_global[0]
 
         # sys.stdout.flush()
-        load_data_global = np.array(pandas.read_csv(csv, index_col=False).as_matrix(), dtype=np.float16)
+        load_data_global = np.array(pandas.read_csv(csv, index_col=False).values, dtype=np.float16)
         load_data_global[np.isnan(load_data_global)] = 0
         load_data_global = csc_matrix(load_data_global)
         no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
@@ -532,7 +532,7 @@ def load_tsv(tsv):
         csv_data = pandas.read_csv(tsv, index_col=False, sep='\t', skiprows=1)
         # read into numpy array
         load_data_global = np.zeros((int(list(csv_data.keys())[0]), int(list(csv_data.keys())[1])), dtype=np.float16)
-        csv_data = csv_data.as_matrix()
+        csv_data = csv_data.values
         for k in range(len(csv_data)):
             load_data_global[int(csv_data[k, 0]) - 1, int(csv_data[k, 1]) - 1] = csv_data[k, 2]
 
@@ -1368,7 +1368,7 @@ class ClickerWindow(pyglet.window.Window):
                 _ = np.hstack((_, np.reshape(common[cols[k]], (_.shape[0], 1))))
             # make a dataframe from the marked pixel coordinates
             dataf = pandas.DataFrame(_, columns=cols)
-            pts = dataf.as_matrix()
+            pts = dataf.values
 
             offsets_out = list()
 
@@ -1420,8 +1420,8 @@ class ClickerWindow(pyglet.window.Window):
                         cols.append(sTracks[k] + '_z_upper')
 
                     CIs, weights, tols = bootstrapXYZs(pts, repoErrs, camera_profile, DLTCoefficients)
-                    upper = dataf1.as_matrix() + CIs
-                    lower = dataf1.as_matrix() - CIs
+                    upper = dataf1.values + CIs
+                    lower = dataf1.values - CIs
 
                     _ = np.zeros((upper.shape[0], upper.shape[1] * 2))
                     _[_ == 0] = np.nan
@@ -2065,7 +2065,7 @@ def parse_csv(csv: str) -> lil_matrix:
     """
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
-        return dataf.as_matrix()
+        return dataf.values
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
         fo = open(csv)

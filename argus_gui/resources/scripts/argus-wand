@@ -23,7 +23,7 @@ import argus_gui
 def parseCSVs(csv):
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
-        return dataf.as_matrix()
+        return dataf.values()
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
         fo = open(csv)
@@ -55,7 +55,7 @@ def preform_wand_caliration(args, unpaired_points, paried_points, cams):
     # Three - origin, x-axis, y-axis
     if args.reference_points:
         print('Defining reference points')
-        ref = pandas.read_csv(args.reference_points, index_col=False).as_matrix()
+        ref = pandas.read_csv(args.reference_points, index_col=False).values()
         toDel = list()
         # take out NaNs
         for k in range(ref.shape[0]):
