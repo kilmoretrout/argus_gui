@@ -598,10 +598,10 @@ class ClickerWindow(pyglet.window.Window):
         self.track_batch = pyglet.graphics.Batch()
         self.background = pyglet.graphics.OrderedGroup(0)
         self.dlt_batch = pyglet.graphics.Batch()
-
+        # img is array format from cv2
         img = self.frameFinder.getFrame(1)
         if img is not None:
-            self.img = pyglet.sprite.Sprite(ArrayInterfaceImage(img).texture)
+            self.img = pyglet.sprite.Sprite(ArrayInterfaceImage(img).get_texture())
             self.img.x = 0
             self.img.y = 0
             self.img.scale = float(self.scale_factor)
@@ -1125,7 +1125,7 @@ class ClickerWindow(pyglet.window.Window):
             if view is not None:
                 scale = (((self.right - self.left) * (self.top - self.bottom)) / (
                         self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
-                self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).texture,
+                self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).get_texture(),
                                                  x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
                 self.view.scale = scale
 
@@ -1636,7 +1636,7 @@ class ClickerWindow(pyglet.window.Window):
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
             if im is not None:
-                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).texture)
+                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
                 window.img.scale = float(self.scale_factor)
 
         current_track_global = w.track.get()
@@ -2214,7 +2214,7 @@ def load_from_config(path):
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
             if im is not None:
-                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).texture)
+                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
                 window.img.scale = float(window.scale_factor)
 
     pyglet.clock.schedule_once(update_after, .05)
