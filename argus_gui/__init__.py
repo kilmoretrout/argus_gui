@@ -9,8 +9,10 @@ from .version import __version__
 import matplotlib
 #print matplotlib.__version__
 
-#if sys.platform == 'darwin':
-matplotlib.use('TkAgg')
+if sys.platform == 'darwin':
+    matplotlib.use('MacOSX')
+else:
+    matplotlib.use('TkAgg')
 
 # load submodules
 from .colors import *

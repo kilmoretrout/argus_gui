@@ -17,7 +17,7 @@ setup(
         "moviepy >= 0.2.2.11",
         "Pmw >= 1.3.3",
         "texttable >= 0.8.3",
-        "pygarrayimage >= 1.0",
+        #"pygarrayimage >= 1.0",
         "sba >= 1.6.5.1",
         "audioread >= 2.1.1",
         "psutil >= 3.4.1",

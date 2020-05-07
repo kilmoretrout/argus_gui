@@ -18,10 +18,11 @@ if sys.platform == 'darwin':
 
 from pyglet.window import key, mouse
 from pyglet.graphics import *
-from pygarrayimage.arrayimage import ArrayInterfaceImage
+#from pygarrayimage.arrayimage import ArrayInterfaceImage
 
 from argus_gui import ArgusColors, FrameFinder, ClickerProject
 from argus_gui.tools import *
+from argus_gui.arrayImage import ArrayInterfaceImage
 
 import itertools
 import math
