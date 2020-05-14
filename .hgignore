@@ -1,7 +1,0 @@
-build/*
-dist/*
-.DS_Store
-._.DS_Store
-._*
-argus_gui/*.pyc
-clickerWindow.py
