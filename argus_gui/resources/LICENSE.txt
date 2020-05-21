@@ -1,4 +1,6 @@
-Thank you for using Argus! Argus was developed by Dylan Ray and Dennis 
+===== ARGUS V2.2.1 =====
+
+Thank you for using Argus! Argus was developed by Dylan Ray and Dennis
 Evangelista at the University of North Carolina at Chapel Hill.  It is
 meant to be open source and available to any and all who wish to use it.
 

@@ -1,5 +1,9 @@
+from __future__ import absolute_import
+
 import numpy as np
 import pandas
+from six.moves import range
+
 
 class WandOutputter():
     # name - output tag and location
@@ -10,7 +14,8 @@ class WandOutputter():
     # pind - set of indices where the 3D coordinates go in the outputted CSV for paired points
     # upset - set of unpaired 3D coordinates
     # nupframes - number of frames in the unpaired points CSV file
-    def __init__(self, name, ncams, npframes = None, pset1 = None, pset2 = None, pind = None, upset = None, upind = None, nupframes = None):
+    def __init__(self, name, ncams, npframes=None, pset1=None, pset2=None, pind=None, upset=None, upind=None,
+                 nupframes=None):
         self.name = name
         self.ncams = ncams
         self.npframes = npframes
@@ -31,30 +36,19 @@ class WandOutputter():
             i2 = 0
             for k in range(self.npframes):
                 if k in self.pind[0]:
-                    pout[k,:3] = self.pset1[i1]
+                    pout[k, :3] = self.pset1[i1]
                     i1 += 1
                 if k in self.pind[1]:
-                    pout[k,3:] = self.pset2[i2]
+                    pout[k, 3:] = self.pset2[i2]
                     i2 += 1
 
             pout[pout == 0] = np.nan
 
-            dataf = pandas.DataFrame(pout, columns = 'x_1,y_1,z_1,x_2,y_2,z_2'.split(','))
-            dataf.to_csv(self.name + '-paired-points-xyz.csv', index = False, na_rep = 'NaN')
-            
-            # Deprecated code, pandas is way faster than writing the CSV line by line manually
-            """
-            fo = open(self.name + '-paired-points-xyz.csv', 'wb')
-            fo.write('x_1,y_1,z_1,x_2,y_2,z_2\n')
-            for k in range(pout.shape[0]):
-                l = map(str, pout[k])
-                for j in range(len(l)):
-                    fo.write(l[j] + ',')
-                fo.write('\n')
-            fo.close()
-            """
+            dataf = pandas.DataFrame(pout, columns='x_1,y_1,z_1,x_2,y_2,z_2'.split(','))
+            dataf.to_csv(self.name + '-paired-points-xyz.csv', index=False, na_rep='NaN')
+
         if self.upset is not None:
-            upout = np.zeros((self.nupframes, self.nptspframe*3))
+            upout = np.zeros((self.nupframes, self.nptspframe * 3))
             start = 0
             for k in range(self.nptspframe):
                 end = start + len(self.upind[k])
@@ -62,24 +56,13 @@ class WandOutputter():
                 i = 0
                 for j in range(self.nupframes):
                     if j in self.upind[k]:
-                        upout[j,3*k:(k+1)*3] = p[i]
+                        upout[j, 3 * k:(k + 1) * 3] = p[i]
                         i += 1
                 start = end
 
             upout[upout == 0] = np.nan
             cols = []
-            for k in range(int(float(upout.shape[1])/3.)):
-                cols = cols + 'x_{0},y_{0},z_{0}'.format(k+1).split(',')
-            dataf = pandas.DataFrame(upout, columns = cols)
-            dataf.to_csv(self.name + '-unpaired-points-xyz.csv', index = False, na_rep = 'NaN')
-
-            """
-            fo = open(self.name + '-unpaired-points-xyz.csv', 'wb')
-            fo.write('x_1,y_1,z_1,...\n')
-            for k in range(upout.shape[0]):
-                l = map(str, upout[k])
-                for j in range(len(l)):
-                    fo.write(l[j] + ',')
-                fo.write('\n')
-            fo.close()
-            """
+            for k in range(int(float(upout.shape[1]) / 3.)):
+                cols = cols + 'x_{0},y_{0},z_{0}'.format(k + 1).split(',')
+            dataf = pandas.DataFrame(upout, columns=cols)
+            dataf.to_csv(self.name + '-unpaired-points-xyz.csv', index=False, na_rep='NaN')

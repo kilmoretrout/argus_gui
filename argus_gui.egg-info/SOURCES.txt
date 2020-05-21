@@ -1,3 +1,4 @@
+README.md
 setup.py
 argus_gui/__init__.py
 argus_gui/colors.py
@@ -12,9 +13,11 @@ argus_gui/sync.py
 argus_gui/tools.py
 argus_gui/triangulate.py
 argus_gui/undistort.py
+argus_gui/version.py
 argus_gui.egg-info/PKG-INFO
 argus_gui.egg-info/SOURCES.txt
 argus_gui.egg-info/dependency_links.txt
+argus_gui.egg-info/not-zip-safe
 argus_gui.egg-info/requires.txt
 argus_gui.egg-info/top_level.txt
 argus_gui/resources/__init__.py
