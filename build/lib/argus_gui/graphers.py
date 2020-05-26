@@ -98,10 +98,10 @@ class Shower():
 
 
 # rigid_transform_3D
-# Returns the estimated translation and rotation matrix for a rigid transform from one set of points to another.
+# returns the estimated translation and rotation matrix for a rigid transform from one set of points to another.
 # used here to transform points based on specified axis directions
 #
-# Uses a nifty SVD method
+# Uses a nift SVD method
 # https://igl.ethz.ch/projects/ARAP/svd_rot.pdf
 #
 # Input: expects Nx3 matrices of points in A and B of matched N
@@ -116,7 +116,7 @@ def rigid_transform_3D(A, B):
     centroid_A = mean(A, axis=0)
     centroid_B = mean(B, axis=0)
 
-    # center the points
+    # centre the points
     AA = A - tile(centroid_A, (N, 1))
     BB = B - tile(centroid_B, (N, 1))
 
@@ -129,8 +129,7 @@ def rigid_transform_3D(A, B):
 
     # special reflection case
     if linalg.det(R) < 0:
-        print('Reflection detected - likely due to an underlying left-handed coordinate system')
-        # do nothing (commented the below lines out on 2020-05-26)
+        print('Reflection detected')
         #Vt[2, :] *= -1
         #R = Vt.T.dot(U.T)
     t = -R.dot(centroid_A.T) + centroid_B.T

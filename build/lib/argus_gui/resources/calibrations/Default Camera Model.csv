@@ -1,0 +1,2 @@
+Mode,focal_length,image_width,image_height,cx,cy,aspect_ratio,k1,k2,t1,t2,k3
+Default,1000,1024,1024,511.5,511.5,1,0,0,0,0,0,0

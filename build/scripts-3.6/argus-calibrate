@@ -1,0 +1,122 @@
+#!C:\Users\thedrick\Miniconda3\python.exe
+# -*- coding: utf-8 -*-
+
+"""
+The argus_initial_calibrate and argus_refine scripts have many options
+and can be annoying to use; this provides in a single command what we
+think are the best way to go for 90% of calibrations.
+
+For each replicate, a subset of the boards are chosen (specified by
+patterns).  An initial calibration is obtained, then it is refined in
+two passes to obtain k1, k2, and k3.  Other distortion parameters by
+default are fixed at 0. It is possible to have the routine shuffle
+which boards are used at every refining step by using the --shuffle flag.
+
+Results are output to a file, by default named calibrations.csv; the file
+has a one line header identifying the columns.  A summary of the results
+is also given on screen to show the range of parameters for all calibrations
+with rmse within threshold (default 1.1) of the lowest rmse.
+"""
+
+from __future__ import absolute_import
+from __future__ import print_function
+
+import argparse
+import os
+import sys
+
+import argus
+import numpy as np
+from six.moves import map
+from six.moves import range
+
+# Script for Argus-Calibrate. Takes a pickle file with object and image point coordinates. Solves for camera intrinsics with OpenCV.
+if __name__ == "__main__":
+    # Specify input file
+    # Output file name and location
+    # Inverted - whether or not object coordinates are reversed
+    # Replicates - number of replications in the solving routine
+    # Patterns - sample size for each replication
+    # doThird, and doFourth - whether or not to assume no tangential distortion and k_3 as zero respectively
+    parser = argparse.ArgumentParser(
+        description='Takes a pickle file with object and image coordinate from Argus Patterns and solves the resulting pin hole distortion system')
+    parser.add_argument('ifile', help='input pickle file')
+    parser.add_argument('ofile', help='CSV file to write distortion coefficients to')
+    parser.add_argument('--inverted', action='store_true',
+                        help='use this argument to invert object coordinates. needed sometimes depending on the orientation of the grid being filmed')
+    parser.add_argument('--shuffle', action='store_true',
+                        help='use this argument to shuffle the frames upon each replication.  Calibrates GUI never passes this as true')
+    parser.add_argument('--replicates', default='100',
+                        help='number of replications the solver should go through. Default = 100')
+    parser.add_argument('--patterns', default='20', help='sample size for each replication. Default = 20')
+    parser.add_argument('--tangential', action='store_true',
+                        help='use this argument to solve for tangential distortion factors, otherwise assumed to be zero')
+    parser.add_argument('--k3', action='store_true',
+                        help='use this argument to solve for the sixth order radial distortion coefficient, k_3, otherwise assumed to be zero')
+    parser.add_argument('--omnidirectional', action='store_true',
+                        help='use this argument to use cv2.omnidir solver to solve for the extra shape parameter, xi. much faster, and works well with wide-angle, high distortion lenses')
+    args = parser.parse_args()
+
+    ifile = args.ifile
+    ofile = args.ofile
+    inverted = args.inverted
+    shuffle = args.shuffle
+    replicates = int(args.replicates)
+    patterns = int(args.patterns)
+    doThird = args.tangential
+    doFourth = args.k3
+
+    # load points
+    print("Loading detected patterns from {0}".format(ifile))
+    sys.stdout.flush()
+    point_inputs = argus.CalibrationInputs.from_pkl(ifile)
+    print("Using {0} patterns".format(patterns))
+    print("Inverted {0}".format(inverted))
+    sys.stdout.flush()
+
+    if args.omnidirectional:
+        calibrator = argus.FisheyeCalibrator(point_inputs, patterns, inverted, shuffle)
+    else:
+        calibrator = argus.Calibrator(point_inputs, patterns, inverted, shuffle)
+
+    # initialize results
+    print("Getting {0} replicates...".format(replicates))
+    sys.stdout.flush()
+    results = []
+    for replicate in range(replicates):
+        print("Getting {0} replicate calibration".format(argus.num2ordinal(replicate + 1)))
+        sys.stdout.flush()
+        if not args.omnidirectional:
+            if calibrator.get_initial():
+                if calibrator.refine(flags=argus.FIRSTPASS):
+                    if calibrator.refine(flags=argus.SECONDPASS):
+                        if doFourth:
+                            calibrator.refine(flags=argus.THIRDPASS)
+                        if doThird:
+                            calibrator.refine(flags=argus.FOURTHPASS)
+                        results.append(calibrator.camera)
+        else:
+            # just the initial calibration for now which includes all relevant distortion coefficients
+            if calibrator.get_initial():
+                results.append(calibrator.camera)
+
+    # output, compute and output stats
+    if ofile is None:
+        ofile = os.path.join(os.path.dirname(ifile), "calibrations.csv")
+
+    if not args.omnidirectional:
+        argus.to_csv(results, ofile)
+        argus.summarize(ofile)
+    else:
+        argus.to_csv_fisheye(results, ofile)
+        argus.summarize_fisheye(ofile)
+
+    # make camera profile .txt
+    ifile = open(ofile)
+    line = ifile.readline()
+    line = ifile.readline().split(',')
+
+    tow = np.asarray([list(map(float,
+                               [1, line[0], point_inputs.imageSize[0], point_inputs.imageSize[1], line[1], line[2],
+                                1] + line[5:10]))])
+    np.savetxt(os.path.dirname(os.path.realpath(ofile)) + '/camera-profile.txt', tow, fmt='%-1.5g')

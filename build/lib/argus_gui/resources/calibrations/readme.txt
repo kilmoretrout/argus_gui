@@ -1,0 +1,1 @@
+Intrinsic calibration parameters (image size, principal point, focal length, distortion parameters) for all cameras in CSV format.  Feel free to add your own!  This directory is scanned by argus Dwarp on startup.
