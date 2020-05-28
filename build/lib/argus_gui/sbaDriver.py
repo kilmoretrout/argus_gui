@@ -222,8 +222,6 @@ class sbaArgusDriver():
             pts = np.vstack((self.ref, pts))
 
         print('Triangulating...')
-        print('Sending these points to multiTriangulator')
-        print(pts) # debug
         sys.stdout.flush()
 
         # pass the big stack of UV coordingates to be triagulated

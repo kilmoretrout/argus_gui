@@ -167,7 +167,7 @@ if __name__ == '__main__':
         # take out camera number column, image width and height, then add in skew
         cams = np.delete(cams, [0, 2, 3], 1)
         cams = np.insert(cams, 4, 0., axis=1)
-        preform_wand_caliration(args, unpaired_points, paried_points, cams)
+        preform_wand_caliration(args, unpaired_points, paried_points, ref, cams)
 
     else:
         # Omnidirectional camera model
