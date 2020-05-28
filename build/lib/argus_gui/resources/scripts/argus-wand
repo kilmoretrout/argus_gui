@@ -43,32 +43,12 @@ def parseCSVs(csv):
         return ret
 
 
-def preform_wand_caliration(args, unpaired_points, paried_points, cams):
+def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
     scale = float(args.scale)
     display = args.graph
     # print 'Graphing: {0}'.format(display)
     mode = args.intrinsics_opt + args.distortion_opt
-
-    # Reference points. Either one, two, or three uv correspondences:
-    # One - an origin
-    # Two - origin and z-axis
-    # Three - origin, x-axis, y-axis
-    # Four - origin, x-axis, y-axis, z-axis
-    # more - gravity or surface reference points
-    if args.reference_points:
-        print('Defining reference points')
-        ref = pandas.read_csv(args.reference_points, index_col=False).values
-        toDel = list()
-        # take out NaNs
-        for k in range(ref.shape[0]):
-            if True in np.isnan(ref[k]):
-                toDel.append(k)
-        ref = np.delete(ref, toDel, axis=0)
-        if ref.shape[1] != 2 * cams.shape[0]:
-            print('Incorrect shape of reference points! Make sure they are formatted according to the documentation.')
-            sys.exit()
-    else:
-        ref = None
+    
     # Output files location and tag
     name = args.output_name
     # temporary file name
@@ -150,6 +130,7 @@ if __name__ == '__main__':
         unpaired_points = parseCSVs(args.unpaired_points)
     else:
         unpaired_points = None
+        
     # Make sure we have a camera profile TXT document
     try:
         cams = np.loadtxt(args.cam_profile)
@@ -157,7 +138,28 @@ if __name__ == '__main__':
         print(e)
         print('Could not load camera profile! Make sure it is formatted according to the documentation.')
         sys.exit()
-
+        
+    # Get reference points. Either one, two, or three uv correspondences:
+    # One - an origin
+    # Two - origin and z-axis
+    # Three - origin, x-axis, y-axis
+    # Four - origin, x-axis, y-axis, z-axis
+    # more - gravity or surface reference points
+    if args.reference_points:
+        print('Loading reference points')
+        ref = pandas.read_csv(args.reference_points, index_col=False).values
+        toDel = list()
+        # take out NaNs
+        for k in range(ref.shape[0]):
+            if True in np.isnan(ref[k]):
+                toDel.append(k)
+        ref = np.delete(ref, toDel, axis=0)
+        if ref.shape[1] != 2 * cams.shape[0]:
+            print('Incorrect shape of reference points! Make sure they are formatted according to the documentation.')
+            sys.exit()
+    else:
+        ref = None
+        
     # Check if the camera profile is the correct shape:
     if cams.shape[1] == 12:
 
@@ -210,7 +212,7 @@ if __name__ == '__main__':
 
         wand_interpretable_cams = np.array(wand_interpretable_cams)
 
-        # undistort points
+        # undistort paired points
         points_to_undis = {}
         if type(paried_points) is not type(None):
             for row_index, point_set in enumerate(paried_points):
@@ -230,7 +232,7 @@ if __name__ == '__main__':
                         index += (cams.shape[0] - 1) * 2 + 2
                 paried_points[row_index] = new_row
 
-        # undistort points
+        # undistort unpaired points
         if type(unpaired_points) is not type(None):
             for row_index, point_set in enumerate(unpaired_points):
                 new_row = [0 for i in range(0, point_set.shape[0])]
@@ -248,8 +250,27 @@ if __name__ == '__main__':
                             -1, 1))
                         index += (cams.shape[0] - 1) * 2 + 2
                 unpaired_points[row_index] = new_row
+                
+        # undistort reference points
+        if type(ref) is not type(None):
+            for row_index, point_set in enumerate(ref):
+                new_row = [0 for i in range(0, point_set.shape[0])]
+                for cam_number in range(1, cams.shape[0] + 1):
+                    offest = cam_number - 2
+                    if offest <= 0:
+                        index = cam_number
+                    else:
+                        index = cam_number + offest
+                    if cam_number == 1: index = 0
+                    while index + 1 < point_set.shape[0]:
+                        new_row[index: index + 2] = models[cam_number - 1].undistort_points(np.array([point_set[index],
+                                                                                                      point_set[
+                                                                                                          index + 1]]).reshape(
+                            -1, 1))
+                        index += (cams.shape[0] - 1) * 2 + 2
+                ref[row_index] = new_row
 
-        preform_wand_caliration(args, unpaired_points, paried_points, wand_interpretable_cams)
+        preform_wand_caliration(args, unpaired_points, paried_points, ref, wand_interpretable_cams)
 
 
 else:
