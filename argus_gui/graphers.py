@@ -447,9 +447,11 @@ class wandGrapher():
         if self.ref:
             ref = xyzs[:self.nRef, :]
             xyzs = self.transform(xyzs, ref)
+            ref = xyzs[:self.nRef, :] # transformed reference points
 
         else:
             print('No reference points available - centering the calibration on the mean point location.')
+            ref = None
             t = np.mean(xyzs, axis=0)
             for k in range(xyzs.shape[0]):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
@@ -520,6 +522,10 @@ class wandGrapher():
                 y = _[:, 1]
                 z = _[:, 2]
                 ax.plot(x, y, z)
+                
+        # plot the reference points if there are any
+        if self.nRef != 0 and self.display:
+            ax.scatter(ref[:,0]*factor,ref[:,1]*factor,ref[:,2]*factor, c='r')
 
         self.outputDLT(dlts, errs)
 
