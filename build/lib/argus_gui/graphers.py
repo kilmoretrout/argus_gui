@@ -26,6 +26,8 @@ from .colors import *
 import subprocess
 from .tools import *
 
+import pickle
+
 
 # class that plots n wave files for the user to choose a time interval
 class Shower():
@@ -156,6 +158,16 @@ def rotation(a, b):
     R = np.eye(3) + v_x + np.linalg.matrix_power(v_x, 2) * ((1. - c) / s ** 2)
     return R
 
+# calculate camera xyz position from DLT coefficients
+def DLTtoCamXYZ(dlts):
+    camXYZ = []
+    for i in range(len(dlts)):
+        m1=np.hstack([dlts[i,0:3],dlts[i,4:7],dlts[i,8:11]]).T
+        m2=np.vstack([-dlts[i,3],-dlts[i,7],-1])
+        camXYZ.append(np.dot(np.linalg.inv(m1),m2))
+        
+    camXYZa = np.array(camXYZ)
+    return camXYZa
 
 # takes unpaired and paired points along with other information about the scene, and manipulates the data for outputting and graphing in 3D
 class wandGrapher():
@@ -507,7 +519,7 @@ class wandGrapher():
                 x = up[:, 0]
                 y = up[:, 1]
                 z = up[:, 2]
-                ax.scatter(x, y, z)
+                ax.scatter(x, y, z,c='c',label='Unpaired points')
         else:
             up = None
 
@@ -521,11 +533,22 @@ class wandGrapher():
                 x = _[:, 0]
                 y = _[:, 1]
                 z = _[:, 2]
-                ax.plot(x, y, z)
+                if k == 0:
+                    ax.plot(x, y, z,c='m',label='Paired points')
+                else:
+                    ax.plot(x, y, z,c='m')
                 
         # plot the reference points if there are any
         if self.nRef != 0 and self.display:
-            ax.scatter(ref[:,0]*factor,ref[:,1]*factor,ref[:,2]*factor, c='r')
+            ax.scatter(ref[:,0]*factor,ref[:,1]*factor,ref[:,2]*factor, c='r', label='Reference points')
+            
+        # get the camera locations
+        camXYZ = DLTtoCamXYZ(dlts)
+        ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
+            
+        # add the legend, auto-generated from label='' values for each plot entry
+        if self.display:
+            ax.legend()
 
         self.outputDLT(dlts, errs)
 
