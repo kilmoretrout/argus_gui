@@ -1,0 +1,57 @@
+#!C:\Users\thedrick\Miniconda3\python.exe
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+
+import argparse
+import os
+import shutil
+import tempfile
+
+import argus_gui
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(
+        description='Takes a list of videos and finds the offset in frames between their start using cross correlation of their audio signals')
+    # parser.add_argument('n', help = 'Number of videos you will specify')
+    parser.add_argument('i',
+                        help='List of input videos separated by commas. For instance, if your videos were a.mp4 and b.mp4, a list you could input is "a.mp4,b.mp4"')
+    parser.add_argument('--tmp', help='Temporary directory to rip .wav files. Will not be destroyed afterwards',
+                        default="None")
+    parser.add_argument('--start', help='Time in decimal minutes. Will cross correlate from start to end', default='0')
+    parser.add_argument('--end', help='Time in decimal minutes. Will cross correlate from start to end', default='0.5')
+    parser.add_argument('--crop', action='store_true',
+                        help='Whether or not to use user specified start and end times. If this argument is used you must specify --start and --end, otherwise the script will use the first 30 seconds.')
+    parser.add_argument('--ofile', default="",
+                        help='CSV file where offsets are to be written.  If not specified, offsets will simply be printed to the console')
+    parser.add_argument('--out', default="None", help='The names of wav files to write to the temporary directories')
+    args = parser.parse_args()
+
+    made_tmp = False
+
+    if args.tmp == "None":
+        made_tmp = True
+        tmpName = tempfile.mkdtemp()
+    else:
+        tmpName = args.tmp
+
+    start = args.start
+    end = args.end
+    crop = args.crop
+    oname = args.ofile
+    files = args.i.split(',')
+    n = len(files)
+
+    if args.out != "None":
+        out = args.out.split(',')
+    else:
+        out = list()
+        for f in files:
+            out.append(f.split('/')[-1].split('.')[0] + '.wav')
+
+    syncer = argus_gui.Syncer(tmpName, start, end, crop, oname, n, files, out)
+    syncer.sync()
+
+    if made_tmp:
+        if os.path.exists(tmpName):
+            shutil.rmtree(tmpName)

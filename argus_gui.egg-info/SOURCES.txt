@@ -1,6 +1,7 @@
 README.md
 setup.py
 argus_gui/__init__.py
+argus_gui/arrayImage.py
 argus_gui/colors.py
 argus_gui/frameFinderPyglet.py
 argus_gui/graphers.py
@@ -20,6 +21,16 @@ argus_gui.egg-info/dependency_links.txt
 argus_gui.egg-info/not-zip-safe
 argus_gui.egg-info/requires.txt
 argus_gui.egg-info/top_level.txt
+argus_gui/resources/scripts/Argus
+argus_gui/resources/scripts/Argus_win.py
+argus_gui/resources/scripts/argus-calibrate
+argus_gui/resources/scripts/argus-click
+argus_gui/resources/scripts/argus-dwarp
+argus_gui/resources/scripts/argus-log
+argus_gui/resources/scripts/argus-patterns
+argus_gui/resources/scripts/argus-show
+argus_gui/resources/scripts/argus-sync
+argus_gui/resources/scripts/argus-wand
 argus_gui/resources/__init__.py
 argus_gui/resources/scripts/Argus
 argus_gui/resources/scripts/Argus_win.py

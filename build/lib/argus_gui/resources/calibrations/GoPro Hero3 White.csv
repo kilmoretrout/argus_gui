@@ -1,0 +1,2 @@
+Mode,focal_length,image_width,image_height,cx,cy,aspect_ratio,k1,k2,t1,t2,k3,End
+1080p-30fps-wide,1230,1920,1080,960,540,1,-0.32,0.126,0,0,0,0

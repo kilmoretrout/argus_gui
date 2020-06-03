@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from __future__ import absolute_import
+
+import sys
+
+import argus_gui
+
+"""
+show.py - Argus-Sync uses this script to display wave files. Not intended for direct use by users.
+"""
+
+if __name__ == '__main__':
+    tmpName = sys.argv[1]
+    # number of waves to plot
+    n = len(sys.argv[2:])
+    # actual wave file names
+    files = sys.argv[2: 2 + int(n / 2)]
+    # expected temporary file names
+    out = sys.argv[2 + int(n / 2):]
+
+    shower = argus_gui.Shower(tmpName, files, out)
+    shower.show()
