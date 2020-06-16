@@ -73,8 +73,7 @@ def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
     print(unpaired_points)
 
     driver = argus_gui.sbaArgusDriver(paried_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
-                                      oCPs,
-                                      args.choose_reference)
+                                      oCPs, args.choose_reference, args.reference_type, args.recording_frequency)
     driver.fix()
 
     shutil.rmtree(tmp)
@@ -116,6 +115,10 @@ if __name__ == '__main__':
                         help="Use this argument to output camera profiles for use with other Argus programs")
     parser.add_argument("--choose_reference", action="store_true",
                         help="Use this argument to have Argus-Wand optimize the choice of reference camera by counting the number of triangulatable points for each choice")
+    parser.add_argument("--reference_type",
+                        help="Type of reference points provided: Axis points (default) 1-4 points specifying the origin and axes, Gravity - a gravitational acceleration recording, Plane - 3+ points specifying the X-Y plane", default="Axis points")
+    parser.add_argument("--recording_frequency", help="Recording frequency in Hz for gravitational acceleration determination", default="100")
+                        
     args = parser.parse_args()
     print('Loading points...')
     sys.stdout.flush()

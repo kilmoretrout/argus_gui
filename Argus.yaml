@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.6.2
   - pip
+  - git
   - wxpython
   - ffmpeg
   - pandas

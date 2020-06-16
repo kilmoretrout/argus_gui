@@ -15,6 +15,7 @@ import sys
 from numpy import *
 import scipy.signal
 import scipy.io.wavfile
+import scipy.spatial
 import scipy
 import sys
 import os.path
@@ -26,7 +27,7 @@ from .colors import *
 import subprocess
 from .tools import *
 
-import pickle
+# import pickle # debug
 
 
 # class that plots n wave files for the user to choose a time interval
@@ -172,7 +173,7 @@ def DLTtoCamXYZ(dlts):
 # takes unpaired and paired points along with other information about the scene, and manipulates the data for outputting and graphing in 3D
 class wandGrapher():
     def __init__(self, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
-                 display=True, uvs=None, nRef=0, order=None, report=True, cams=None):
+                 display=True, uvs=None, nRef=0, order=None, report=True, cams=None, reference_type='Axis points', recording_frequency=100):
         self.nppts = nppts
         self.nuppts = nuppts
         self.scale = scale
@@ -190,6 +191,8 @@ class wandGrapher():
         self.key = key
         self.report = report
         cams = cams
+        self.reference_type = reference_type
+        self.recording_frequency = recording_frequency
 
         self.cams = []
 
@@ -206,19 +209,21 @@ class wandGrapher():
 
     # transform the points with the rigid transform function
     def transform(self, xyzs, ref):
+        
         # Subtract the origin from the points and reference
         t = ref[0]
         ret = xyzs - np.tile(t, (xyzs.shape[0], 1))
         ref = ref - ref[0]
             
+        # process Axis points
         # if we only got one reference point
-        if ref.shape[0] == 1:
+        if ref.shape[0] == 1 and self.reference_type == 'Axis points':
             print('Using 1-point (origin) reference axes')
             # we actually already did this above since it's the starting point
             # for all alignment operations
             
         # If we only have 2 reference points: origin, +Z (plumb line):
-        elif ref.shape[0] == 2:
+        elif ref.shape[0] == 2 and self.reference_type == 'Axis points':
             print('Using 2-point (origin,+Z) reference axes')    
             a = (ref[1] - ref[0]) * (1. / np.linalg.norm(ref[1] - ref[0]))
 
@@ -234,7 +239,7 @@ class wandGrapher():
                 ret[k] = R.dot(ret[k].T).T
             
         # If we have origin,+x,+y axes:
-        elif ref.shape[0] == 3:
+        elif ref.shape[0] == 3 and self.reference_type == 'Axis points':
             print('Using 3-point (origin,+x,+y) reference axes')        
             A = ref
 
@@ -254,7 +259,7 @@ class wandGrapher():
             ret = R.dot(ret.T).T
         
         # If we have origin,+x,+y,+z axes:
-        elif ref.shape[0] == 4:
+        elif ref.shape[0] == 4 and self.reference_type == 'Axis points':
             print('Using 4-point (origin,+x,+y,+z) reference axes')
             A = ref
 
@@ -269,6 +274,38 @@ class wandGrapher():
 
             # rotate
             ret = R.dot(ret.T).T
+            
+        # If we have a gravity reference
+        elif self.reference_type == 'Gravity':
+            print('Using gravity alignment, +Z will point anti-parallel to gravity')
+            rfreq=float(self.recording_frequency)
+            t=np.arange(ref.shape[0]) # integer timebase
+            
+            # perform a least-squares fit of a 2nd order polynomial to each
+            # of x,y,z components of the reference, evaluate the polynomial
+            # and get the acceleration
+            acc=np.zeros(3)
+            for k in range(3):
+                p=np.polyfit(t,ref[:,k],2)
+                pv=np.polyval(p,t)
+                acc[k]=np.mean(np.diff(np.diff(pv)))*rfreq*rfreq
+            
+            # need a rotation to point acceleration at -1 (i.e. -Z is down)
+            an=acc/np.linalg.norm(acc) # unit acceleration vector
+            vv=np.array([0,0,-1]) # target vector
+            rv=np.cross(an,vv) # axis for angle-axis rotation
+            rv=rv/np.linalg.norm(rv) # unit axis
+            ang=np.arccos(np.dot(an,vv)) # rotation magnitude
+            r = scipy.spatial.transform.Rotation.from_rotvec(rv*ang) # compose angle-axis rotation 
+            ret = r.apply(ret) # apply it
+            
+            # reporting
+            pg=np.linalg.norm(acc)/9.81*100
+            print('Gravity measured with {:.2f}% accuracy!'.format(pg))
+            
+        # If we have a reference plane
+        elif self.reference_type == 'Plane':
+            print('Sorry, horizontal plane reference is functional yet!')
 
         return ret
 
@@ -434,6 +471,7 @@ class wandGrapher():
 
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
+        ax.set_aspect('equal')
 
         qT = cam[:, -7:]
         quats = qT[:, :4]
@@ -456,21 +494,6 @@ class wandGrapher():
             vP[k,3:] = cameraPositions[k] + cameraOrientations[k]
 
         """
-        if self.ref:
-            ref = xyzs[:self.nRef, :]
-            xyzs = self.transform(xyzs, ref)
-            ref = xyzs[:self.nRef, :] # transformed reference points
-
-        else:
-            print('No reference points available - centering the calibration on the mean point location.')
-            ref = None
-            t = np.mean(xyzs, axis=0)
-            for k in range(xyzs.shape[0]):
-                xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
-
-        # trim off the reference points as we don't wan't to graph them
-        # xyzs = xyzs[self.nRef:,:]
-
         # If we've got paired points, define a scale
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
@@ -485,14 +508,29 @@ class wandGrapher():
             p1, p2 = None, None
             factor = 1.
 
+        xyzs = xyzs*factor # apply scale factor to all xyz points
+        
+        if self.ref:
+            print('have reference points')
+            xyzs = self.transform(xyzs, xyzs[:self.nRef, :])
+            ref = xyzs[:self.nRef, :] # transformed reference points
+            print(ref)
+
+        else:
+            print('No reference points available - centering the calibration on the mean point location.')
+            ref = None
+            t = np.mean(xyzs, axis=0)
+            for k in range(xyzs.shape[0]):
+                xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
+
+        # get DLT coefficients
+        camn = 0
         errs = list()
         dlts = list()
         outliers = []
         ptsi = []
-
-        camn = 0
         for uv in self.uvs:
-            cos, error, outlier, ind = self.getCoefficients(xyzs * factor, uv, camn)
+            cos, error, outlier, ind = self.getCoefficients(xyzs, uv, camn)
             camn += 1
             outliers = outliers + outlier
             ptsi = ptsi + ind
@@ -504,17 +542,18 @@ class wandGrapher():
         dlts = np.asarray(dlts)
         errs = np.asarray(errs)
 
-        # trim off the reference points as we don't wan't to graph them
+        # trim off the reference points as we don't want to graph them with the other xyz
         xyzs = xyzs[self.nRef:, :]
 
-        # vP = vP*factor
+        # vP = vP
         # x = vP[:,:3][:,0]
         # y = vP[:,:3][:,1]
         # z = vP[:,:3][:,2]
 
+        # plot unpaired points
         # ax.scatter(x,y,z)
         if self.nuppts != 0:
-            up = xyzs[self.nppts:, :] * factor
+            up = xyzs[self.nppts:, :]
             if self.display:
                 x = up[:, 0]
                 y = up[:, 1]
@@ -540,9 +579,9 @@ class wandGrapher():
                 
         # plot the reference points if there are any
         if self.nRef != 0 and self.display:
-            ax.scatter(ref[:,0]*factor,ref[:,1]*factor,ref[:,2]*factor, c='r', label='Reference points')
+            ax.scatter(ref[:,0],ref[:,1],ref[:,2], c='r', label='Reference points')
             
-        # get the camera locations
+        # get the camera locations as expressed in the DLT coefficients
         camXYZ = DLTtoCamXYZ(dlts)
         ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
             
