@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.6.2
   - pip
+  - git
   - wxpython
   - ffmpeg
   - pandas
@@ -22,5 +23,3 @@ dependencies:
     - pyglet
     - sba==1.6.8pypi
     - git+https://github.com/kilmoretrout/argus_gui.git
-    
-
