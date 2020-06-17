@@ -1166,15 +1166,15 @@ class WandGUI(GUI):
             else:
                 freq_entry.config(state=DISABLED)
         # Add new reference point options
-        Label(self.root, text="Reference point type:").grid(row=7, column=1, padx=35, sticky=W)
+        Label(self.root, text="Reference point type:").grid(row=7, column=1, padx=30, sticky=W)
         option_menu_window = OptionMenu(self.root, self.reference_type, "Axis points","Gravity","Plane", )
         option_menu_window.grid(row=7,column=1,padx=190,sticky=W)
         # trace the variable to control state of recording frequency box
         self.reference_type.trace("w", freqBoxState)
         tooltips.bind(option_menu_window,'Set the reference type. Axis points are 1-4 points defining the origin and axes, \nGravity is an object accelerating due to gravity, Plane are 3+ points that define the X-Y plane')
-        Label(self.root, text="Recording frequency (Hz):").grid(row=8, column=1, padx=35, sticky=W)
+        Label(self.root, text="Recording frequency (Hz):").grid(row=8, column=1, padx=30, sticky=W)
         freq_entry = Entry(self.root, textvariable=self.freq, width=7, bd=3)
-        freq_entry.grid(row=8, column=1, padx=190, sticky=W)
+        freq_entry.grid(row=8, column=1, padx=200, sticky=W)
         tooltips.bind(freq_entry,'Recording frequency for gravity calculation.')
         # disable the box until "gravity" is selected
         freq_entry.config(state=DISABLED)
