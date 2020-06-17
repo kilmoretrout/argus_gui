@@ -26,6 +26,8 @@ from .colors import *
 import subprocess
 from .tools import *
 
+import pickle
+
 
 # class that plots n wave files for the user to choose a time interval
 class Shower():
@@ -97,12 +99,17 @@ class Shower():
         plt.show()
 
 
-# Input: expects Nx3 matrix of points
-# Returns R,t
-# R = 3x3 rotation matrix
-# t = 3x1 column vector
-# returns the estimated translation and rotation matrix for a rigid transform from one set of points to another.
-# used to transform points based on specified axis directions
+# rigid_transform_3D
+# Returns the estimated translation and rotation matrix for a rigid transform from one set of points to another.
+# used here to transform points based on specified axis directions
+#
+# Uses a nifty SVD method
+# https://igl.ethz.ch/projects/ARAP/svd_rot.pdf
+#
+# Input: expects Nx3 matrices of points in A and B of matched N
+# Returns: R,t
+#   R = 3x3 rotation matrix
+#   t = 3x1 column vector
 def rigid_transform_3D(A, B):
     assert len(A) == len(B)
 
@@ -111,7 +118,7 @@ def rigid_transform_3D(A, B):
     centroid_A = mean(A, axis=0)
     centroid_B = mean(B, axis=0)
 
-    # centre the points
+    # center the points
     AA = A - tile(centroid_A, (N, 1))
     BB = B - tile(centroid_B, (N, 1))
 
@@ -124,9 +131,10 @@ def rigid_transform_3D(A, B):
 
     # special reflection case
     if linalg.det(R) < 0:
-        # print "Reflection detected"
-        Vt[2, :] *= -1
-        R = Vt.T.dot(U.T)
+        print('Reflection detected - likely due to an underlying left-handed coordinate system')
+        # do nothing (commented the below lines out on 2020-05-26)
+        #Vt[2, :] *= -1
+        #R = Vt.T.dot(U.T)
     t = -R.dot(centroid_A.T) + centroid_B.T
 
     return R, t
@@ -150,6 +158,16 @@ def rotation(a, b):
     R = np.eye(3) + v_x + np.linalg.matrix_power(v_x, 2) * ((1. - c) / s ** 2)
     return R
 
+# calculate camera xyz position from DLT coefficients
+def DLTtoCamXYZ(dlts):
+    camXYZ = []
+    for i in range(len(dlts)):
+        m1=np.hstack([dlts[i,0:3],dlts[i,4:7],dlts[i,8:11]]).T
+        m2=np.vstack([-dlts[i,3],-dlts[i,7],-1])
+        camXYZ.append(np.dot(np.linalg.inv(m1),m2))
+        
+    camXYZa = np.array(camXYZ)
+    return camXYZa
 
 # takes unpaired and paired points along with other information about the scene, and manipulates the data for outputting and graphing in 3D
 class wandGrapher():
@@ -188,18 +206,37 @@ class wandGrapher():
 
     # transform the points with the rigid transform function
     def transform(self, xyzs, ref):
-        # Subtract the origin
+        # Subtract the origin from the points and reference
         t = ref[0]
         ret = xyzs - np.tile(t, (xyzs.shape[0], 1))
+        ref = ref - ref[0]
+            
+        # if we only got one reference point
+        if ref.shape[0] == 1:
+            print('Using 1-point (origin) reference axes')
+            # we actually already did this above since it's the starting point
+            # for all alignment operations
+            
+        # If we only have 2 reference points: origin, +Z (plumb line):
+        elif ref.shape[0] == 2:
+            print('Using 2-point (origin,+Z) reference axes')    
+            a = (ref[1] - ref[0]) * (1. / np.linalg.norm(ref[1] - ref[0]))
 
-        # print(ret.shape)
+            # Get the current z-axis and the wanted z-axis
+            pts1 = np.asarray([[0., 0., 1.]])
+            pts2 = np.asarray([a])
 
-        # ref = ref - np.tile(t, (ref.shape[0], 1))
+            # Get the transform from one to the other
+            R = rotation(pts2[0], pts1[0])
 
-        # If we have all three axes:
-        if ref.shape[0] == 3:
+            # Perform the transform
+            for k in range(ret.shape[0]):
+                ret[k] = R.dot(ret[k].T).T
+            
+        # If we have origin,+x,+y axes:
+        elif ref.shape[0] == 3:
+            print('Using 3-point (origin,+x,+y) reference axes')        
             A = ref
-            A = A - A[0]
 
             # define an Nx4 matrix containing origin (same in both), a point on the x axis, a point on the y axis, and a point on z
             A = np.vstack((A, np.cross(A[1], A[2]) / np.linalg.norm(np.cross(A[1], A[2]))))
@@ -215,32 +252,24 @@ class wandGrapher():
 
             # rotate
             ret = R.dot(ret.T).T
+        
+        # If we have origin,+x,+y,+z axes:
+        elif ref.shape[0] == 4:
+            print('Using 4-point (origin,+x,+y,+z) reference axes')
+            A = ref
 
-            # points in z need to reversed? works as expected if you change the order of the reference points
-            ret[:, 2] *= -1
+            # define the same points in our coordinate system
+            B = np.zeros((4, 3))
+            B[1] = np.array([np.linalg.norm(A[1]), 0., 0.])
+            B[2] = np.array([0., np.linalg.norm(A[2]), 0.])
+            B[3] = np.array([0., 0., np.linalg.norm(A[3])])
 
-        # If we only have Z:
-        elif ref.shape[0] == 2:
-            # print('Performing transform...')
-            a = (ref[1] - ref[0]) * (1. / np.linalg.norm(ref[1] - ref[0]))
+            # find rotation and translation, translation ~ 0 by definition
+            R, t = rigid_transform_3D(A, B)
 
-            # Get the current z-axis and the wanted z-axis
-            pts1 = np.asarray([[0., 0., 1.]])
-            pts2 = np.asarray([a])
+            # rotate
+            ret = R.dot(ret.T).T
 
-            # print pts2.T
-
-            # Get the transform from one to the other
-            R = rotation(pts2[0], pts1[0])
-
-            # Perform the transform
-            for k in range(ret.shape[0]):
-                ret[k] = R.dot(ret[k].T).T
-
-            # print R.dot(pts2.T).T
-
-        # print(ret.shape)
-        # If we just have an origin, simply returning the data after the subtracting the orgins ok.
         return ret
 
     # makes two sets of isomorphic paired points that share the same frame
@@ -309,7 +338,8 @@ class wandGrapher():
             B[2 * k + 1] = uv[indices[k], 1]
 
         # solve using numpy's least squared algorithm
-        L = np.linalg.lstsq(A, B)[0]
+        # added rcond option 2020-05-26 in response to FutureWarning from numpy
+        L = np.linalg.lstsq(A, B, rcond=None)[0]
 
         # reproject to calculate rmse
         reconsted = np.zeros((len(indices), 2))
@@ -334,7 +364,7 @@ class wandGrapher():
             error += s
         """
 
-        # This part finds outliers and there frames
+        # This part finds outliers and their frames
         merr = np.mean(errors)
         stderr = np.std(errors)
         outliers = list()
@@ -428,16 +458,15 @@ class wandGrapher():
         """
         if self.ref:
             ref = xyzs[:self.nRef, :]
-            # pickle.dump(xyzs, open('xyzs.pkl', 'w'))
             xyzs = self.transform(xyzs, ref)
-            # vP[:,:3] = self.transform(vP[:,:3], ref)
-            # vP[:,3:] = self.transform(vP[:,3:], ref)
+            ref = xyzs[:self.nRef, :] # transformed reference points
+
         else:
+            print('No reference points available - centering the calibration on the mean point location.')
+            ref = None
             t = np.mean(xyzs, axis=0)
             for k in range(xyzs.shape[0]):
-                xyzs[k] = xyzs[k] + t
-
-        # print xyzs[:self.nRef,:]
+                xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
 
         # trim off the reference points as we don't wan't to graph them
         # xyzs = xyzs[self.nRef:,:]
@@ -490,7 +519,7 @@ class wandGrapher():
                 x = up[:, 0]
                 y = up[:, 1]
                 z = up[:, 2]
-                ax.scatter(x, y, z)
+                ax.scatter(x, y, z,c='c',label='Unpaired points')
         else:
             up = None
 
@@ -504,7 +533,22 @@ class wandGrapher():
                 x = _[:, 0]
                 y = _[:, 1]
                 z = _[:, 2]
-                ax.plot(x, y, z)
+                if k == 0:
+                    ax.plot(x, y, z,c='m',label='Paired points')
+                else:
+                    ax.plot(x, y, z,c='m')
+                
+        # plot the reference points if there are any
+        if self.nRef != 0 and self.display:
+            ax.scatter(ref[:,0]*factor,ref[:,1]*factor,ref[:,2]*factor, c='r', label='Reference points')
+            
+        # get the camera locations as expressed in the DLT coefficients
+        camXYZ = DLTtoCamXYZ(dlts)
+        ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
+            
+        # add the legend, auto-generated from label='' values for each plot entry
+        if self.display:
+            ax.legend()
 
         self.outputDLT(dlts, errs)
 

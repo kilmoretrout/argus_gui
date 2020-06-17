@@ -3,7 +3,7 @@ ReadMe
 
 argus_gui is a python package with multiple tools for 3D camera calibration and reconstruction. Argus Panoptes had thousands of eyes, but you may only have two or more cameras.  Hopefully this will help.
 
-Version: 2.1dev3
+Version: 2.1.3
 
 ### How do I get set up? ###
 
