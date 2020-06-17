@@ -504,8 +504,6 @@ class wandGrapher():
             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
             dist, std = self.averDist(pairedSet1, pairedSet2)
             factor = self.scale / dist
-            p1 = p1 * factor
-            p2 = p2 * factor
         else:
             # else no scale, just arbitrary
             p1, p2 = None, None
@@ -524,6 +522,11 @@ class wandGrapher():
             t = np.mean(xyzs, axis=0)
             for k in range(xyzs.shape[0]):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
+                
+        # now that we've applied the scale and alignment, re-extract the paired points for proper display
+        if self.nppts != 0:
+            paired = xyzs[self.nRef:self.nppts + self.nRef]
+            p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
 
         # get DLT coefficients
         camn = 0
@@ -570,7 +573,7 @@ class wandGrapher():
             ax.set_ylabel('Y (Meters)')
             ax.set_zlabel('Z (Meters)')
             for k in range(len(pairedSet1)):
-                _ = np.vstack((pairedSet1[k] * factor, pairedSet2[k] * factor))
+                _ = np.vstack((pairedSet1[k], pairedSet2[k]))
                 x = _[:, 0]
                 y = _[:, 1]
                 z = _[:, 2]
