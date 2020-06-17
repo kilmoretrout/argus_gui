@@ -472,6 +472,9 @@ class wandGrapher():
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         # ax.set_aspect('equal') # doesn't look good for 3D
+        # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
+        # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
+
 
         qT = cam[:, -7:]
         quats = qT[:, :4]
