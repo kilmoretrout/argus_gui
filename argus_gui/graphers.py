@@ -281,12 +281,15 @@ class wandGrapher():
             rfreq=float(self.recording_frequency)
             t=np.arange(ref.shape[0]) # integer timebase
             
+            print(ref) # debug
+            
             # perform a least-squares fit of a 2nd order polynomial to each
             # of x,y,z components of the reference, evaluate the polynomial
             # and get the acceleration
             acc=np.zeros(3)
+            idx=np.where(np.isfinite(ref[:,0])) # can only send real data to polyfit
             for k in range(3):
-                p=np.polyfit(t,ref[:,k],2)
+                p=np.polyfit(t[idx[0]],ref[idx[0],k],2)
                 pv=np.polyval(p,t)
                 acc[k]=np.mean(np.diff(np.diff(pv)))*rfreq*rfreq
             

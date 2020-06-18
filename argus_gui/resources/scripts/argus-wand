@@ -142,21 +142,33 @@ if __name__ == '__main__':
         print('Could not load camera profile! Make sure it is formatted according to the documentation.')
         sys.exit()
         
-    # Get reference points. Either one, two, or three uv correspondences:
-    # One - an origin
-    # Two - origin and z-axis
-    # Three - origin, x-axis, y-axis
-    # Four - origin, x-axis, y-axis, z-axis
-    # more - gravity or surface reference points
+    # Get reference points::
+    # One point - an origin
+    # Two - origin and +z-axis
+    # Three - origin, +x-axis, +y-axis
+    # Four - origin, +x-axis, +y-axis, +z-axis
+    # More - gravity or surface reference points
     if args.reference_points:
         print('Loading reference points')
         ref = pandas.read_csv(args.reference_points, index_col=False).values
+        
+        # trim to the rows with data, inclusive of any interior rows of all NaNs
+        # changed on 2020-06-18 by Ty Hedrick
+        idx = np.where(np.sum(np.isnan(ref),1)<ref.shape[1])
+        ref = ref[idx[0][0]:idx[0][-1],:]
+        
+        # old way - trims all rows with any NaNs, tends to break gravity calibration
+        '''
         toDel = list()
         # take out NaNs
         for k in range(ref.shape[0]):
             if True in np.isnan(ref[k]):
                 toDel.append(k)
         ref = np.delete(ref, toDel, axis=0)
+        '''
+        
+        
+        
         if ref.shape[1] != 2 * cams.shape[0]:
             print('Incorrect shape of reference points! Make sure they are formatted according to the documentation.')
             sys.exit()
