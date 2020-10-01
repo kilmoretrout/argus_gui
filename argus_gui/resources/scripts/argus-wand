@@ -69,8 +69,11 @@ def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
             sys.exit()
     oCPs = args.output_camera_profiles
 
-    print(paried_points[0][0])
-    print(unpaired_points)
+    if (paried_points is None) and (unpaired_points is not None):
+        print(unpaired_points)
+    else:
+        print(paried_points[0][0])
+        print(unpaired_points)
 
     driver = argus_gui.sbaArgusDriver(paried_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
                                       oCPs, args.choose_reference, args.reference_type, args.recording_frequency)
