@@ -310,6 +310,28 @@ class wandGrapher():
         elif self.reference_type == 'Plane':
             print('Sorry, horizontal plane reference is functional yet!')
 
+            # calculate pca of reference pts
+            avg = np.mean(ref.T, axis=1)
+            centered = ref - avg
+            covariance = np.cov(centered.T)
+            values, vectors = np.linalg.eig(covariance)
+            pcaRef = vectors.T.dot(centered.T)
+            pcaRef = pcaRef.T
+            if np.mean(pcaRef[2]) < 0:  # if avg val of z's are negative, flip them
+                pcaRef[2] = 0 - pcaRef[2]
+
+            # calculate pca of xyz pts
+            avg = np.mean(xyzs.T, axis=1)
+            centered = xyzs - avg
+            covariance = np.cov(centered.T)
+            values, vectors = np.linalg.eig(covariance)
+            pca = vectors.T.dot(centered.T)
+            pca = pca.T
+
+            # match xyz z axis to ref pts
+            pca[2] = pcaRef[2]
+            ret = pca
+
         return ret
 
     # makes two sets of isomorphic paired points that share the same frame
