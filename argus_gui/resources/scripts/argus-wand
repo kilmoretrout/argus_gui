@@ -23,6 +23,8 @@ import argus_gui
 def parseCSVs(csv):
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
+        dataf = dataf.dropna(how='all')  # remove nan rows
+        dataf = dataf.reset_index(drop=True)  # reset indices
         return dataf.values
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
