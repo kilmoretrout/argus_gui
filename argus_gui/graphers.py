@@ -310,27 +310,27 @@ class wandGrapher():
         elif self.reference_type == 'Plane':
             print('Sorry, horizontal plane reference is functional yet!')
 
-            # calculate pca of reference pts
-            avg = np.mean(ref.T, axis=1)
-            centered = ref - avg
-            covariance = np.cov(centered.T)
-            values, vectors = np.linalg.eig(covariance)
-            pcaRef = vectors.T.dot(centered.T)
-            pcaRef = pcaRef.T
-            if np.mean(pcaRef[2]) < 0:  # if avg val of z's are negative, flip them
-                pcaRef[2] = 0 - pcaRef[2]
-
-            # calculate pca of xyz pts
             avg = np.mean(xyzs.T, axis=1)
-            centered = xyzs - avg
-            covariance = np.cov(centered.T)
-            values, vectors = np.linalg.eig(covariance)
-            pca = vectors.T.dot(centered.T)
-            pca = pca.T
+            centered = xyzs - avg  # mean centered plane
 
-            # match xyz z axis to ref pts
-            pca[2] = pcaRef[2]
-            ret = pca
+            U, s, vectors = scipy.linalg.svd(centered)
+
+            if np.linalg.det(vectors) == -1:
+                vectors = -1 * vectors
+
+            rot = np.matmul(centered, vectors)
+
+            if np.var(rot[0]) < np.var(rot[1]):
+                print("transpose")
+                rot = np.transpose(rot)
+
+            if np.mean(rot[2]) < 0:
+                print("negative")
+                m = [[1, 0, 0], [0, -1, 0], [0, 0, -1]]
+                adjustedVectors = np.matmul(m, vectors)
+                rot = np.matmul(centered, adjustedVectors)
+
+            ret = rot
 
         return ret
 
