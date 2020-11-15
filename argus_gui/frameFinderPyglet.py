@@ -319,7 +319,7 @@ class FrameFinder:
 
         # get continuous estimate
         s = RectBivariateSpline(list(range(corr.shape[0])), list(range(corr.shape[1])), -corr)
-        sol, nfeval, rc = fmin_tnc(lambda x: s(x[0], x[1]), np.array([float(oy), float(ox)]), approx_grad=True,
+        sol, nfeval, rc = fmin_tnc(lambda x: np.squeeze(s(x[0], x[1])), np.array([float(oy), float(ox)]), approx_grad=True,
                                    bounds=[(0., float(corr.shape[0])), (0., float(corr.shape[1]))], disp=0)
 
         oy, ox = sol
