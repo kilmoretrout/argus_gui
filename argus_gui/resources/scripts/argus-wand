@@ -160,7 +160,7 @@ if __name__ == '__main__':
         # trim to the rows with data, inclusive of any interior rows of all NaNs
         # changed on 2020-06-18 by Ty Hedrick
         idx = np.where(np.sum(np.isnan(ref),1)<ref.shape[1])
-        ref = ref[idx[0][0]:idx[0][-1],:]
+        ref = ref[idx[0][0]:idx[0][-1]+1,:]
         
         # old way - trims all rows with any NaNs, tends to break gravity calibration
         '''
