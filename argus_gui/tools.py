@@ -513,10 +513,10 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
         xyzSD[xyzSD==0] = np.nan
         ret[:, k * 3:(k + 1) * 3] = xyzSD
 
-    weights=1/(ret/np.nanmin(ret))
-
-    tols = np.zeros(weights.shape[1])
-    for j in range(len(tols)):
-        tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
+    weights=1/(ret/np.tile(np.nanmin(ret, axis=0),(ret.shape[0],1)))
+    tols = np.nansum(np.multiply(weights, np.power(ret,2)), axis=0)
+    # tols = np.zeros(weights.shape[1])
+    # for j in range(len(tols)):
+    #     tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
 
     return ret * 1.96, weights, tols
