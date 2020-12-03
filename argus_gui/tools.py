@@ -488,6 +488,7 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
 
     # for each track
     for k in range(int(pts.shape[1] / (2 * len(prof)))):
+        print('processing point {} of {}'.format(k, numpts))
         # bootstrap matrix 
         xyzBS = np.zeros((pts.shape[0], 3, bsIter))
         xyzBS[xyzBS == 0] = np.nan
