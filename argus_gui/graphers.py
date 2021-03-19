@@ -540,7 +540,6 @@ class wandGrapher():
         # If we've got paired points, define a scale
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
-
             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
             dist, std = self.averDist(pairedSet1, pairedSet2)
             factor = self.scale / dist
