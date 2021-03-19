@@ -1063,6 +1063,13 @@ class WandGUI(GUI):
             "Optimize r2, r4": '2',
             "Optimize all distortion coefficients": '3'
         }
+        
+        # maybe don't need this?
+        self.refModeDict = {
+            "Axis points": '0',
+            "Gravity": '1',
+            "Plane": '2'
+        }
 
         self.ppts = StringVar(self.root)
         self.uppts = StringVar(self.root)
@@ -1077,6 +1084,8 @@ class WandGUI(GUI):
         self.should_log = StringVar(self.root)
         self.output_camera_profiles = StringVar(self.root)
         self.choose = StringVar(self.root)
+        self.reference_type = StringVar(self.root)
+        self.freq = StringVar(self.root)
 
         self.intrinsic_fixes.set("Optimize none")
         self.distortion_fixes.set("Optimize none")
@@ -1086,6 +1095,8 @@ class WandGUI(GUI):
         self.should_log.set('0')
         self.output_camera_profiles.set('0')
         self.choose.set('1')
+        self.reference_type.set("Axis points")
+        self.freq.set('100')
 
         Label(self.root, text="Argus-Wand", font=("Helvetica", 40), fg='#56A0D3').grid(row=0, column=0, padx=20,
                                                                                        pady=20, columnspan=2)
@@ -1147,6 +1158,26 @@ class WandGUI(GUI):
         in_file_entry = Entry(self.root, textvariable=self.ref, width=20)
         in_file_entry.grid(row=6, column=1, padx=10, pady=10, sticky=EW)
         tooltips.bind(in_file_entry, 'Path to reference points text file')
+
+        # mini func to control editable state of freq entry based on ref point option
+        def freqBoxState(*args):
+            if self.reference_type.get() == 'Gravity':
+                freq_entry.config(state=NORMAL)
+            else:
+                freq_entry.config(state=DISABLED)
+        # Add new reference point options
+        Label(self.root, text="Reference point type:").grid(row=7, column=1, padx=30, sticky=W)
+        option_menu_window = OptionMenu(self.root, self.reference_type, "Axis points","Gravity","Plane", )
+        option_menu_window.grid(row=7,column=1,padx=190,sticky=W)
+        # trace the variable to control state of recording frequency box
+        self.reference_type.trace("w", freqBoxState)
+        tooltips.bind(option_menu_window,'Set the reference type. Axis points are 1-4 points defining the origin and axes, \nGravity is an object accelerating due to gravity, Plane are 3+ points that define the X-Y plane')
+        Label(self.root, text="Recording frequency (Hz):").grid(row=8, column=1, padx=30, sticky=W)
+        freq_entry = Entry(self.root, textvariable=self.freq, width=7, bd=3)
+        freq_entry.grid(row=8, column=1, padx=200, sticky=W)
+        tooltips.bind(freq_entry,'Recording frequency for gravity calculation.')
+        # disable the box until "gravity" is selected
+        freq_entry.config(state=DISABLED)
 
         group.grid(row=1, column=1, rowspan=3, padx=5, sticky=EW)
 
@@ -1213,10 +1244,15 @@ class WandGUI(GUI):
         tmp = tempfile.mkdtemp()
         write_bool = False
 
+        #args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
+        #        self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
+        #        '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
+        #        self.ref.get(), '--tmp', tmp]
         args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
                 self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
                 '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
-                self.ref.get(), '--tmp', tmp]
+                self.ref.get(), '--reference_type', self.reference_type.get(), '--recording_frequency', self.freq.get(), 
+                '--tmp', tmp]
 
         if self.should_log.get() == '1':
             write_bool = True
@@ -1234,6 +1270,7 @@ class WandGUI(GUI):
             args = args + ['--choose_reference']
 
         cmd = cmd + args
+        print(cmd) # TY DEBUG
 
         super(WandGUI, self).go(cmd, write_bool)
 

@@ -23,6 +23,8 @@ import argus_gui
 def parseCSVs(csv):
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
+        dataf = dataf.dropna(how='all')  # remove nan rows
+        dataf = dataf.reset_index(drop=True)  # reset indices
         return dataf.values
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
@@ -69,12 +71,14 @@ def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
             sys.exit()
     oCPs = args.output_camera_profiles
 
-    print(paried_points[0][0])
-    print(unpaired_points)
+    if (paried_points is None) and (unpaired_points is not None):
+        print(unpaired_points)
+    else:
+        print(paried_points[0][0])
+        print(unpaired_points)
 
     driver = argus_gui.sbaArgusDriver(paried_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
-                                      oCPs,
-                                      args.choose_reference)
+                                      oCPs, args.choose_reference, args.reference_type, args.recording_frequency)
     driver.fix()
 
     shutil.rmtree(tmp)
@@ -116,6 +120,10 @@ if __name__ == '__main__':
                         help="Use this argument to output camera profiles for use with other Argus programs")
     parser.add_argument("--choose_reference", action="store_true",
                         help="Use this argument to have Argus-Wand optimize the choice of reference camera by counting the number of triangulatable points for each choice")
+    parser.add_argument("--reference_type",
+                        help="Type of reference points provided: Axis points (default) 1-4 points specifying the origin and axes, Gravity - a gravitational acceleration recording, Plane - 3+ points specifying the X-Y plane", default="Axis points")
+    parser.add_argument("--recording_frequency", help="Recording frequency in Hz for gravitational acceleration determination", default="100")
+                        
     args = parser.parse_args()
     print('Loading points...')
     sys.stdout.flush()
@@ -139,21 +147,33 @@ if __name__ == '__main__':
         print('Could not load camera profile! Make sure it is formatted according to the documentation.')
         sys.exit()
         
-    # Get reference points. Either one, two, or three uv correspondences:
-    # One - an origin
-    # Two - origin and z-axis
-    # Three - origin, x-axis, y-axis
-    # Four - origin, x-axis, y-axis, z-axis
-    # more - gravity or surface reference points
+    # Get reference points::
+    # One point - an origin
+    # Two - origin and +z-axis
+    # Three - origin, +x-axis, +y-axis
+    # Four - origin, +x-axis, +y-axis, +z-axis
+    # More - gravity or surface reference points
     if args.reference_points:
         print('Loading reference points')
         ref = pandas.read_csv(args.reference_points, index_col=False).values
+        
+        # trim to the rows with data, inclusive of any interior rows of all NaNs
+        # changed on 2020-06-18 by Ty Hedrick
+        idx = np.where(np.sum(np.isnan(ref),1)<ref.shape[1])
+        ref = ref[idx[0][0]:idx[0][-1]+1,:]
+        
+        # old way - trims all rows with any NaNs, tends to break gravity calibration
+        '''
         toDel = list()
         # take out NaNs
         for k in range(ref.shape[0]):
             if True in np.isnan(ref[k]):
                 toDel.append(k)
         ref = np.delete(ref, toDel, axis=0)
+        '''
+        
+        
+        
         if ref.shape[1] != 2 * cams.shape[0]:
             print('Incorrect shape of reference points! Make sure they are formatted according to the documentation.')
             sys.exit()

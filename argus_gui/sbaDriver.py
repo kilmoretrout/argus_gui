@@ -37,7 +37,7 @@ from .tools import undistort_pts
 # driver for SBA operations, graphing, and writing output
 class sbaArgusDriver():
     def __init__(self, ppts, uppts, cams, display=True, scale=None, modeString=None, ref=None, name=None, temp=None,
-                 report=True, outputCPs=True, reorder=True):
+                 report=True, outputCPs=True, reorder=True, reference_type='Axis points', recording_frequency=100):
         self.ppts = ppts
         self.uppts = uppts
         self.cams = cams
@@ -53,6 +53,8 @@ class sbaArgusDriver():
         self.report = report
         self.outputCameraProfiles = outputCPs
         self.reorder = reorder
+        self.reference_type = reference_type
+        self.recording_frequency = recording_frequency
 
         print('Parsing points...')
         sys.stdout.flush()
@@ -336,7 +338,7 @@ class sbaArgusDriver():
         # note that wandGrapher also does lots of other tasks: alignment, generating and saving DLT coefficients, etc.
         grapher = wandGrapher(key, self.nppts, self.nuppts, self.scale, refBool, self.indices, self.ncams, npframes,
                               nupframes, self.name, self.temp, self.display, uvs, nRef, self.order, self.report,
-                              self.cams)
+                              self.cams, self.reference_type, self.recording_frequency)
         if self.display:
             print('Graphing and writing output files...')
             sys.stdout.flush()
