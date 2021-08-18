@@ -1556,6 +1556,7 @@ class ClickerWindow(pyglet.window.Window):
 
         # if the common dict exits (save has been called once), reset it - it will be recreated when save is called again
         if 'common' in globals():
+            print('deleting common')
             common = {}
 
     def options_menu(self):

@@ -550,7 +550,7 @@ def splineData(pts, w, tol, nl=5):
     splinevel = splined.copy()
     splineacc = splined.copy()
     for i in range(pts.shape[1]):
-        data = pts[:, i]
+        data = pts.iloc[:, i]
         # check to see if we have all nans
         if not np.any(np.isfinite(data)):
             continue
@@ -562,16 +562,16 @@ def splineData(pts, w, tol, nl=5):
             # return pairs of points describing stretches of nans longer than nanLength
             longNans = ss[np.where(np.diff(ss) > nl)[0]]
         idx = np.where(np.isfinite(data))[0]
-        s = UnivariateSpline(x[idx],
+        sp = interpolate.UnivariateSpline(x[idx],
                              data[idx],
                              k=5,
                              w=w[idx, i],
-                             s=t[0, i],
+                             s=tol[i],
                              )
-        sv = s.derivative()
-        sa = s.derivative(n=2)
-        splined[idx[0]:idx[-1] + 1, i] = s(x[idx[0]:idx[-1] + 1])
-        splinevel[idx[0]:idx[-1] + 1, i] = sv(x[idx[0]:idx[-1] + 1])
-        splineacc[idx[0]:idx[-1] + 1, i] = sa(x[idx[0]:idx[-1] + 1])
+        sv = sp.derivative()
+        sa = sp.derivative(n=2)
+        splined.iloc[idx[0]:idx[-1] + 1, i] = sp(x[idx[0]:idx[-1] + 1])
+        splinevel.iloc[idx[0]:idx[-1] + 1, i] = sv(x[idx[0]:idx[-1] + 1])
+        splineacc.iloc[idx[0]:idx[-1] + 1, i] = sa(x[idx[0]:idx[-1] + 1])
 
     return splined, splinevel, splineacc
