@@ -1554,6 +1554,10 @@ class ClickerWindow(pyglet.window.Window):
         del self.drawn_points[track]
         del self.drawn_lines[track]
 
+        # if the common dict exits (save has been called once), reset it - it will be recreated when save is called again
+        if 'common' in globals():
+            common = {}
+
     def options_menu(self):
         global sync
         global auto_advance
