@@ -1438,6 +1438,14 @@ class ClickerWindow(pyglet.window.Window):
                     pandas.DataFrame(np.reshape(tols, (1, len(xyz_cols))), columns=xyz_cols).to_csv(
                         filename + '-spline-error-tolerances.csv', index=False, na_rep='NaN')
 
+                    # run a spline on the bootstrapped data to save smoothed data, velocity, and acceleration
+                    splined, splinevel, splineacc = splineData(dataf1, weights, tols, nl=5)
+
+                    # save the splined data
+                    splined.to_csv(filename + '-splinedxyzpts.csv', index=False, na_rep='NaN')
+                    splinevel.to_csv(filename + '-splinedvel.csv', index=False, na_rep='NaN')
+                    splineacc.to_csv(filename + '-splinedacc.csv', index=False, na_rep='NaN')
+
                 # write the data frames to CSV
                 dataf1.to_csv(filename + '-xyzpts.csv', index=False, na_rep='NaN')
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')

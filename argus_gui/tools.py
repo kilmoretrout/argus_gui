@@ -521,3 +521,57 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
     #     tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
 
     return ret * 1.96, weights, tols
+
+
+"""
+    splineXYZs:
+    ===========================
+    Uses weights and tolerances from boostrapping to generate a quintic spline smoothed xyz data set. 
+    Long stretches of Nans (> nl) are overwritten with NaN after the spline interpolation (might not be neccessary?)
+Takes:
+    - pts: an N*(3*k) array where k is the number of tracks, and N is the number of frames
+    - w: same size array as dataArray, the spline weights from Argus output when 95% CI calculated
+    - t: tolerance output from Argus
+    - nl: max length of nans through which to interpolate - default=5 frames
+
+Returns:
+    splined: the spline smoothed xyz data
+    splinevel: the per-frame velocity calculated as the first order derivative of the spline
+    splineacc: the per-frame acceleration calculated as the second order derivative of the spline
+"""
+
+def splineData(pts, w, tol, nl=5):
+    # make an x vector
+    frs = len(pts)
+    x = np.linspace(0, frs - 1, frs)
+    w[np.isnan(w)] = 0
+    # duplicate the data array, set all values to nan
+    splined = pts.copy() * np.nan
+    splinevel = splined.copy()
+    splineacc = splined.copy()
+    for i in range(pts.shape[1]):
+        data = pts[:, i]
+        # check to see if we have all nans
+        if not np.any(np.isfinite(data)):
+            continue
+            # find stretches of nans longer than nanLength
+            # make a data mask
+            m = np.concatenate(([True], np.isfinite(data), [True]))
+            # make an array of pairs of points describing the indexes of starts and stops of nans
+            ss = np.flatnonzero(m[1:] != m[:-1]).reshape(-1, 2)
+            # return pairs of points describing stretches of nans longer than nanLength
+            longNans = ss[np.where(np.diff(ss) > nl)[0]]
+        idx = np.where(np.isfinite(data))[0]
+        s = UnivariateSpline(x[idx],
+                             data[idx],
+                             k=5,
+                             w=w[idx, i],
+                             s=t[0, i],
+                             )
+        sv = s.derivative()
+        sa = s.derivative(n=2)
+        splined[idx[0]:idx[-1] + 1, i] = s(x[idx[0]:idx[-1] + 1])
+        splinevel[idx[0]:idx[-1] + 1, i] = sv(x[idx[0]:idx[-1] + 1])
+        splineacc[idx[0]:idx[-1] + 1, i] = sa(x[idx[0]:idx[-1] + 1])
+
+    return splined, splinevel, splineacc
