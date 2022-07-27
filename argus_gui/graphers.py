@@ -308,7 +308,44 @@ class wandGrapher():
             
         # If we have a reference plane
         elif self.reference_type == 'Plane':
-            print('Sorry, horizontal plane reference is functional yet!')
+            print('Aligning to horizontal plane reference points')
+
+            avg = np.mean(ref.T, axis=1)
+            centered = ref - avg  # mean centered plane
+            
+            # do a principal components analysis via SVD
+            uu, ss, vh = np.linalg.svd(centered, full_matrices=True)
+            vh=vh.T # numpy svd vector is the transpose of the MATLAB version
+            #print('svd results')
+            #print(vh)
+            
+            #print('plane xyz points pre-rotation')
+            #print(centered)
+            
+            # check to see if vh is a rotation matrix
+            if np.linalg.det(vh) == -1:
+                #print('found det of -1')
+                vh=-vh
+                
+            # test application of rotation to plane points
+            #rTest = np.matmul(centered,vh)
+            #print('Rotation test on plane points')
+            #print(rTest)
+            
+            # apply to the whole set of input values
+            centered = xyzs - avg   # center on center of reference points
+            rCentered = np.matmul(centered,vh)
+            
+            # check to see if Z points are on average + or -
+            # if they're negative, multiply in a 180 degree rotation about the X axis
+            rca=np.mean(rCentered.T,axis=1)
+            if rca[2]<0:
+                #print('reversing the direction')
+                r180 = np.array([[1,0,0],[0,-1,0],[0,0,-1]])
+                vh = np.matmul(vh,r180)
+                rCentered = np.matmul(centered,vh)
+
+            ret = rCentered
 
         return ret
 
