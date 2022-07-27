@@ -1,2 +1,2 @@
 #!/usr/bin/env python
-print("local")
+print("bootstrap fix branch")

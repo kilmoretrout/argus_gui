@@ -128,8 +128,6 @@ Returns:
 
 
 def undistort_pts(pts, prof):
-    print(f"in undistort_pts")
-    print(prof)
     if (type(prof) == list) or (type(prof) == np.ndarray):
         prof = np.array(prof)
 
@@ -307,9 +305,6 @@ def uv_to_xyz(pts, profs, dlt):
         for j in range(int(len(pts[i]) / 2)):
             # do we have a NaN pair?
             if not True in np.isnan(pts[i, 2 * j:2 * (j + 1)]):
-                print(f"in uv_to_xyz - i: {i}, j: {j}, len profs: {len(profs)}")
-                print("profs: ", profs)
-                print("projs[j]: ", profs[j])
                 # if not append the undistorted point and its camera number to the list
                 uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
 
@@ -433,7 +428,6 @@ Returns:
 
 
 def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, subframeinterp=True):
-    print('doing bootstrap')
     #do subframe interpolation of xypoint data based on cam1; overwrite pts input
     camlist = list(range(len(prof)))
     numcams = len(prof)
@@ -465,11 +459,10 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
                     spts = np.hstack([c1pts, ocpts, cpts])
                     threecam = np.where(np.sum(np.isfinite(spts), axis=1)>4)[0]
                     spts=spts[threecam]
-                    sprof = np.vstack([prof[0], prof[ocam], prof[c]])
-                    print(f"in bootstrap interp: c: {c}, k: {k}, id: {id}, ocam: {ocam}")
-                    print("prof: " , prof)
-                    print("sprof: ", sprof)
-            
+                    if type(prof[0]) == PointUndistorter:
+                        sprof = [prof[0], prof[ocam], prof[c]]
+                    else:
+                        sprof = np.vstack([prof[0], prof[ocam], prof[c]])
                     sdlt = np.vstack([dlt[0], dlt[ocam], dlt[c]])
                     sxyzs = uv_to_xyz(spts, sprof, sdlt)
                     srms = get_repo_errors(sxyzs, spts, sprof, sdlt)

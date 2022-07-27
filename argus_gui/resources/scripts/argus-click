@@ -1385,8 +1385,6 @@ class ClickerWindow(pyglet.window.Window):
 
             # if we have DLT coefficients and intrinsic camera information, triangulate and write the 3D coordinates frame-by-frame
             if DLTCoefficients is not None and camera_profile is not None:
-                print("In argus-click, len of profile: ", len(camera_profile))
-                print(camera_profile)
                 # make a data frame for the xyz coordinates for all tracks and all frames
                 xyzss = list()
                 for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
