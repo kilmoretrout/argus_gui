@@ -35,3 +35,8 @@ local_settings.py
 
 # Jupyter Notebook
 .ipynb_checkpoints
+
+# VS code files
+*.name
+*.xml
+*.iml
