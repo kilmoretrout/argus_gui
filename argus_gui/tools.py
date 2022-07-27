@@ -4,6 +4,7 @@ from __future__ import print_function
 import cv2
 import numpy as np
 import scipy as sp
+from scipy import interpolate
 from argus.ocam import PointUndistorter, ocam_model
 from six.moves import range
 from tqdm import *
@@ -426,10 +427,68 @@ Returns:
 """
 
 
-def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False):
+def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, subframeinterp=True):
+    #do subframe interpolation of xypoint data based on cam1; overwrite pts input
+    camlist = list(range(len(prof)))
+    numcams = len(prof)
+    numpts = int(pts.shape[1] / (2 * len(prof)))
+    if subframeinterp and len(camlist)>2:
+        print('Checking subframe interpolation')
+        redormse=False
+        xs = np.arange(len(pts))
+        step = list(np.linspace(-1, 1, 21))
+        # for each camera after the first
+        for c in range(1,len(prof)):
+            steprmses = np.zeros((21, numpts))*np.nan
+            # for each point
+            for k in range(numpts):
+                c1pts = pts[:, k * 2 * len(prof):(k * 2 * len(prof))+2]
+                cpts_clean = pts[:, k * 2 * len(prof) + c*2 : k * 2 * len(prof) + c*2 + 2]
+                #need other cam (ocam) pts to make erros work well, always use cam2, except when cam2 is being tested, then use cam 3
+                ocam = 1 if c > 1 else 2
+                ocpts = pts[:, k * 2 * len(prof) + ocam*2 : k * 2 * len(prof) + ocam*2 + 2]
+                fin = np.where(np.isfinite(cpts_clean[:,0]))[0]
+                if not np.any(fin):
+                    continue
+                # interp from -1 to 1 by 0.1
+                for id in range(len(step)):
+                    s = step[id]
+                    cpts=cpts_clean.copy()
+                    cpts[fin] = interpolate.interp1d(fin, cpts[fin], axis=0, kind='linear', fill_value='extrapolate')(fin + s)
+                    # reconstruct
+                    spts = np.hstack([c1pts, ocpts, cpts])
+                    threecam = np.where(np.sum(np.isfinite(spts), axis=1)>4)[0]
+                    spts=spts[threecam]
+                    sprof = np.vstack([prof[0], prof[ocam], prof[c]])
+                    sdlt = np.vstack([dlt[0], dlt[ocam], dlt[c]])
+                    sxyzs = uv_to_xyz(spts, sprof, sdlt)
+                    srms = get_repo_errors(sxyzs, spts, sprof, sdlt)
+                    # capture rmse
+                    steprmses[id,k]= np.nanmedian(srms)
+            # sum rmse for all points for each step, find the min index, and get the offset
+            poff = step[np.nanargmin(np.nanmedian(steprmses, axis=1))]
+            if poff !=0:
+                redormse=True
+                print('partial offset of {} frames found for cam {}, remaking pts'.format(poff, c+1))
+                # reconstruct the new values, and overwrite in pts and rmse
+                for k in range(int(pts.shape[1] / (2 * len(prof)))):
+                    cpts = pts[:, k * 2 * len(prof) + c * 2: k * 2 * len(prof) + c * 2 + 2]
+                    fin = np.where(np.isfinite(cpts_clean[:,0]))[0]
+                    cpts[fin] = interpolate.interp1d(fin, cpts[fin], axis=0, kind='linear', fill_value='extrapolate')(fin + poff)
+                    pts[:, k * 2 * len(prof) + c * 2: k * 2 * len(prof) + c * 2 + 2] = cpts
+        #get new rmses since partial offsets were found
+        if redormse:
+            xyzs = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(prof))))) * np.nan
+            for k in range(int(pts.shape[1] / (2 * len(prof)))):
+                track = pts[:, k * 2 * len(prof):(k + 1) * 2 * len(prof)]
+                txyzs = uv_to_xyz(track, prof, dlt)
+                xyzs[:,k*3:(k+1)*3]=txyzs
+            rmses = get_repo_errors(xyzs, pts, prof, dlt).T
     ret = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(prof)))))
+
     # for each track
-    for k in range(int(pts.shape[1] / (2 * len(prof)))):
+    for k in range(numpts):
+        print('processing point {} of {}'.format(k+1, numpts))
         # bootstrap matrix 
         xyzBS = np.zeros((pts.shape[0], 3, bsIter))
         xyzBS[xyzBS == 0] = np.nan
@@ -438,34 +497,27 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False):
         xyzSD[xyzSD == 0] = np.nan
         # track (k+1)
         track = pts[:, k * 2 * len(prof):(k + 1) * 2 * len(prof)]
+        # find the number of cameras with digitized points at eah row of pts
+        camSum = np.nansum(np.isfinite(track), axis=1)/2
         # for each bootstrap
         if not display_progress:
             for j in range(bsIter):
-                per = np.zeros((track.shape[0], track.shape[1]))
-                for i in range(len(per)):
-                    per[i] = sp.randn(track.shape[1]) * (
-                                (rmses[i, k] * 2) ** 0.5 / (np.count_nonzero(~np.isnan(track[i])) / 2))
-                track = track + per
-                xyzBS[:, :, j] = uv_to_xyz(track, prof, dlt)
+                ran = np.random.randn(track.shape[0], track.shape[1])
+                per = ran * np.tile((rmses[:,k]*2**0.5/camSum).reshape((-1,1)), (1, 2*numcams)) + track
+                xyzBS[:, :, j] = uv_to_xyz(per, prof, dlt)
         else:
             for j in tqdm(list(range(bsIter))):
-                per = np.zeros((track.shape[0], track.shape[1]))
-                for i in range(len(per)):
-                    per[i] = sp.randn(track.shape[1]) * (
-                                (rmses[i, k] * 2) ** 0.5 / (np.count_nonzero(~np.isnan(track[i])) / 2))
-                track = track + per
-                xyzBS[:, :, j] = uv_to_xyz(track, prof, dlt)
-        xyzSD = np.std(xyzBS, axis=2)
+                ran = np.random.randn(track.shape[0], track.shape[1])
+                per = ran * np.tile((rmses[:, k] * 2 ** 0.5 / camSum).reshape((-1, 1)), (1, 2 * numcams)) + track
+                xyzBS[:, :, j] = uv_to_xyz(per, prof, dlt)
+        xyzSD = np.nanstd(xyzBS, axis=2, ddof=1)
+        xyzSD[xyzSD==0] = np.nan
         ret[:, k * 3:(k + 1) * 3] = xyzSD
 
-    weights = ret
-    for j in range(weights.shape[1]):
-        _ = weights[:, j] / np.nanmin(weights[:, j])
-        _ = np.power(_, -1)
-        weights[:, j] = _
-
-    tols = np.zeros(weights.shape[1])
-    for j in range(len(tols)):
-        tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
+    weights=1/(ret/np.tile(np.nanmin(ret, axis=0),(ret.shape[0],1)))
+    tols = np.nansum(np.multiply(weights, np.power(ret,2)), axis=0)
+    # tols = np.zeros(weights.shape[1])
+    # for j in range(len(tols)):
+    #     tols[j] = np.nansum(np.multiply(weights[:, j], np.power(ret[:, j], 2)))
 
     return ret * 1.96, weights, tols
