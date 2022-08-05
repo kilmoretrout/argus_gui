@@ -313,17 +313,17 @@ def uv_to_xyz(pts, profs, dlt):
             A = np.zeros((2 * len(uvs), 3))
 
             for k in range(len(uvs)):
-                A[k] = np.asarray([uvs[k][0][0] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0],
+                A[2*k] = np.asarray([uvs[k][0][0] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0],
                                    uvs[k][0][0] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][1],
                                    uvs[k][0][0] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][2]])
-                A[k + 1] = np.asarray([uvs[k][0][1] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4],
+                A[2*k + 1] = np.asarray([uvs[k][0][1] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4],
                                        uvs[k][0][1] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][5],
                                        uvs[k][0][1] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][6]])
 
             B = np.zeros((2 * len(uvs), 1))
             for k in range(len(uvs)):
-                B[k] = dlt[uvs[k][1]][3] - uvs[k][0][0]
-                B[k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
+                B[2*k] = dlt[uvs[k][1]][3] - uvs[k][0][0]
+                B[2*k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
 
             # solve it
             xyz = np.linalg.lstsq(A, B)[0]
