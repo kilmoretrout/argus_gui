@@ -292,6 +292,7 @@ Returns:
 
 
 def uv_to_xyz(pts, profs, dlt):
+    print("using fixed xyz")
     if (int(pts.shape[1] / 2) != len(profs)) or (int(pts.shape[1] / 2) != len(dlt)):
         raise ArgusError(
             'the length of the profile list and DLT coefficients should match the number of cameras present')
