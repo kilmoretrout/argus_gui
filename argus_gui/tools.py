@@ -196,7 +196,7 @@ def normalize(pts, prof):
         if pts.shape[1] != 2:
             raise ArgusError('pts must be an Nx2 array')
     else:
-        raise ArgusErro('pts must be a numpy array')
+        raise ArgusError('pts must be a numpy array')
     for k in range(len(pts)):
         pts[k][0] = (pts[k][0] - prof[1]) / prof[0]
         pts[k][1] = (pts[k][1] - prof[2]) / prof[0]
@@ -291,7 +291,8 @@ Returns:
 """
 
 
-def uv_to_xyz(pts, profs, dlt):
+#def uv_to_xyz(pts, profs, dlt):
+def uv_to_xyz(pts, dlt, profs=None):
     print("using fixed xyz")
     if (int(pts.shape[1] / 2) != len(profs)) or (int(pts.shape[1] / 2) != len(dlt)):
         raise ArgusError(
@@ -307,7 +308,10 @@ def uv_to_xyz(pts, profs, dlt):
             # do we have a NaN pair?
             if not True in np.isnan(pts[i, 2 * j:2 * (j + 1)]):
                 # if not append the undistorted point and its camera number to the list
-                uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
+                if profs is None:
+                    uvs.append([pts[i, 2 * j:2 * (j + 1)], j])
+                else:
+                    uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
 
         if len(uvs) > 1:
             # if we have at least 2 uv coordinates, setup the linear system
@@ -386,7 +390,10 @@ def get_repo_errors(xyzs, pts, prof, dlt):
                 toSum = list()
                 for i in range(int(uv.shape[1] / 2)):
                     if not np.isnan(uv[j, i * 2]):
-                        ob = undistort_pts(np.array([uv[j, i * 2:(i + 1) * 2]]), prof[i])[0]
+                        if prof is not None:
+                            ob = undistort_pts(np.array([uv[j, i * 2:(i + 1) * 2]]), prof[i])[0]
+                        else:
+                            ob = np.array([uv[j, i * 2:(i + 1) * 2]])[0]
                         re = reconstruct_uv(dlt[i], xyz[j])
                         toSum.append(((ob[0] - re[0]) ** 2 + (ob[1] - re[1]) ** 2))
                 epsilon = sum(toSum)
