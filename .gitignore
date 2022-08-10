@@ -35,4 +35,10 @@ local_settings.py
 
 # Jupyter Notebook
 .ipynb_checkpoints
-/build/
+
+# VS code files
+*.name
+*.xml
+*.iml
+argus_gui/__pycache__/__init__.cpython-36.pyc
+build/lib/argus_gui/resources/__init__.pyc

@@ -477,7 +477,10 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
                     spts = np.hstack([c1pts, ocpts, cpts])
                     threecam = np.where(np.sum(np.isfinite(spts), axis=1)>4)[0]
                     spts=spts[threecam]
-                    sprof = np.vstack([prof[0], prof[ocam], prof[c]])
+                    if type(prof[0]) == PointUndistorter:
+                        sprof = [prof[0], prof[ocam], prof[c]]
+                    else:
+                        sprof = np.vstack([prof[0], prof[ocam], prof[c]])
                     sdlt = np.vstack([dlt[0], dlt[ocam], dlt[c]])
                     sxyzs = uv_to_xyz(spts, sdlt, sprof)
                     srms = get_repo_errors(sxyzs, spts, sprof, sdlt)
