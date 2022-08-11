@@ -414,9 +414,9 @@ def get_repo_errors(xyzs, pts, prof, dlt):
                 if errors[j] == np.nan or errors[j] == 0:
                     print('Somethings wrong!', uv[j], xyz[j])
         # rmse error from two cameras unreliable, replace with the average rmse over all two camera situations
-        # if len(twos) > 1:
-        #     s = s / float(len(twos))
-        #     errors[twos] = s
+        if len(twos) > 1:
+            s = s / float(len(twos))
+            errors[twos] = s
         errorss.append(errors)
     ret = np.asarray(errorss)
     ret[ret == 0] = np.nan
