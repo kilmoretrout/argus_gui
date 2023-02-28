@@ -3,12 +3,14 @@
 
 from __future__ import absolute_import
 
-import six.moves.tkinter_messagebox
-import six.moves.tkinter_tkfiledialog as tk_file_dialog
+# import six.moves.tkinter_messagebox
+# import six.moves.tkinter_tkfiledialog as tk_file_dialog
 import yaml
-from six.moves import map
-from six.moves.tkinter import *
+# from six.moves import map
+# from six.moves.tkinter import *
 import os
+import sys
+from tkinter import *
 
 # TODO: Better documentation for why this occurs.
 if sys.platform == 'darwin':
@@ -28,7 +30,6 @@ import itertools
 import math
 import pandas
 import argus.ocam
-import sys
 import matplotlib.pyplot as plt
 from scipy.sparse import csc_matrix, lil_matrix
 import time

@@ -13,7 +13,7 @@ setup(
         "numpy >= 1.9.1",
         "pandas >= 0.15.2",
         "matplotlib >= 1.3.1",
-        "pyglet >= 1.2.4",
+        "pyglet < 2",
         "moviepy >= 0.2.2.11",
         "Pmw >= 1.3.3",
         "texttable >= 0.8.3",
