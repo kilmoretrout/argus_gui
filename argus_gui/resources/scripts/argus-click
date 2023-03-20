@@ -1055,7 +1055,6 @@ class ClickerWindow(pyglet.window.Window):
                 matching = False
         self.clearBatch()
         # sys.stdout.flush()
-        start_time = time.clock()
 
         self.draw_tracks()
 
@@ -1778,8 +1777,6 @@ class ClickerWindow(pyglet.window.Window):
                 )
         # changes track to the next one in the list
         elif symbol == key.PERIOD:
-            start_time = time.clock()
-
             old_track = current_track_global
             if track_list_global.index(current_track_global) + 1 < len(track_list_global):
                 current_track_global = track_list_global[track_list_global.index(current_track_global) + 1]
