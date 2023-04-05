@@ -65,7 +65,6 @@ class sbaArgusDriver():
             self.order = np.arange(self.ncams)
 
         self.pts, self.ext, self.indices = self.getPointsAndExtArray()
-
     # parses through the arrays given and finds those rows which have uv coordinates that can be triangulated
     # with respect to the last camera's reference frame. puts good indices in a list to reconstruct later and
     # preserve frame count

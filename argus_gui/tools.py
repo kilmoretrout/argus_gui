@@ -139,6 +139,9 @@ def undistort_pts(pts, prof):
         src = np.zeros((1, pts.shape[0], 2), dtype=np.float32)
         src[0] = pts
         ret = cv2.undistortPoints(src, K, prof[-5:], P=K)
+        # fix compatibility with newer cv2 shape of ret
+        if ret.shape[0] > 1:
+            ret = np.reshape(ret, (1,-1,2))
         return ret[0]
 
     else:
@@ -163,8 +166,8 @@ def redistort_pts(pts, prof):
             # rotaion is the identity matrix
             # translation is zero
             prof = np.array(prof)
-            rvec = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], np.float)  # rotation vector
-            tvec = np.array([0, 0, 0], np.float)  # translation vector
+            rvec = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)  # rotation vector
+            tvec = np.array([0, 0, 0], float)  # translation vector
 
             # define K, the camera matrix
             cameraMatrix = np.asarray([[prof[0], 0., prof[1]],

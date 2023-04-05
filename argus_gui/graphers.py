@@ -423,7 +423,6 @@ class wandGrapher():
         for k in range(len(indices)):
             u = (np.dot(L[:3].T, xyz[indices[k]]) + L[3]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
             v = (np.dot(L[4:7].T, xyz[indices[k]]) + L[7]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
-            print(f"u: {u}, v: {v}")
             reconsted[k] = [u[0], v[0]]
 
         errors = list()
@@ -562,7 +561,6 @@ class wandGrapher():
             t = np.mean(xyzs, axis=0)
             for k in range(xyzs.shape[0]):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
-                
         # now that we've applied the scale and alignment, re-extract the paired points for proper display
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
