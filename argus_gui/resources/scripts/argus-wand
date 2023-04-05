@@ -45,7 +45,7 @@ def parseCSVs(csv):
         return ret
 
 
-def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
+def perform_wand_calibration(args, unpaired_points, paried_points, ref, cams):
     scale = float(args.scale)
     display = args.graph
     # print 'Graphing: {0}'.format(display)
@@ -187,7 +187,7 @@ if __name__ == '__main__':
         # take out camera number column, image width and height, then add in skew
         cams = np.delete(cams, [0, 2, 3], 1)
         cams = np.insert(cams, 4, 0., axis=1)
-        preform_wand_caliration(args, unpaired_points, paried_points, ref, cams)
+        perform_wand_calibration(args, unpaired_points, paried_points, ref, cams)
 
     else:
         # Omnidirectional camera model
@@ -290,7 +290,7 @@ if __name__ == '__main__':
                         index += (cams.shape[0] - 1) * 2 + 2
                 ref[row_index] = new_row
 
-        preform_wand_caliration(args, unpaired_points, paried_points, ref, wand_interpretable_cams)
+        perform_wand_calibration(args, unpaired_points, paried_points, ref, wand_interpretable_cams)
 
 
 else:
