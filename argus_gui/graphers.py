@@ -423,7 +423,8 @@ class wandGrapher():
         for k in range(len(indices)):
             u = (np.dot(L[:3].T, xyz[indices[k]]) + L[3]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
             v = (np.dot(L[4:7].T, xyz[indices[k]]) + L[7]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
-            reconsted[k] = [u, v]
+            print(f"u: {u}, v: {v}")
+            reconsted[k] = [u[0], v[0]]
 
         errors = list()
         dof = float(self.ncams * 2 - 3)
