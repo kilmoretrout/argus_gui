@@ -10,7 +10,7 @@ import string
 import subprocess
 import tempfile
 import yaml
-import Pmw
+#import Pmw
 import cv2
 import numpy as np
 import pkg_resources

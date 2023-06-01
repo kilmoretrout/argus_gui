@@ -2,95 +2,165 @@
 # -*- coding: utf-8 -*-
 
 # Author: Dylan Ray
-# I HAVE ADDED SOMETHING!
-from __future__ import absolute_import
+# rebuilt by Brandon E. Jackson 20230601
 
 import os
-import subprocess
-import sys
-
 import pkg_resources
-from six.moves.tkinter import *
-import six.moves.tkinter_ttk as ttk
+import sys
+from PySide6 import QtWidgets, QtGui
+from argus_gui import gui
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
-# Launcher script. Has buttons for all programs in the Argus suite to be launched
-if __name__ == '__main__':
+class Window(QtWidgets.QWidget):
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
 
-    # Setup root window to put widgets in, and make it is unresizable
-    root = Tk()
-    root.resizable(width=FALSE, height=FALSE)
+    def init_ui(self):
+        # Create buttons
+        self.dwarp_button = QtWidgets.QPushButton('Dwarp')
+        self.sync_button = QtWidgets.QPushButton('Sync')
+        self.patterns_button = QtWidgets.QPushButton('Patterns')
+        self.calibrate_button = QtWidgets.QPushButton('Calibrate')
+        self.clicker_button = QtWidgets.QPushButton('Clicker')
+        self.wand_button = QtWidgets.QPushButton('Wand')
 
-    # Set title for the window
-    root.wm_title("Argus")
-    root.protocol('WM_DELETE_WINDOW', root.destroy)
+        # Set button icons
+        self.dwarp_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
+        self.sync_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/pulse-8x.gif')))
+        self.patterns_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/grid-four-up-8x.gif')))
+        self.calibrate_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/calculator-8x.gif')))
+        self.clicker_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/location-8x.gif')))
+        self.wand_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/wand.gif')))
 
-    startupinfo = None
+        # Connect buttons to functions
+        self.dwarp_button.clicked.connect(self.dwarp)
+        self.sync_button.clicked.connect(self.sync)
+        self.patterns_button.clicked.connect(self.patterns)
+        self.calibrate_button.clicked.connect(self.calibrate)
+        self.clicker_button.clicked.connect(self.clicker)
+        self.wand_button.clicked.connect(self.wand)
 
-    platform = sys.platform
-    if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-        startupinfo = subprocess.STARTUPINFO()
-        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # Create horizontal layout and add buttons
+        h_box = QtWidgets.QHBoxLayout()
+        h_box.addWidget(self.dwarp_button)
+        h_box.addWidget(self.sync_button)
+        h_box.addWidget(self.patterns_button)
+        h_box.addWidget(self.calibrate_button)
+        h_box.addWidget(self.clicker_button)
+        h_box.addWidget(self.wand_button)
 
-    # Functions for starting all the Argus programs.
-    def dwarp():
+        # Set layout and window title
+        self.setLayout(h_box)
+        self.setWindowTitle('PyQt GUI')
+
+    def dwarp(self):
+        print('dwarp called')
         gui.dwarpGUI()
 
-
-    def sync():
+    def sync(self):
+        print('sync called')
         gui.syncGUI()
 
-
-    def patterns():
+    def patterns(self):
+        print('patterns called')
         gui.patternsGUI()
 
-
-    def calibrate():
+    def calibrate(self):
+        print('calibrate called')
         gui.calibrateGUI()
 
-
-    def clicker():
+    def clicker(self):
+        print('clicker called')
         gui.ClickerGUI()
 
-
-    def wand():
+    def wand(self):
+        print('wand called')
         gui.WandGUI()
 
+# Run the application
+app = QtWidgets.QApplication(sys.argv)
+window = Window()
+window.show()
+sys.exit(app.exec())
 
-    # Make Tkinter image objects for the icons
-    dwarpim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/eye-8x.gif'))
-    syncim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/pulse-8x.gif'))
-    patternsim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/grid-four-up-8x.gif'))
-    calibim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/calculator-8x.gif'))
-    clickim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/location-8x.gif'))
-    wandim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/wand.gif'))
+# # Launcher script. Has buttons for all programs in the Argus suite to be launched
+# if __name__ == '__main__':
 
-    DWARP = ttk.Button(root, command=dwarp, image=dwarpim, )
-    DWARP.grid(row=0, column=0, padx=20, pady=10)
-    Label(text="DWarp").grid(row=1, column=0, padx=10, pady=10)
+#     # Setup root window to put widgets in, and make it is unresizable
+#     root = Tk()
+#     root.resizable(width=FALSE, height=FALSE)
 
-    SYNC = ttk.Button(root, command=sync, image=syncim, )
-    SYNC.grid(row=0, column=1, padx=20, pady=10)
-    Label(text="Sync").grid(row=1, column=1, padx=10, pady=10)
+#     # Set title for the window
+#     root.wm_title("Argus")
+#     root.protocol('WM_DELETE_WINDOW', root.destroy)
 
-    PATTERNS = ttk.Button(root, command=patterns, image=patternsim,)
-    PATTERNS.grid(row=0, column=2, padx=20, pady=10)
-    Label(text="Patterns").grid(row=1, column=2, padx=10, pady=10)
+#     startupinfo = None
 
-    CALIBRATE = ttk.Button(root, command=calibrate, image=calibim,)
-    CALIBRATE.grid(row=0, column=3, padx=20, pady=10)
-    Label(text="Calibrate").grid(row=1, column=3, padx=10, pady=10)
+#     platform = sys.platform
+#     if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+#         startupinfo = subprocess.STARTUPINFO()
+#         startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-    CLICKER = ttk.Button(root, command=clicker, image=clickim, )
-    CLICKER.grid(row=0, column=4, padx=20, pady=10)
-    Label(text="Clicker").grid(row=1, column=4, padx=10, pady=10)
+#     # Functions for starting all the Argus programs.
+#     def dwarp():
+#         gui.dwarpGUI()
 
-    WAND = ttk.Button(root, command=wand, image=wandim, )
-    WAND.grid(row=0, column=5, padx=20, pady=10)
-    Label(text="Wand").grid(row=1, column=5, padx=10, pady=10)
 
-    import argus_gui as gui
-    root.style = ttk.Style()
-    root.style.theme_use("clam")
-    root.mainloop()
+#     def sync():
+#         gui.syncGUI()
+
+
+#     def patterns():
+#         gui.patternsGUI()
+
+
+#     def calibrate():
+#         gui.calibrateGUI()
+
+
+#     def clicker():
+#         gui.ClickerGUI()
+
+
+#     def wand():
+#         gui.WandGUI()
+
+
+#     # Make Tkinter image objects for the icons
+#     dwarpim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/eye-8x.gif'))
+#     syncim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/pulse-8x.gif'))
+#     patternsim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/grid-four-up-8x.gif'))
+#     calibim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/calculator-8x.gif'))
+#     clickim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/location-8x.gif'))
+#     wandim = PhotoImage(file=os.path.join(RESOURCE_PATH, 'icons/wand.gif'))
+
+#     DWARP = ttk.Button(root, command=dwarp, image=dwarpim, )
+#     DWARP.grid(row=0, column=0, padx=20, pady=10)
+#     Label(text="DWarp").grid(row=1, column=0, padx=10, pady=10)
+
+#     SYNC = ttk.Button(root, command=sync, image=syncim, )
+#     SYNC.grid(row=0, column=1, padx=20, pady=10)
+#     Label(text="Sync").grid(row=1, column=1, padx=10, pady=10)
+
+#     PATTERNS = ttk.Button(root, command=patterns, image=patternsim,)
+#     PATTERNS.grid(row=0, column=2, padx=20, pady=10)
+#     Label(text="Patterns").grid(row=1, column=2, padx=10, pady=10)
+
+#     CALIBRATE = ttk.Button(root, command=calibrate, image=calibim,)
+#     CALIBRATE.grid(row=0, column=3, padx=20, pady=10)
+#     Label(text="Calibrate").grid(row=1, column=3, padx=10, pady=10)
+
+#     CLICKER = ttk.Button(root, command=clicker, image=clickim, )
+#     CLICKER.grid(row=0, column=4, padx=20, pady=10)
+#     Label(text="Clicker").grid(row=1, column=4, padx=10, pady=10)
+
+#     WAND = ttk.Button(root, command=wand, image=wandim, )
+#     WAND.grid(row=0, column=5, padx=20, pady=10)
+#     Label(text="Wand").grid(row=1, column=5, padx=10, pady=10)
+
+#     import argus_gui as gui
+#     root.style = ttk.Style()
+#     root.style.theme_use("clam")
+#     root.mainloop()
