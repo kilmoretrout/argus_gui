@@ -287,77 +287,138 @@ class BaseGUI(QtWidgets.QWidget):
 #         filename = tkFileDialog.asksaveasfilename()
 #         var.set(filename)
 
-
-class ClickerGUI(GUI):
-    """Takes a list of videos and offsets and allows users to mark pixel locations.
-    Given DLT coefficients and camera profile:
-        - Plots 3D positions
-        - Saves 3D positions
-        - Outputting 95% Confidence Intervals, spline weights, and error tolerances
-        - Plots epipolar lines to aid in tracking common objects
-    """
-
+class ClickerGUI(BaseGUI):
     def __init__(self):
-        super(ClickerGUI, self).__init__()
+        super().__init__()
 
-        self.offsets = list()
-        self.drivers = list()
+        self.offsets = []
+        self.drivers = []
 
-        tooltips = Pmw.Balloon(self.root)
-        self.root.wm_title("Argus")
+        self.init_ui()
 
-        # Build file list
-        self.file_list = Listbox(self.root, width=70, height=10)
-        self.file_list.grid(row=2, column=0, padx=5, pady=5, sticky=EW)
-        tooltips.bind(self.file_list, "List of movies to click through for\nPress '+' button to add movie")
+    def init_ui(self):
+        # Call the init_ui method of the base class
+        super().init_ui()
 
-        # Build add file button
-        find_in_file = ttk.Button(self.root, text=" + ", command=self.add, )#padx=10, pady=10)
-        find_in_file.grid(row=1, column=0, sticky=E, padx=5, pady=5)
-        tooltips.bind(find_in_file, "Open file dialog and browse for movie")
+        # Set properties specific to this GUI
+        self.setWindowTitle('ClickerGUI')
 
-        # Build clear button
-        clear_button = ttk.Button(self.root, text="Clear all", command=self.clear, )#padx=10, pady=5)
-        clear_button.grid(row=1, column=0, padx=5, pady=5)
+        # Create file list
+        self.file_list = QtWidgets.QListWidget()
+        self.file_list.setToolTip("List of movies to click through for\nPress '+' button to add movie")
 
-        # Main title display
-        # fg = '#56A0D3'
-        ttk.Label(self.root, text="Argus-Clicker", font=("Helvetica", 30), ).grid(row=0, column=0, padx=15,
-                                                                                          pady=15, sticky=S)
+        # Create add button
+        self.add_button = QtWidgets.QPushButton('+')
+        self.add_button.setToolTip('Add a movie to the list')
+        self.add_button.clicked.connect(self.add)
 
-        # Build about button
-        about_button = ttk.Button(self.root, text="About", command=self.about, )#padx=10, pady=10)
-        about_button.grid(row=0, column=0, sticky=E, padx=5, pady=5)
+        # Create clear button
+        self.clear_button = QtWidgets.QPushButton('Clear')
+        self.clear_button.setToolTip('Clear the list of movies')
+        self.clear_button.clicked.connect(self.clear)
 
-        # Build delete button
-        delete_button = ttk.Button(self.root, text=" - ",
-                               command=self.delete, )#padx=10, pady=10)
-        delete_button.grid(row=1, column=0, sticky=W, padx=5, pady=5)
-        tooltips.bind(delete_button, "Remove movie from list")
+        # Create remove button
+        self.remove_button = QtWidgets.QPushButton('Remove selected file')
+        self.remove_button.setToolTip('Remove the selected movie from the list')
+        self.remove_button.clicked.connect(self.delete)
 
-        # Build resolution button & options
-        ttk.Label(self.root, text="Resolution:").grid(row=11, column=0, padx=5, pady=5, sticky=W)
-        self.resolution_var = StringVar(self.root)
-        self.resolution_var.set("Half")
-        resolution_check = ttk.OptionMenu(self.root, self.resolution_var, "Half", "Full")
-        resolution_check.grid(row=11, column=0, pady=5, padx=100, sticky=W)
-        tooltips.bind(resolution_check, "Refers to video loading resolution")
+        # Create resolution dropdown
+        self.resolution_label = QtWidgets.QLabel('Resolution: ')
+        self.resolution_var = QtWidgets.QComboBox()
+        self.resolution_var.addItems(['Half', 'Full'])
 
-        load_config = ttk.Button(self.root, text="Load Config", command=self.load)
-        load_config.grid(row=11, column=0, sticky=E, padx=5, pady=5)
-        tooltips.bind(load_config, "Open already made project config file")
+        # Create about button
+        self.about_button = QtWidgets.QPushButton('About')
+        self.about_button.setToolTip('Show information about this software')
+        self.about_button.clicked.connect(BaseGUI.about)
 
-        # Build start button
-        go = ttk.Button(self.root, text="Go", command=self.go, )#width=6, height=3)
-        go.grid(row=12, column=0, padx=5, pady=5, sticky=W)
+        # Create load config button
+        self.load_button = QtWidgets.QPushButton('Load Config')
+        self.load_button.setToolTip('Load configuration from a file')
+        self.load_button.clicked.connect(self.load)
 
-        # Build quit button
-        quit_button = ttk.Button(self.root, text="Quit", command=self.quit_all, )#width=6, height=3)
-        quit_button.grid(row=12, column=0, padx=5, pady=5, sticky=E)
+        # Create go button
+        self.go_button = QtWidgets.QPushButton('Go')
+        self.go_button.setToolTip('Start clicking through the movies')
+        self.go_button.clicked.connect(BaseGUI.go)
 
-        self.root.style = ttk.Style()
-        self.root.style.theme_use("clam")
-        self.root.mainloop()
+        # Create quit button
+        self.quit_button = QtWidgets.QPushButton('Quit')
+        self.quit_button.setToolTip('Quit the program')
+        self.quit_button.clicked.connect(BaseGUI.quit_all)
+
+        # Create layout and add widgets
+        layout = QtWidgets.QGridLayout()
+# class ClickerGUI(GUI):
+#     """Takes a list of videos and offsets and allows users to mark pixel locations.
+#     Given DLT coefficients and camera profile:
+#         - Plots 3D positions
+#         - Saves 3D positions
+#         - Outputting 95% Confidence Intervals, spline weights, and error tolerances
+#         - Plots epipolar lines to aid in tracking common objects
+#     """
+
+#     def __init__(self):
+#         super(ClickerGUI, self).__init__()
+
+#         self.offsets = list()
+#         self.drivers = list()
+
+#         tooltips = Pmw.Balloon(self.root)
+#         self.root.wm_title("Argus")
+
+#         # Build file list
+#         self.file_list = Listbox(self.root, width=70, height=10)
+#         self.file_list.grid(row=2, column=0, padx=5, pady=5, sticky=EW)
+#         tooltips.bind(self.file_list, "List of movies to click through for\nPress '+' button to add movie")
+
+#         # Build add file button
+#         find_in_file = ttk.Button(self.root, text=" + ", command=self.add, )#padx=10, pady=10)
+#         find_in_file.grid(row=1, column=0, sticky=E, padx=5, pady=5)
+#         tooltips.bind(find_in_file, "Open file dialog and browse for movie")
+
+#         # Build clear button
+#         clear_button = ttk.Button(self.root, text="Clear all", command=self.clear, )#padx=10, pady=5)
+#         clear_button.grid(row=1, column=0, padx=5, pady=5)
+
+#         # Main title display
+#         # fg = '#56A0D3'
+#         ttk.Label(self.root, text="Argus-Clicker", font=("Helvetica", 30), ).grid(row=0, column=0, padx=15,
+#                                                                                           pady=15, sticky=S)
+
+#         # Build about button
+#         about_button = ttk.Button(self.root, text="About", command=self.about, )#padx=10, pady=10)
+#         about_button.grid(row=0, column=0, sticky=E, padx=5, pady=5)
+
+#         # Build delete button
+#         delete_button = ttk.Button(self.root, text=" - ",
+#                                command=self.delete, )#padx=10, pady=10)
+#         delete_button.grid(row=1, column=0, sticky=W, padx=5, pady=5)
+#         tooltips.bind(delete_button, "Remove movie from list")
+
+#         # Build resolution button & options
+#         ttk.Label(self.root, text="Resolution:").grid(row=11, column=0, padx=5, pady=5, sticky=W)
+#         self.resolution_var = StringVar(self.root)
+#         self.resolution_var.set("Half")
+#         resolution_check = ttk.OptionMenu(self.root, self.resolution_var, "Half", "Full")
+#         resolution_check.grid(row=11, column=0, pady=5, padx=100, sticky=W)
+#         tooltips.bind(resolution_check, "Refers to video loading resolution")
+
+#         load_config = ttk.Button(self.root, text="Load Config", command=self.load)
+#         load_config.grid(row=11, column=0, sticky=E, padx=5, pady=5)
+#         tooltips.bind(load_config, "Open already made project config file")
+
+#         # Build start button
+#         go = ttk.Button(self.root, text="Go", command=self.go, )#width=6, height=3)
+#         go.grid(row=12, column=0, padx=5, pady=5, sticky=W)
+
+#         # Build quit button
+#         quit_button = ttk.Button(self.root, text="Quit", command=self.quit_all, )#width=6, height=3)
+#         quit_button.grid(row=12, column=0, padx=5, pady=5, sticky=E)
+
+#         self.root.style = ttk.Style()
+#         self.root.style.theme_use("clam")
+#         self.root.mainloop()
 
     # def load(self):
     #     file_name = tkFileDialog.askopenfilename(title = "Select an Argus clicker config file",filetypes = (("Argus clicker config files","*.yaml"),("all files","*.*")))
