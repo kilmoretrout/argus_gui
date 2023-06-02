@@ -73,7 +73,8 @@ class Window(QtWidgets.QWidget):
 
     def clicker(self):
         print('clicker called')
-        gui.ClickerGUI()
+        self.cw = gui.ClickerGUI()
+        self.cw.show()
 
     def wand(self):
         print('wand called')
@@ -83,4 +84,4 @@ class Window(QtWidgets.QWidget):
 app = QtWidgets.QApplication(sys.argv)
 window = Window()
 window.show()
-sys.exit(app.exec())
+app.exec_()

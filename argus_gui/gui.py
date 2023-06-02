@@ -23,7 +23,7 @@ from six.moves import map
 from six.moves import range
 # from six.moves.tkinter import *
 # import six.moves.tkinter_ttk as ttk
-from PySide6 import QtWidgets, QtGui
+from PySide6 import QtWidgets, QtGui, QtCore
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
@@ -125,7 +125,7 @@ class BaseGUI(QtWidgets.QWidget):
     def init_ui(self):
         # Set common properties for all GUIs
         self.setWindowTitle('Argus')
-        self.resize(400, 300)
+        self.resize(500, 500)
 
     def closeEvent(self, event):
         # Call the quit_all function when the window is closed
@@ -290,11 +290,12 @@ class BaseGUI(QtWidgets.QWidget):
 class ClickerGUI(BaseGUI):
     def __init__(self):
         super().__init__()
+        self.init_ui()
+        self.init_vars()
 
+    def init_vars(self):
         self.offsets = []
         self.drivers = []
-
-        self.init_ui()
 
     def init_ui(self):
         # Call the init_ui method of the base class
@@ -349,6 +350,70 @@ class ClickerGUI(BaseGUI):
 
         # Create layout and add widgets
         layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.file_list)
+        layout.addWidget(self.add_button)
+        layout.addWidget(self.clear_button)
+        layout.addWidget(self.remove_button)
+        layout.addWidget(self.resolution_label)
+        layout.addWidget(self.resolution_var)
+        layout.addWidget(self.about_button)
+        layout.addWidget(self.load_button)
+        layout.addWidget(self.go_button)
+        layout.addWidget(self.quit_button)
+        self.setLayout(layout)
+
+
+    # Function for bringing up file dialogs; adds selected file to listbox
+    def add(self):
+        options = QtWidgets.QFileDialog.Options()
+        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select Movie File', '', 'All Files (*)', options=options)
+
+        if file_name:
+            if len(self.offsets) != 0:
+                offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
+            else:
+                offset = 0
+
+            try:
+                self.offsets.append(int(offset))
+            except ValueError:
+                QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
+                return
+
+            # Checks if the file is already added
+            if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                # Add the file to the list
+                print(f'adding {file_name}')
+                self.file_list.addItem(file_name)
+            else:
+            # if file_name in set(self.file_list):
+                QtWidgets.QMessageBox.warning(None,
+                    "Error",
+                    "You cannot click through two of the same movies"
+                )
+    
+    def delete(self):
+        # Get the selected item
+        selected_items = self.file_list.selectedItems()
+
+        if selected_items:
+            # If an item is selected, delete it
+            for item in selected_items:
+                self.file_list.takeItem(self.file_list.row(item))
+                del self.offsets[self.file_list.row(item)]
+        else:
+            # If no item is selected, delete the last item in the list
+            if self.file_list.count() > 0:
+                self.file_list.takeItem(self.file_list.count() - 1)
+                del self.offsets[-1]
+
+    def clear(self):
+        print('clear pressed')
+
+    def load(self):
+        print('load pressed')
+
+
 # class ClickerGUI(GUI):
 #     """Takes a list of videos and offsets and allows users to mark pixel locations.
 #     Given DLT coefficients and camera profile:
@@ -1772,3 +1837,13 @@ class ClickerGUI(BaseGUI):
 #         cmd = cmd + args
 
 #         super(patternsGUI, self).go(cmd, writeBool)
+
+def selectGUI(mod):
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication()
+
+    if mod=='Clicker':
+        click_window = ClickerGUI()
+        click_window.show()
+    app.exec_()
