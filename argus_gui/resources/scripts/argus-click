@@ -3,8 +3,8 @@
 
 from __future__ import absolute_import
 
-# import six.moves.tkinter_messagebox
-# import six.moves.tkinter_tkfiledialog as tk_file_dialog
+import six.moves.tkinter_messagebox
+import six.moves.tkinter_tkfiledialog as tk_file_dialog
 import yaml
 # from six.moves import map
 # from six.moves.tkinter import *
@@ -35,6 +35,8 @@ from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
 import copy
+
+from PySide6 import QtGui, QtWidgets, QtCore
 
 colors = ArgusColors()
 colors = colors.getPygletColors()
