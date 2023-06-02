@@ -368,7 +368,10 @@ class ClickerGUI(BaseGUI):
         options = QtWidgets.QFileDialog.Options()
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select Movie File', '', 'All Files (*)', options=options)
 
-        if file_name:
+        if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+            print(f'adding {file_name}')
+            self.file_list.addItem(file_name)
+            
             if len(self.offsets) != 0:
                 offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
             else:
@@ -379,18 +382,12 @@ class ClickerGUI(BaseGUI):
             except ValueError:
                 QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
                 return
-
-            # Checks if the file is already added
-            if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
-                # Add the file to the list
-                print(f'adding {file_name}')
-                self.file_list.addItem(file_name)
-            else:
-            # if file_name in set(self.file_list):
-                QtWidgets.QMessageBox.warning(None,
-                    "Error",
-                    "You cannot click through two of the same movies"
-                )
+        else:
+        # if file_name in set(self.file_list):
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "You cannot click through two of the same movies"
+            )
     
     def delete(self):
         # Get the selected item
