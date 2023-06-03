@@ -3,20 +3,20 @@
 
 from __future__ import absolute_import
 
-import six.moves.tkinter_messagebox
-import six.moves.tkinter_tkfiledialog as tk_file_dialog
+# import six.moves.tkinter_messagebox
+# import six.moves.tkinter_tkfiledialog as tk_file_dialog
 import yaml
 # from six.moves import map
 # from six.moves.tkinter import *
 import os
 import sys
-from tkinter import *
+# from tkinter import *
 
 # TODO: Better documentation for why this occurs.
-if sys.platform == 'darwin':
-    root = Tk()
-    root.withdraw()
-    root.quit()
+# if sys.platform == 'darwin':
+#     root = Tk()
+#     root.withdraw()
+#     root.quit()
 
 from pyglet.window import key, mouse
 from pyglet.graphics import *
@@ -36,7 +36,7 @@ import time
 import numpy as np
 import copy
 
-from PySide6 import QtGui, QtWidgets, QtCore
+from PySide6 import QtWidgets, QtCore
 
 colors = ArgusColors()
 colors = colors.getPygletColors()
@@ -48,45 +48,37 @@ CAROLINA_BLUE = (153, 186, 221, 255)  # Go Tar Heels!
 MARKER_COLOR = (255, 105, 180, 200)
 
 
-class GoToPopupWindow(object):
+class GoToPopupWindow(QtWidgets.QDialog):
     """Popup window for skipping to specified frame
     """
+    def __init__(self, number_of_frames, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Enter frame number")
+        layout = QtWidgets.QVBoxLayout(self)
+        self.go_to_frame = QtWidgets.QSpinBox()
+        self.go_to_frame.setValue(current_frame)
+        layout.addWidget(self.go_to_frame)
+        self.label = QtWidgets.QLabel(f'out of {number_of_frames}')
+        layout.addWidget(self.label)
+        button = QtWidgets.QPushButton("Ok")
+        button.clicked.connect(self.accept)
+        layout.addWidget(button)
+    
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.go_to_frame.setFocus()
+        self.go_to_frame.selectAll()
 
-    def __init__(self, master, title, number_of_frames):
-        self.go_to_frame = None
+class YesNoPopup(QtWidgets.QWidget):
+    def __init__(self, question):
+        super().__init__()
 
-        # Build basic menu
-        self.top = Toplevel(master)
-        self.top.wm_title("Argus")
-        self.top.resizable(width=FALSE, height=FALSE)
+        reply = QMessageBox.question(self, "Question", question, QMessageBox.Yes | QMessageBox.No)
 
-        # Build title label
-        self.title_label = Label(self.top, text=title)
-        self.title_label.grid(row=0, padx=10, pady=10)
-
-        # Build entry input for frame number
-        self.entry = Entry(self.top, width=10)
-        self.entry.focus_set()
-        self.entry.grid(row=1, padx=10, pady=5)
-
-        # Build current frame label
-        self.frame_label = Label(self.top, text='out of ' + str(number_of_frames))
-        self.frame_label.grid(row=1, column=1, padx=5, pady=10)
-
-        # Build okay button
-        self.okay_button = Button(self.top, text='Ok', padx=10, command=self.cleanup, pady=10)
-        self.okay_button.grid(row=2, padx=5, pady=5)
-
-        self.top.bind('<Return>', self.cleanup)
-
-    def cleanup(self, _=None):
-        """
-        :param _: Tkinter event parameter. Used for nothing. Only passed if the enter key is used
-        :return: None
-        """
-        self.go_to_frame = self.entry.get()
-        self.top.destroy()
-
+        if reply == QMessageBox.Yes:
+            self.reply = "Yes"
+        else:
+            self.reply = "No"
 
 class SleepyWindow(object):
     """# Ghostly, or sleepy window, helps Mac OS oddities
@@ -98,7 +90,6 @@ class SleepyWindow(object):
 
     def cleanup(self):
         self.top.destroy()
-
 
 def load_camera(filename):
     global camera_profile
@@ -119,7 +110,7 @@ def load_camera(filename):
             for profile in camera_profile:
                 try:
                     if profile[0] != camera_number_checker:
-                        six.moves.tkinter_messagebox.showwarning(
+                        QtWidgets.QMessageBox.warning(None,
                             "Error",
                             "Camera indexes are either not correctly formatted or non-existence"
                         )
@@ -133,7 +124,7 @@ def load_camera(filename):
                 # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
-                    six.moves.tkinter_messagebox.showwarning(
+                    QtWidgets.QMessageBox.warning(None,
                         "Error",
                         "Could not load Camera profile!"
                     )
@@ -149,7 +140,7 @@ def load_camera(filename):
             for profile in camera_profile:
                 try:
                     if profile[0] != camera_number_checker:
-                        six.moves.tkinter_messagebox.showwarning(
+                        QtWidgets.QMessageBox.warning(None,
                             "Error",
                             "Camera indexes are either not correctly formatted or non-existent"
                         )
@@ -164,7 +155,7 @@ def load_camera(filename):
                 # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
-                    six.moves.tkinter_messagebox.showwarning(
+                    QtWidgets.QMessageBox.warning(None,
                         "Error",
                         "Could not load Camera profile!"
                     )
@@ -172,22 +163,16 @@ def load_camera(filename):
             camera_profile = new_list
         camera_filename = filename
 
-
 class OptionsPopupWindow(QtWidgets.QDialog):
     """# popup window for the options dialog
     """
 
-    def __init__(self, master, sync, auto, track_list, track, disp, bstrap, os_parse, rgb, 
-                 parent=None):
-        # self.top = Toplevel(master)
-        # self.top.resizable(width=FALSE, height=FALSE)
-        # self.top.wm_title("Options")
-        # self.top.protocol('WM_DELETE_WINDOW', self.cleanup)
+    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, rgb, parent=None):
 
         super().__init__(parent)
         self.setWindowTitle("Options")
 
-        self.os_parse = os_parse
+        self.o_sparse = o_sparse
         self.rgb = rgb
         self.track_list = track_list
 
@@ -207,137 +192,89 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         self.add_button = QtWidgets.QPushButton("Add a new track")
         self.add_button.clicked.connect(self.newTrack)
 
-        self.disp = QtWidgets.QCheckBox("Display current track only")
+        self.disp = QtWidgets.QCheckBox("Display all tracks")
         self.disp.setChecked(disp)
 
-        self.sync = QtWidgets.QCheckBox("")
+        self.sync = QtWidgets.QCheckBox("Keep all videos in same frame")
+        self.sync.setChecked(sync)
+
+        self.auto = QtWidgets.QCheckBox("Automatically advance frames")
+        self.auto.setChecked(auto)
+
+        self.bstrap = QtWidgets.QCheckBox("Save 95% CIs, spline filtering weights,\nand error tolerance")
+        self.bstrap.setChecked(bstrap)
+
+        self.formatlabel = QtWidgets.QLabel("Save format: ")
+        self.formatbox = QtWidgets.QComboBox()
+        self.formatbox.addItems(["Dense .csv", "Sparse .tsv"])
+        self.formatbox.currentIndexChanged.connect(self.sparse_toggle)
+        if self.o_sparse:
+            self.formatbox.setCurrentText("Sparse .tsv")
+        else:
+            self.formatbox.setCurrentText("Dense .csv")
+
+        self.colorlabel = QtWidgets.QLabel("Display: ")
+        self.colorbox = QtWidgets.QComboBox()
+        self.colorbox.addItems(['RGB color', 'grayscale'])
+        self.colorbox.currentIndexChanged.connect(self.color_toggle)
+        if self.rgb:
+            self.colorbox.setCurrentText('RGB color')
+        else:
+            self.colorbox.setCurrentText('grayscale')
+
+        self.savelabel = QtWidgets.QLabel("Save location/tag: ")
+        self.fnam = QtWidgets.QLineEdit()
+        self.save_button = QtWidgets.QPushButton('Specify')
+        self.save_button.clicked.connect(self.save_as)
+
+        self.okbutton = QtWidgets.QPushButton("Ok")
+        self.okbutton.clicked.connect(self.accept)
+        
         # set values to globals if they are already set
         self.cam_entry.setText(camera_filename)
         self.dlt.setText(dlt_filename)
+        self.fnam.setText(global_filename)
         
+        # GUI structure
+        genlabel = QtWidgets.QLabel("General Settings")
+        displabel = QtWidgets.QLabel("Display options")
+        outlabel = QtWidgets.QLabel("Save Settings")
+        divider1 = QtWidgets.QFrame()
+        divider1.setFrameShape(QtWidgets.QFrame.HLine)
+        divider1.setFrameShadow(QtWidgets.QFrame.Sunken)
+        divider2 = QtWidgets.QFrame()
+        divider2.setFrameShape(QtWidgets.QFrame.HLine)
+        divider2.setFrameShadow(QtWidgets.QFrame.Sunken)        
 
         layout = QtWidgets.QGridLayout(self)
-        layout.addWidget(self.cam_entry, 1, 0)
-        layout.addWidget(self.lc, 1, 1)
-        layout.addWidget(self.dlt, 2, 0)
-        layout.addWidget(self.ld, 2, 1)
+        layout.addWidget(genlabel, 0, 0)
+        layout.addWidget(self.cam_entry, 1, 0, 1, 2)
+        layout.addWidget(self.lc, 1, 2)
+        layout.addWidget(self.dlt, 2, 0, 1, 2)
+        layout.addWidget(self.ld, 2, 2)
         layout.addWidget(self.tracks, 3, 0)
         layout.addWidget(self.add_button, 3, 1)
-        layout.addWidget(self.disp, 4, 0)
-        # self.track = StringVar(self.top)
-        # self.sync = StringVar(self.top)
-        # self.auto = StringVar(self.top)
-        # self.disp = StringVar(self.top)
-        # self.bstrap = StringVar(self.top)
-        # self.cam = StringVar(self.top)
-        # self.dlt = StringVar(self.top)
-        # self.oput = IntVar(self.top)
-        # self.fnam = StringVar(self.top)
-        # self.cg = IntVar(self.top)
-        # self.track_op = IntVar(self.top)
 
-        # self.fnam.set(global_filename)
-
-        # self.track.set(track)
-        # if sync:
-        #     self.sync.set('1')
-        # else:
-        #     self.sync.set('0')
-
-        # if auto:
-        #     self.auto.set('1')
-        # else:
-        #     self.auto.set('0')
-
-        # if disp:
-        #     self.disp.set('0')
-        # else:
-        #     self.disp.set('1')
-
-        # if bstrap:
-        #     self.bstrap.set('1')
-        # else:
-        #     self.bstrap.set('0')
-
-        # if self.os_parse:
-        #     self.oput.set(1)
-        # else:
-        #     self.oput.set(0)
-
-        # if self.rgb:
-        #     self.cg.set(0)
-        # else:
-        #     self.cg.set(1)
+        layout.addWidget(divider1, 4, 0, 1, 3)
+        layout.addWidget(displabel, 5, 0, 1, 3)
+        layout.addWidget(self.disp, 6, 0)
+        layout.addWidget(self.auto, 7, 0)
+        layout.addWidget(self.sync, 8, 0)
+        layout.addWidget(self.colorlabel, 9, 0)
+        layout.addWidget(self.colorbox, 9, 0, QtCore.Qt.AlignRight)
+        
+        layout.addWidget(divider2, 10, 0, 1, 3)
+        layout.addWidget(outlabel, 11, 0, 1, 3)
+        layout.addWidget(self.bstrap, 12, 0)
+        layout.addWidget(self.formatlabel, 13, 0)
+        layout.addWidget(self.formatbox, 13, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(self.savelabel, 14, 0)
+        layout.addWidget(self.fnam, 15, 0, 1, 2)
+        layout.addWidget(self.save_button, 15, 2)
+        layout.addWidget(self.okbutton, 16, 2)
 
         # self.track_list = track_list
         # self.dlts = list()
-
-        # Label(self.top,
-        #       text="Argus-Clicker - Settings",
-        #       font=("Helvetica", 20),
-        #       fg='#56A0D3').grid(row=0, column=0, padx=10, pady=10, sticky=W)
-        # general = LabelFrame(self.top, text="General", padx=5, pady=5, fg='#56A0D3')
-        # output = LabelFrame(self.top, text="Output", padx=5, pady=5, fg='#56A0D3')
-        # display = LabelFrame(self.top, text="Display", padx=5, pady=5, fg='#56A0D3')
-
-        # general.grid(row=1, padx=10, pady=5, sticky=EW)
-        # output.grid(row=2, padx=10, pady=5, sticky=EW)
-        # display.grid(row=3, padx=10, pady=5, sticky=EW)
-
-        # Label(general, text="Current track: ").grid(row=0, column=0, padx=5, pady=5, sticky=W)
-        # spec_button = Button(general, text='Add Track', command=self.popup, padx=15, pady=10)
-        # spec_button.grid(row=0, column=0, sticky=W, padx=230, pady=5)
-
-        # self.tracks = OptionMenu(general, self.track, *track_list)
-        # self.tracks.grid(row=0, column=0, sticky=W, padx=105, pady=5)
-
-        # sync_check = Checkbutton(general, text="Keep all videos in same frame", variable=self.sync)
-        # sync_check.grid(row=1, pady=5, padx=20, sticky=W)
-
-        # auto_check = Checkbutton(general, text="Auto-advance", variable=self.auto)
-        # auto_check.grid(row=2, pady=5, padx=20, sticky=W)
-
-        # self.lc = Button(general, text='Load camera profile', command=self.load_camera, padx=10, pady=10)
-        # self.lc.grid(row=3, padx=10, pady=5, sticky=W)
-
-        # cam_entry = Entry(general, textvariable=self.cam, width=60, bd=3)
-        # cam_entry.grid(row=4, padx=5, pady=5, sticky=W)
-        # cam_entry.config(state='readonly')
-
-        # self.ld = Button(general, text='Load DLT coefficients', command=self.load_DLT, padx=10, pady=10)
-        # self.ld.grid(row=5, padx=10, pady=5, sticky=W)
-
-        # dlt_entry = Entry(general, textvariable=self.dlt, width=60, bd=3)
-        # dlt_entry.grid(row=6, padx=5, pady=5, sticky=W)
-        # dlt_entry.config(state='readonly')
-
-        # disp_check = Checkbutton(display, text="Display current track only", variable=self.disp)
-        # disp_check.grid(row=0, pady=5, padx=5, sticky=W)
-
-        # Label(display, text="Color: ").grid(row=1, padx=5, pady=5, sticky=W)
-        # Radiobutton(display, text="Grayscale", variable=self.cg, value=1).grid(row=1, column=0,
-        #                                                                        pady=5, padx=53, sticky=W)
-        # Radiobutton(display, text="RGB", variable=self.cg, value=0).grid(row=1, column=0, pady=5, padx=153, sticky=W)
-
-        # btrap_check = Checkbutton(output, text="Save 95% CIs, spline filtering weights, and error tolerance",
-        #                           variable=self.bstrap)
-        # btrap_check.grid(row=0, pady=5, padx=5, sticky=W)
-
-        # Label(output, text="Format: ").grid(row=1, padx=5, pady=5, sticky=W)
-        # Radiobutton(output, text="Sparse .tsv", variable=self.oput, value=1).grid(row=1, column=0,
-        #                                                                           pady=5, padx=80, sticky=W)
-        # Radiobutton(output, text="Dense .csv", variable=self.oput, value=0).grid(row=1, column=0,
-        #                                                                          pady=5, padx=180, sticky=W)
-
-        # Label(output, text="Save location/tag:").grid(row=2, padx=15, pady=5, sticky=W)
-        # cam_entry = Entry(output, textvariable=self.fnam, width=38, bd=3)
-        # cam_entry.grid(row=3, padx=5, pady=0, sticky=W)
-
-        # self.output_selector_button = Button(output, text='Specify', command=self.save_as, padx=15, pady=10)
-        # self.output_selector_button.grid(row=3, padx=0, pady=0, sticky=E)
-
-        # self.okay_button = Button(self.top, text='Ok', command=self.cleanup, padx=10, pady=10)
-        # self.okay_button.grid(row=4, padx=5, pady=5, sticky=W)
 
     # close with Return key
     def keyPressEvent(self, event):
@@ -349,8 +286,6 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         track_name_window = newTrackPopup(self)
         if track_name_window.exec_() == QtWidgets.QDialog.Accepted:
             new_name = track_name_window.line_edit.text()
-
-        # m = self.tracks.children['menu']
 
         # check to make sure the track name is not empty and does not already exist
         if new_name != '' and new_name not in self.track_list:
@@ -375,7 +310,6 @@ class OptionsPopupWindow(QtWidgets.QDialog):
                 "Error",
                 "Could not load Camera profile!"
             )
-            return
 
     def load_DLT(self):
         global DLTCoefficients
@@ -394,18 +328,25 @@ class OptionsPopupWindow(QtWidgets.QDialog):
                     "Error",
                     "Could not load DLT coefficients!"
                 )
-                return
+            
+    def sparse_toggle(self):
+        if self.formatbox.currentText() == "Sparse .tsv":
+            self.o_sparse = True
+        elif self.formatbox.currentText() == "Dense .csv":
+            self.o_sparse = False
+
+    def color_toggle(self):
+        if self.colorbox.currentText() == "RGB color":
+            self.rgb == True
+        elif self.colorbox.currentText() == "grayscale":
+            self.rgb == False
 
     def save_as(self):
         global global_filename
-
-        filename = tk_file_dialog.asksaveasfilename(filetypes=[("All files", "*.*")],
-                                                    initialfile=global_filename.split('/')[-1])
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, "Select location and enter file name prefix")
         if filename != '':
-            self.fnam.set(filename)
+            self.fnam.setText(filename)
             global_filename = filename
-
-        return
 
 class newTrackPopup(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -519,7 +460,7 @@ def load_csv(csv):
 
     # TODO: Better Exception Handling
     except:
-        six.moves.tkinter_messagebox.showwarning(
+        QtWidgets.QMessageBox.warning(None,
             "Error",
             "Could not load CSV! Make sure it is formatted according to the documentation."
         )
@@ -553,7 +494,7 @@ def load_tsv(tsv):
 
         current_track_global = track_list_global[0]
     except:
-        six.moves.tkinter_messagebox.showwarning(
+        QtWidgets.QMessageBox.warning(None,
             "Error",
             "Could not load TSV! Make sure it is formatted according to the documentation."
         )
@@ -987,7 +928,7 @@ class ClickerWindow(pyglet.window.Window):
                         x_cord = _[0]
                         y_cord = _[1]
                     except np.linalg.LinAlgError as e:
-                        six.moves.tkinter_messagebox.showwarning(
+                        QtWidgets.QMessageBox.warning(None,
                             "Error",
                             f"Numpy complained with the following message: \n{e}\n"
                             "This typically indicates a malformed camera profile or incorrect DLT Coefficients\n"
@@ -1573,27 +1514,14 @@ class ClickerWindow(pyglet.window.Window):
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication([])
-        w = OptionsPopupWindow(root, sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb)
+        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb)
         if w.exec_() == QtWidgets.QDialog.Accepted:
-            # if w.sync.get() == '1':
-            #     sync = True
-            # else:
-            #     sync = False
-
-            # if w.auto.get() == '1':
-            #     auto_advance = True
-            # else:
-            #     auto_advance = False
-
+            auto_advance = w.auto.isChecked()
+            sync = w.sync.isChecked()
             new_disp = w.disp.isChecked()
-
-            # if w.bstrap.get() == '1':
-            #     bstrap = True
-            # else:
-            #     bstrap = False
-
-            # outputSparse = w.os_parse
-            # rgb = w.rgb
+            bstrap = w.bstrap.isChecked()
+            outputSparse = w.o_sparse
+            rgb = w.rgb
 
             track_list_global = w.track_list
 
@@ -1608,7 +1536,7 @@ class ClickerWindow(pyglet.window.Window):
                     window.change_track(old_track)
 
             # if the current track changed and the displaying of other tracks was turned on
-            elif current_track_global != w.tracks.currentText() and not new_disp:
+            elif current_track_global != w.tracks.currentText() and new_disp:
                 for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
                     window.draw_all_tracks()
                 old_track = current_track_global
@@ -1626,12 +1554,12 @@ class ClickerWindow(pyglet.window.Window):
                     window.delete_all_tracks()
 
             # if the track did not change but we turned on displaying the rest
-            elif new_disp != displaying_all_tracks and not new_disp:
+            elif new_disp != displaying_all_tracks and new_disp:
                 for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
                     window.draw_all_tracks()
 
             # if the track did not change but we turned off the displaying of the rest of tracks
-            elif new_disp != displaying_all_tracks and new_disp:
+            elif new_disp != displaying_all_tracks and not new_disp:
                 for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
                     window.delete_all_tracks()
 
@@ -1643,7 +1571,7 @@ class ClickerWindow(pyglet.window.Window):
                     window.img.scale = float(self.scale_factor)
 
             current_track_global = w.tracks.currentText()
-            displaying_all_tracks = new_disp * -1
+            displaying_all_tracks = new_disp
 
         self.toggleBusy()
         self.update_all_windows()
@@ -1741,29 +1669,26 @@ class ClickerWindow(pyglet.window.Window):
             if self.folder != '':
                 self.frameFinder.capture(self.folder)
             else:
-                if sys.platform != 'darwin':
-                    root = Tk()
-                    root.withdraw()
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
                     "Must specify a directory before taking snapshots"
                 )
                 return
         # go to frame
         elif symbol == key.G:
-            root = Tk()
-            root.withdraw()
-            w = GoToPopupWindow(root, 'Go to frame: ', self.end)
-            root.wait_window(w.top)
-
-            try:
-                int(w.go_to_frame)
-            except:
-                six.moves.tkinter_messagebox.showwarning(
-                    "Error",
-                    "Frame to go to must be a valid integer"
-                )
-                return
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = GoToPopupWindow(self.end)
+            if w.exec_() == QtWidgets.QDialog.Accepted:
+                try:
+                    int(w.go_to_frame)
+                except:
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "Frame to go to must be a valid integer"
+                    )
+                    return
 
             if 1 <= int(w.go_to_frame) <= self.end:
                 self.current_point_index = int(w.go_to_frame)
@@ -1774,7 +1699,7 @@ class ClickerWindow(pyglet.window.Window):
                     self.update_all_windows()
 
             else:
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
                     "Frame out of bounds"
                 )
@@ -1893,35 +1818,35 @@ class ClickerWindow(pyglet.window.Window):
 
         # clearing all tracks from the current window
         elif symbol == key.C and (modifiers == 0 or modifiers == 16):
-            if sys.platform != 'darwin':
-                root = Tk()
-                root.withdraw()
-            result = six.moves.tkinter_messagebox.askquestion(
-                "Clear all tracks for camera " + str(self.actual_camera_number), "Are you sure?", icon='warning')
-            if result == 'yes':
-                self.points = dict()
-                self.clearBatch()
-                self.update_tracks()
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = YesNoPopup(f"Clear all tracks for camera {actual_camera_number}. Are you sure?")
+            if w.exec_() == QtWidgets.QDialog.Accepted:
+                if w.reply == 'Yes':
+                    self.points = dict()
+                    self.clearBatch()
+                    self.update_tracks()
         elif symbol == key.D and modifiers & key.MOD_SHIFT:
-            if sys.platform != 'darwin':
-                root = Tk()
-                root.withdraw()
             if len(track_list_global) > 1:
-                result = six.moves.tkinter_messagebox.askquestion("Delete track '{0}'?".format(current_track_global),
-                                                                  "Are you sure?", icon='warning')
-                if result == 'yes':
-                    old_track = current_track_global
-                    track_list_global.remove(current_track_global)
-                    if len(track_list_global) != 0:
-                        current_track_global = track_list_global[0]
-                    for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                        window.change_track(old_track)
-                        window.deleteTrack(old_track)
-                    self.update_all_windows()
+                app = QtWidgets.QApplication.instance()
+                if app is None:
+                    app = QtWidgets.QApplication([])
+                w = YesNoPopup(f"Delete track {current_track_global}. Are you sure?")
+                if w.exec_() == QtWidgets.QDialog.Accepted:
+                    if w.reply == 'Yes':
+                        old_track = current_track_global
+                        track_list_global.remove(current_track_global)
+                        if len(track_list_global) != 0:
+                            current_track_global = track_list_global[0]
+                        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                            window.change_track(old_track)
+                            window.deleteTrack(old_track)
+                        self.update_all_windows()
             else:
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
-                    "Cannot delete track, must have at least one track to work with"
+                    "Cannot delete track, must have at least one track to work with. Please add add a new track before deleting this one."
                 )
             # self.trackingColors = list()
         # loading points from a CSV file
@@ -1948,7 +1873,7 @@ class ClickerWindow(pyglet.window.Window):
                     offsetMatches.append(window.load_points())
                     window.updateSelf()
                 if False in offsetMatches:
-                    six.moves.tkinter_messagebox.showwarning(
+                    QtWidgets.QMessageBox.warning(None,
                         "Warning",
                         "Offsets may be wrong. There are more frames in the loaded CSV than there are in the first camera"
                     )
@@ -1970,10 +1895,7 @@ class ClickerWindow(pyglet.window.Window):
             if DLTCoefficients is not None and camera_profile is not None:
                 self.plotTracks(track_indices=np.arange(len(track_list_global)))
             else:
-                if sys.platform != 'darwin':
-                    root = Tk()
-                    root.withdraw()
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
                     "Must have DLT coefficients and a camera profile to obtain 3D coordinates"
                 )
@@ -1983,10 +1905,7 @@ class ClickerWindow(pyglet.window.Window):
             if DLTCoefficients is not None and camera_profile is not None:
                 self.plotTracks(track_indices=[track_list_global.index(current_track_global)])
             else:
-                if sys.platform != 'darwin':
-                    root = Tk()
-                    root.withdraw()
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
                     "Must have DLT coefficients and a camera profile to obtain 3D coordinates"
                 )
@@ -2091,7 +2010,7 @@ def parse_csv(csv: str) -> lil_matrix:
 def check_if_file(path):
     if path is None: return
     if not os.path.isfile(path):
-        six.moves.tkinter_messagebox.showwarning(
+        QtWidgets.QMessageBox.warning(None,
             "Error",
             f"Unable to locate {path}"
         )

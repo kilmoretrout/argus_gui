@@ -1,33 +1,33 @@
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QApplication, QLabel, QRadioButton, QVBoxLayout
 
-class MainWindow(QtWidgets.QMainWindow):
+class Window(QtWidgets.QWidget):
     def __init__(self):
         super().__init__()
 
-        # Set up the user interface
-        self.file_list = QtWidgets.QListWidget()
-        self.add_button = QtWidgets.QPushButton("Add")
-        self.add_button.clicked.connect(self.add_file)
+        self.o_sparse = None
 
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.file_list)
-        layout.addWidget(self.add_button)
+        layout = QVBoxLayout(self)
 
-        central_widget = QtWidgets.QWidget()
-        central_widget.setLayout(layout)
-        self.setCentralWidget(central_widget)
+        label = QLabel("Save format:")
+        layout.addWidget(label)
 
-    def add_file(self):
-        # Open a file dialog to select a file
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select File")
+        self.sparse_radio = QRadioButton("Sparse .tsv")
+        self.sparse_radio.toggled.connect(self.on_radio_toggled)
+        layout.addWidget(self.sparse_radio)
 
-        # Check if the file is already in the list
-        if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
-            # Add the file to the list
-            self.file_list.addItem(file_name)
+        self.dense_radio = QRadioButton("Dense .csv")
+        self.dense_radio.toggled.connect(self.on_radio_toggled)
+        layout.addWidget(self.dense_radio)
+
+    def on_radio_toggled(self):
+        if self.sender() == self.sparse_radio:
+            self.o_sparse = True
+        elif self.sender() == self.dense_radio:
+            self.o_sparse = False
 
 if __name__ == "__main__":
-    app = QtWidgets.QApplication()
-    window = MainWindow()
+    app = QApplication()
+    window = Window()
     window.show()
     app.exec_()
