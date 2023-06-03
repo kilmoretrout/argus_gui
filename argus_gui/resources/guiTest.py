@@ -31,3 +31,9 @@ if __name__ == "__main__":
     window = Window()
     window.show()
     app.exec_()
+
+#%%
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QApplication, QLabel, QRadioButton, QVBoxLayout
+filename, _ = QtWidgets.QFileDialog.getOpenFileName("Open File")
+# %%

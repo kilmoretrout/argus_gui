@@ -2,21 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
-
-# import six.moves.tkinter_messagebox
-# import six.moves.tkinter_tkfiledialog as tk_file_dialog
 import yaml
 # from six.moves import map
-# from six.moves.tkinter import *
 import os
 import sys
-# from tkinter import *
-
-# TODO: Better documentation for why this occurs.
-# if sys.platform == 'darwin':
-#     root = Tk()
-#     root.withdraw()
-#     root.quit()
 
 from pyglet.window import key, mouse
 from pyglet.graphics import *
@@ -79,6 +68,16 @@ class YesNoPopup(QtWidgets.QWidget):
             self.reply = "Yes"
         else:
             self.reply = "No"
+
+class OpenFilePopup(QtWidgets.QWidget):
+    def __init__(self, win_title, init, filt):
+        super().__init__()
+        self.filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, caption = win_title, dir = init, filter = filt)
+
+class SaveFilePopup(QtWidgets.QWidget):
+    def __init__(self, win_title, init, filt):
+        super().__init__()
+        self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt)
 
 class SleepyWindow(object):
     """# Ghostly, or sleepy window, helps Mac OS oddities
@@ -579,12 +578,12 @@ class ClickerWindow(pyglet.window.Window):
         self.update_tracks()
 
         # It's the strangest thing... (I'm assuming that this is the only way it will work on Darwin systems)
-        if last and sys.platform == 'darwin':
-            root = Tk()
-            root.withdraw()
-            root.after(100, root.destroy)
-            w = SleepyWindow(root)
-            root.wait_window(w.top)
+        # if last and sys.platform == 'darwin':
+        #     root = Tk()
+        #     root.withdraw()
+        #     root.after(100, root.destroy)
+        #     w = SleepyWindow(root)
+        #     root.wait_window(w.top)
 
         self.init_gl()
 
@@ -1190,13 +1189,13 @@ class ClickerWindow(pyglet.window.Window):
     def save_sparse(self, save_as=True):
         global global_filename
 
-        if sys.platform != 'darwin':
-            root = Tk()
-            root.withdraw()
-
         if save_as or global_filename == '':
-            filename = tk_file_dialog.asksaveasfilename(filetypes=[("All files", "*.*")
-                                                                   ], initialfile=global_filename.split('/')[-1])
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for sparse file", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = w.filename
         else:
             filename = global_filename
 
@@ -1285,19 +1284,19 @@ class ClickerWindow(pyglet.window.Window):
                 dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
             dataf.to_csv(filename + '-xypts.tsv', index=False, na_rep='NaN', sep='\t')
-            six.moves.tkinter_messagebox.showinfo('Write successful!', 'TSVs successfully written to ' + filename)
+            QtWidgets.QMessageBox.warning(None,f'Write successful! TSVs successfully written to {filename}.')
         return
 
     def save_non_sparse(self, saveas=True):
         global global_filename
 
-        if sys.platform != 'darwin':
-            root = Tk()
-            root.withdraw()
-
         if saveas or global_filename == '':
-            filename = tk_file_dialog.asksaveasfilename(filetypes=[("All files", "*.*")
-                                                                   ], initialfile=global_filename.split('/')[-1])
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for sparse file", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = w.filename
         else:
             filename = global_filename
 
@@ -1394,7 +1393,7 @@ class ClickerWindow(pyglet.window.Window):
                 dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
             dataf.to_csv(filename + '-xypts.csv', index=False, na_rep='NaN')
-            six.moves.tkinter_messagebox.showinfo('Write successful!', 'CSVs successfully written to ' + filename)
+            QtWidgets.QMessageBox.warning(None, f'Write successful! CSVs successfully written to {filename}')
 
             settings = {
                 "sync": sync,
@@ -1663,8 +1662,12 @@ class ClickerWindow(pyglet.window.Window):
                     self.update_all_windows()
         # for capturing image
         elif symbol == key.C and modifiers & key.MOD_SHIFT:
-            filename = tk_file_dialog.askdirectory()
-            self.folder = filename
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location to save captured image", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                self.folder = w.filename
         elif symbol == key.C and modifiers & key.MOD_ALT:
             if self.folder != '':
                 self.frameFinder.capture(self.folder)
@@ -1852,18 +1855,19 @@ class ClickerWindow(pyglet.window.Window):
         # loading points from a CSV file
         elif symbol == key.L:
             self.toggleBusy()
-            if sys.platform != 'darwin':
-                root = Tk()
-                root.withdraw()
-            filename = tk_file_dialog.askopenfilename()
-            if type(filename) == str:
-                if filename != '' and filename.split('.')[-1] == 'csv':
-                    load_csv(filename)
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = OpenFilePopup("Select _xypts.csv file", 'CSV (*.csv)')
+            if w.filename:
+                if type(filename) == str:
+                    if filename != '' and filename.split('.')[-1] == 'csv':
+                        load_csv(filename)
 
-                elif filename != '' and filename.split('.')[-1] == 'tsv':
-                    outputSparse = True
+                    elif filename != '' and filename.split('.')[-1] == 'tsv':
+                        outputSparse = True
 
-                    load_tsv(filename)
+                        load_tsv(filename)
 
             if load_data_global is not None:
                 offsetMatches = list()
