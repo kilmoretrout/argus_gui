@@ -1000,7 +1000,7 @@ class ClickerWindow(pyglet.window.Window):
                 matching = False
         self.clearBatch()
         # sys.stdout.flush()
-        start_time = time.clock()
+        start_time = time.time()
 
         self.draw_tracks()
 
@@ -1188,7 +1188,7 @@ class ClickerWindow(pyglet.window.Window):
 
     def save_sparse(self, save_as=True):
         global global_filename
-
+        filename = ''
         if save_as or global_filename == '':
             app = QtWidgets.QApplication.instance()
             if app is None:
@@ -1198,7 +1198,8 @@ class ClickerWindow(pyglet.window.Window):
                 filename = w.filename
         else:
             filename = global_filename
-
+        if filename == '':
+            return
         if filename != '' and type(filename) == str:
             global_filename = filename
             for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
@@ -1284,22 +1285,23 @@ class ClickerWindow(pyglet.window.Window):
                 dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
             dataf.to_csv(filename + '-xypts.tsv', index=False, na_rep='NaN', sep='\t')
-            QtWidgets.QMessageBox.warning(None,f'Write successful! TSVs successfully written to {filename}.')
+            QtWidgets.QMessageBox.information(None,"Success", f'Write successful! TSVs successfully written to {filename}.')
         return
 
     def save_non_sparse(self, saveas=True):
         global global_filename
-
+        filename = ''
         if saveas or global_filename == '':
             app = QtWidgets.QApplication.instance()
             if app is None:
                 app = QtWidgets.QApplication([])
-            w = SaveFilePopup("Select location and enter prefix for sparse file", global_filename.split('/')[-1], 'All files (*.*)')
+            w = SaveFilePopup("Select location and enter prefix for dense file", global_filename.split('/')[-1], 'All files (*.*)')
             if w.filename:
                 filename = w.filename
         else:
             filename = global_filename
-
+        if filename == '':
+            return
         if filename != '' and type(filename) == str:
             global_filename = filename
             for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
@@ -1393,7 +1395,7 @@ class ClickerWindow(pyglet.window.Window):
                 dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
             dataf.to_csv(filename + '-xypts.csv', index=False, na_rep='NaN')
-            QtWidgets.QMessageBox.warning(None, f'Write successful! CSVs successfully written to {filename}')
+            QtWidgets.QMessageBox.information(None, "Success", f'Write successful! CSVs successfully written to {filename}')
 
             settings = {
                 "sync": sync,
@@ -1858,8 +1860,9 @@ class ClickerWindow(pyglet.window.Window):
             app = QtWidgets.QApplication.instance()
             if app is None:
                 app = QtWidgets.QApplication([])
-            w = OpenFilePopup("Select _xypts.csv file", 'CSV (*.csv)')
+            w = OpenFilePopup("Select _xypts.csv file", str(self.movie).split('/')[0],'CSV (*xypts.csv)')
             if w.filename:
+                filename = w.filename
                 if type(filename) == str:
                     if filename != '' and filename.split('.')[-1] == 'csv':
                         load_csv(filename)
