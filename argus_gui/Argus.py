@@ -260,6 +260,17 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def load(self):
         print('load pressed')
+        options = QtWidgets.QFileDialog.Options()
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select an Argus clicker config file', '', 'Argus clicker config files (*.yaml)', options=options)
+        if filename:
+            cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-click')]
+            args = [f"configload@{filename}"]
+            cmd = cmd + args
+            if hasattr(sys, 'frozen'):
+                proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False,
+                                        startupinfo=None)
+            else:
+                proc = subprocess.Popen(cmd)            
 
     def clicker_go(self):
         if self.resolution_var == "Full":
