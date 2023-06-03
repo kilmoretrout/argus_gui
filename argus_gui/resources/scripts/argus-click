@@ -88,35 +88,6 @@ class GoToPopupWindow(object):
         self.top.destroy()
 
 
-# popup window for inputting new track title
-class PopupWindow(object):
-    def __init__(self, master, title):
-        self.new_track_entry = ''
-
-        # TODO: This seems like it was intentionally done, possibly due to platform issues come back and ensure this
-        top = self.top = Toplevel(master)
-        top.wm_title("Argus")
-        top.resizable(width=FALSE, height=FALSE)
-        self.title_label = Label(top, text=title)
-        self.title_label.pack(padx=10, pady=10)
-        self.new_track_title_entry = Entry(top)
-        self.new_track_title_entry.focus_set()
-        self.new_track_title_entry.pack(padx=10, pady=5)
-        self.okay_button = Button(top, text='Ok', padx=10, command=self.cleanup, pady=10)
-        self.okay_button.pack(padx=5, pady=5)
-
-        top.bind('<Return>', self.cleanup)
-
-    def cleanup(self, _=None):
-        # TODO PopUpwindow & FrameChangePopupWindow use the same cleanup function. Abstract them.
-        """
-        :param _: Tkinter event parameter. Used for nothing. Only passed if the enter key is used
-        :return: None
-        """
-        self.new_track_entry = self.new_track_title_entry.get()
-        self.top.destroy()
-
-
 class SleepyWindow(object):
     """# Ghostly, or sleepy window, helps Mac OS oddities
     """
@@ -202,184 +173,205 @@ def load_camera(filename):
         camera_filename = filename
 
 
-class OptionsPopupWindow(object):
+class OptionsPopupWindow(QtWidgets.QDialog):
     """# popup window for the options dialog
     """
 
-    # TODO: Better variable names when I have a better understanding of subject matter
-    def __init__(self, master, sync, auto, track_list, track, disp, bstrap, os_parse, rgb):
-        self.top = Toplevel(master)
-        self.top.resizable(width=FALSE, height=FALSE)
-        self.top.wm_title("Options")
-        self.top.protocol('WM_DELETE_WINDOW', self.cleanup)
+    def __init__(self, master, sync, auto, track_list, track, disp, bstrap, os_parse, rgb, 
+                 parent=None):
+        # self.top = Toplevel(master)
+        # self.top.resizable(width=FALSE, height=FALSE)
+        # self.top.wm_title("Options")
+        # self.top.protocol('WM_DELETE_WINDOW', self.cleanup)
 
-        self.top.bind('<Return>', self.cleanup)
+        super().__init__(parent)
+        self.setWindowTitle("Options")
 
         self.os_parse = os_parse
         self.rgb = rgb
-
-        self.track = StringVar(self.top)
-        self.sync = StringVar(self.top)
-        self.auto = StringVar(self.top)
-        self.disp = StringVar(self.top)
-        self.bstrap = StringVar(self.top)
-        self.cam = StringVar(self.top)
-        self.dlt = StringVar(self.top)
-        self.oput = IntVar(self.top)
-        self.fnam = StringVar(self.top)
-        self.cg = IntVar(self.top)
-        self.track_op = IntVar(self.top)
-
-        self.cam.set(camera_filename)
-        self.dlt.set(dlt_filename)
-        self.fnam.set(global_filename)
-
-        self.track.set(track)
-        if sync:
-            self.sync.set('1')
-        else:
-            self.sync.set('0')
-
-        if auto:
-            self.auto.set('1')
-        else:
-            self.auto.set('0')
-
-        if disp:
-            self.disp.set('0')
-        else:
-            self.disp.set('1')
-
-        if bstrap:
-            self.bstrap.set('1')
-        else:
-            self.bstrap.set('0')
-
-        if self.os_parse:
-            self.oput.set(1)
-        else:
-            self.oput.set(0)
-
-        if self.rgb:
-            self.cg.set(0)
-        else:
-            self.cg.set(1)
-
         self.track_list = track_list
-        self.dlts = list()
 
-        Label(self.top,
-              text="Argus-Clicker - Settings",
-              font=("Helvetica", 20),
-              fg='#56A0D3').grid(row=0, column=0, padx=10, pady=10, sticky=W)
-        general = LabelFrame(self.top, text="General", padx=5, pady=5, fg='#56A0D3')
-        output = LabelFrame(self.top, text="Output", padx=5, pady=5, fg='#56A0D3')
-        display = LabelFrame(self.top, text="Display", padx=5, pady=5, fg='#56A0D3')
+        self.cam_entry = QtWidgets.QLineEdit()
+        self.lc = QtWidgets.QPushButton('Load camera profile')
+        self.lc.clicked.connect(self.load_camera)
+        
+        self.dlt = QtWidgets.QLineEdit()
+        self.ld = QtWidgets.QPushButton('Load DLT coefficients')
+        self.ld.clicked.connect(self.load_DLT)
 
-        general.grid(row=1, padx=10, pady=5, sticky=EW)
-        output.grid(row=2, padx=10, pady=5, sticky=EW)
-        display.grid(row=3, padx=10, pady=5, sticky=EW)
+        self.tracks = QtWidgets.QComboBox()
+        self.tracks.addItems(track_list)
+        self.track = track
+        self.tracks.setCurrentText(self.track)
 
-        Label(general, text="Current track: ").grid(row=0, column=0, padx=5, pady=5, sticky=W)
-        spec_button = Button(general, text='Add Track', command=self.popup, padx=15, pady=10)
-        spec_button.grid(row=0, column=0, sticky=W, padx=230, pady=5)
+        self.add_button = QtWidgets.QPushButton("Add a new track")
+        self.add_button.clicked.connect(self.newTrack)
 
-        self.tracks = OptionMenu(general, self.track, *track_list)
-        self.tracks.grid(row=0, column=0, sticky=W, padx=105, pady=5)
+        self.disp = QtWidgets.QCheckBox("Display current track only")
+        self.disp.setChecked(disp)
 
-        sync_check = Checkbutton(general, text="Keep all videos in same frame", variable=self.sync)
-        sync_check.grid(row=1, pady=5, padx=20, sticky=W)
+        self.sync = QtWidgets.QCheckBox("")
+        # set values to globals if they are already set
+        self.cam_entry.setText(camera_filename)
+        self.dlt.setText(dlt_filename)
+        
 
-        auto_check = Checkbutton(general, text="Auto-advance", variable=self.auto)
-        auto_check.grid(row=2, pady=5, padx=20, sticky=W)
+        layout = QtWidgets.QGridLayout(self)
+        layout.addWidget(self.cam_entry, 1, 0)
+        layout.addWidget(self.lc, 1, 1)
+        layout.addWidget(self.dlt, 2, 0)
+        layout.addWidget(self.ld, 2, 1)
+        layout.addWidget(self.tracks, 3, 0)
+        layout.addWidget(self.add_button, 3, 1)
+        layout.addWidget(self.disp, 4, 0)
+        # self.track = StringVar(self.top)
+        # self.sync = StringVar(self.top)
+        # self.auto = StringVar(self.top)
+        # self.disp = StringVar(self.top)
+        # self.bstrap = StringVar(self.top)
+        # self.cam = StringVar(self.top)
+        # self.dlt = StringVar(self.top)
+        # self.oput = IntVar(self.top)
+        # self.fnam = StringVar(self.top)
+        # self.cg = IntVar(self.top)
+        # self.track_op = IntVar(self.top)
 
-        self.lc = Button(general, text='Load camera profile', command=self.load_camera, padx=10, pady=10)
-        self.lc.grid(row=3, padx=10, pady=5, sticky=W)
+        # self.fnam.set(global_filename)
 
-        cam_entry = Entry(general, textvariable=self.cam, width=60, bd=3)
-        cam_entry.grid(row=4, padx=5, pady=5, sticky=W)
-        cam_entry.config(state='readonly')
+        # self.track.set(track)
+        # if sync:
+        #     self.sync.set('1')
+        # else:
+        #     self.sync.set('0')
 
-        self.ld = Button(general, text='Load DLT coefficients', command=self.load_DLT, padx=10, pady=10)
-        self.ld.grid(row=5, padx=10, pady=5, sticky=W)
+        # if auto:
+        #     self.auto.set('1')
+        # else:
+        #     self.auto.set('0')
 
-        dlt_entry = Entry(general, textvariable=self.dlt, width=60, bd=3)
-        dlt_entry.grid(row=6, padx=5, pady=5, sticky=W)
-        dlt_entry.config(state='readonly')
+        # if disp:
+        #     self.disp.set('0')
+        # else:
+        #     self.disp.set('1')
 
-        disp_check = Checkbutton(display, text="Display current track only", variable=self.disp)
-        disp_check.grid(row=0, pady=5, padx=5, sticky=W)
+        # if bstrap:
+        #     self.bstrap.set('1')
+        # else:
+        #     self.bstrap.set('0')
 
-        Label(display, text="Color: ").grid(row=1, padx=5, pady=5, sticky=W)
-        Radiobutton(display, text="Grayscale", variable=self.cg, value=1).grid(row=1, column=0,
-                                                                               pady=5, padx=53, sticky=W)
-        Radiobutton(display, text="RGB", variable=self.cg, value=0).grid(row=1, column=0, pady=5, padx=153, sticky=W)
+        # if self.os_parse:
+        #     self.oput.set(1)
+        # else:
+        #     self.oput.set(0)
 
-        btrap_check = Checkbutton(output, text="Save 95% CIs, spline filtering weights, and error tolerance",
-                                  variable=self.bstrap)
-        btrap_check.grid(row=0, pady=5, padx=5, sticky=W)
+        # if self.rgb:
+        #     self.cg.set(0)
+        # else:
+        #     self.cg.set(1)
 
-        Label(output, text="Format: ").grid(row=1, padx=5, pady=5, sticky=W)
-        Radiobutton(output, text="Sparse .tsv", variable=self.oput, value=1).grid(row=1, column=0,
-                                                                                  pady=5, padx=80, sticky=W)
-        Radiobutton(output, text="Dense .csv", variable=self.oput, value=0).grid(row=1, column=0,
-                                                                                 pady=5, padx=180, sticky=W)
+        # self.track_list = track_list
+        # self.dlts = list()
 
-        Label(output, text="Save location/tag:").grid(row=2, padx=15, pady=5, sticky=W)
-        cam_entry = Entry(output, textvariable=self.fnam, width=38, bd=3)
-        cam_entry.grid(row=3, padx=5, pady=0, sticky=W)
+        # Label(self.top,
+        #       text="Argus-Clicker - Settings",
+        #       font=("Helvetica", 20),
+        #       fg='#56A0D3').grid(row=0, column=0, padx=10, pady=10, sticky=W)
+        # general = LabelFrame(self.top, text="General", padx=5, pady=5, fg='#56A0D3')
+        # output = LabelFrame(self.top, text="Output", padx=5, pady=5, fg='#56A0D3')
+        # display = LabelFrame(self.top, text="Display", padx=5, pady=5, fg='#56A0D3')
 
-        self.output_selector_button = Button(output, text='Specify', command=self.save_as, padx=15, pady=10)
-        self.output_selector_button.grid(row=3, padx=0, pady=0, sticky=E)
+        # general.grid(row=1, padx=10, pady=5, sticky=EW)
+        # output.grid(row=2, padx=10, pady=5, sticky=EW)
+        # display.grid(row=3, padx=10, pady=5, sticky=EW)
 
-        self.okay_button = Button(self.top, text='Ok', command=self.cleanup, padx=10, pady=10)
-        self.okay_button.grid(row=4, padx=5, pady=5, sticky=W)
+        # Label(general, text="Current track: ").grid(row=0, column=0, padx=5, pady=5, sticky=W)
+        # spec_button = Button(general, text='Add Track', command=self.popup, padx=15, pady=10)
+        # spec_button.grid(row=0, column=0, sticky=W, padx=230, pady=5)
+
+        # self.tracks = OptionMenu(general, self.track, *track_list)
+        # self.tracks.grid(row=0, column=0, sticky=W, padx=105, pady=5)
+
+        # sync_check = Checkbutton(general, text="Keep all videos in same frame", variable=self.sync)
+        # sync_check.grid(row=1, pady=5, padx=20, sticky=W)
+
+        # auto_check = Checkbutton(general, text="Auto-advance", variable=self.auto)
+        # auto_check.grid(row=2, pady=5, padx=20, sticky=W)
+
+        # self.lc = Button(general, text='Load camera profile', command=self.load_camera, padx=10, pady=10)
+        # self.lc.grid(row=3, padx=10, pady=5, sticky=W)
+
+        # cam_entry = Entry(general, textvariable=self.cam, width=60, bd=3)
+        # cam_entry.grid(row=4, padx=5, pady=5, sticky=W)
+        # cam_entry.config(state='readonly')
+
+        # self.ld = Button(general, text='Load DLT coefficients', command=self.load_DLT, padx=10, pady=10)
+        # self.ld.grid(row=5, padx=10, pady=5, sticky=W)
+
+        # dlt_entry = Entry(general, textvariable=self.dlt, width=60, bd=3)
+        # dlt_entry.grid(row=6, padx=5, pady=5, sticky=W)
+        # dlt_entry.config(state='readonly')
+
+        # disp_check = Checkbutton(display, text="Display current track only", variable=self.disp)
+        # disp_check.grid(row=0, pady=5, padx=5, sticky=W)
+
+        # Label(display, text="Color: ").grid(row=1, padx=5, pady=5, sticky=W)
+        # Radiobutton(display, text="Grayscale", variable=self.cg, value=1).grid(row=1, column=0,
+        #                                                                        pady=5, padx=53, sticky=W)
+        # Radiobutton(display, text="RGB", variable=self.cg, value=0).grid(row=1, column=0, pady=5, padx=153, sticky=W)
+
+        # btrap_check = Checkbutton(output, text="Save 95% CIs, spline filtering weights, and error tolerance",
+        #                           variable=self.bstrap)
+        # btrap_check.grid(row=0, pady=5, padx=5, sticky=W)
+
+        # Label(output, text="Format: ").grid(row=1, padx=5, pady=5, sticky=W)
+        # Radiobutton(output, text="Sparse .tsv", variable=self.oput, value=1).grid(row=1, column=0,
+        #                                                                           pady=5, padx=80, sticky=W)
+        # Radiobutton(output, text="Dense .csv", variable=self.oput, value=0).grid(row=1, column=0,
+        #                                                                          pady=5, padx=180, sticky=W)
+
+        # Label(output, text="Save location/tag:").grid(row=2, padx=15, pady=5, sticky=W)
+        # cam_entry = Entry(output, textvariable=self.fnam, width=38, bd=3)
+        # cam_entry.grid(row=3, padx=5, pady=0, sticky=W)
+
+        # self.output_selector_button = Button(output, text='Specify', command=self.save_as, padx=15, pady=10)
+        # self.output_selector_button.grid(row=3, padx=0, pady=0, sticky=E)
+
+        # self.okay_button = Button(self.top, text='Ok', command=self.cleanup, padx=10, pady=10)
+        # self.okay_button.grid(row=4, padx=5, pady=5, sticky=W)
+
+    # close with Return key
+    def keyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Return:
+            self.accept()
 
     # popup window for inputting track name
-    def popup(self):
-        track_name_window = PopupWindow(self.top, "Input track title")
-        self.top.wait_window(track_name_window.top)
+    def newTrack(self):
+        track_name_window = newTrackPopup(self)
+        if track_name_window.exec_() == QtWidgets.QDialog.Accepted:
+            new_name = track_name_window.line_edit.text()
 
-        m = self.tracks.children['menu']
+        # m = self.tracks.children['menu']
 
         # check to make sure the track name is not empty and does not already exist
-        if track_name_window.new_track_entry != '' and track_name_window.new_track_entry not in self.track_list:
-            self.track_list.append(track_name_window.new_track_entry)
-            self.track.set(track_name_window.new_track_entry)
-            m.add_command(label=track_name_window.new_track_entry,
-                          command=lambda track=self.track, track_label=track_name_window.new_track_entry:
-                          track.set(track_label))
+        if new_name != '' and new_name not in self.track_list:
+            self.track_list.append(new_name)
+            self.tracks.addItem(new_name)
+            self.tracks.setCurrentText(new_name)
+
         else:
-            six.moves.tkinter_messagebox.showwarning(
+            QtWidgets.QMessageBox.warning(None,
                 "Error",
                 "Track names must be unique and non-empty"
             )
 
-    def cleanup(self, _=None):
-        """
-        :param _: Tkinter event parameter. Used for nothing. Only passed if the enter key is used
-        :return: None
-        """
-        if self.oput.get() == 0:
-            self.os_parse = False
-        else:
-            self.os_parse = True
-
-        if self.cg.get() == 0:
-            self.rgb = True
-        else:
-            self.rgb = False
-
-        self.top.destroy()
-
     def load_camera(self):
-        filename = tk_file_dialog.askopenfilename(filetypes=[("TXT files", "*.txt")])
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose camera profile", filter="Text files (*.txt)")
         try:
             if filename:
                 load_camera(filename)
-                self.cam.set(filename)
+                self.cam_entry.setText(filename)
         except:
-            six.moves.tkinter_messagebox.showwarning(
+            QtWidgets.QMessageBox.warning(None,
                 "Error",
                 "Could not load Camera profile!"
             )
@@ -388,17 +380,17 @@ class OptionsPopupWindow(object):
     def load_DLT(self):
         global DLTCoefficients
         global dlt_filename
+        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Choose DLT coefficients file", filter="CSV files (*.csv)")
 
-        filename = tk_file_dialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
-        if filename != '':
+        if filename:
             try:
                 DLTCoefficients = np.loadtxt(filename, delimiter=',')
                 DLTCoefficients = DLTCoefficients.T
-                self.dlt.set(filename)
+                self.dlt.setText(filename)
                 dlt_filename = filename
             # TODO: Better Exception Handling
             except:
-                six.moves.tkinter_messagebox.showwarning(
+                QtWidgets.QMessageBox.warning(None,
                     "Error",
                     "Could not load DLT coefficients!"
                 )
@@ -415,6 +407,16 @@ class OptionsPopupWindow(object):
 
         return
 
+class newTrackPopup(QtWidgets.QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Name the new track")
+        layout = QtWidgets.QVBoxLayout(self)
+        self.line_edit = QtWidgets.QLineEdit()
+        layout.addWidget(self.line_edit)
+        button = QtWidgets.QPushButton("Ok")
+        button.clicked.connect(self.accept)
+        layout.addWidget(button)
 
 def draw_circle(coordinates, radius, color=(255, 255, 255), batch=None, strip=False):
     """Modified versions of code in pgedraw. returns vertices rather than having them as an attribute of a class
@@ -1567,84 +1569,81 @@ class ClickerWindow(pyglet.window.Window):
         self.toggleBusy()
 
         # make an options window and wait for it
-        root = Tk()
-        root.withdraw()
-        w = OptionsPopupWindow(root, sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks,
-                               bstrap, outputSparse, rgb)
-        root.wait_window(w.top)
 
-        if w.sync.get() == '1':
-            sync = True
-        else:
-            sync = False
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            app = QtWidgets.QApplication([])
+        w = OptionsPopupWindow(root, sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb)
+        if w.exec_() == QtWidgets.QDialog.Accepted:
+            # if w.sync.get() == '1':
+            #     sync = True
+            # else:
+            #     sync = False
 
-        if w.auto.get() == '1':
-            auto_advance = True
-        else:
-            auto_advance = False
+            # if w.auto.get() == '1':
+            #     auto_advance = True
+            # else:
+            #     auto_advance = False
 
-        if w.disp.get() == '1':
-            new_disp = False
-        else:
-            new_disp = True
+            new_disp = w.disp.isChecked()
 
-        if w.bstrap.get() == '1':
-            bstrap = True
-        else:
-            bstrap = False
+            # if w.bstrap.get() == '1':
+            #     bstrap = True
+            # else:
+            #     bstrap = False
 
-        outputSparse = w.os_parse
-        rgb = w.rgb
+            # outputSparse = w.os_parse
+            # rgb = w.rgb
 
-        track_list_global = w.track_list
+            track_list_global = w.track_list
 
-        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            window.update_tracks()
-
-        # if the current track changed and the displaying of the rest of the tracks did not
-        if current_track_global != w.track.get() and new_disp == displaying_all_tracks:
-            old_track = current_track_global
-            current_track_global = w.track.get()
             for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.change_track(old_track)
+                window.update_tracks()
 
-        # if the current track changed and the displaying of other tracks was turned on
-        elif current_track_global != w.track.get() and new_disp:
+            # if the current track changed and the displaying of the rest of the tracks did not
+            if current_track_global != w.tracks.currentText() and new_disp == displaying_all_tracks:
+                old_track = current_track_global
+                current_track_global = w.tracks.currentText()
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.change_track(old_track)
+
+            # if the current track changed and the displaying of other tracks was turned on
+            elif current_track_global != w.tracks.currentText() and not new_disp:
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.draw_all_tracks()
+                old_track = current_track_global
+                current_track_global = w.tracks.currentText()
+                displaying_all_tracks = new_disp
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.change_track(old_track)
+
+            # if the current track changed and the displaying of other tracks was turned off
+            elif current_track_global != w.tracks.currentText():
+                old_track = current_track_global
+                current_track_global = w.tracks.currentText()
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.change_track(old_track)
+                    window.delete_all_tracks()
+
+            # if the track did not change but we turned on displaying the rest
+            elif new_disp != displaying_all_tracks and not new_disp:
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.draw_all_tracks()
+
+            # if the track did not change but we turned off the displaying of the rest of tracks
+            elif new_disp != displaying_all_tracks and new_disp:
+                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                    window.delete_all_tracks()
+
             for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.draw_all_tracks()
-            old_track = current_track_global
-            current_track_global = w.track.get()
-            displaying_all_tracks = new_disp
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.change_track(old_track)
+                window.frameFinder.rgb = rgb
+                im = window.frameFinder.getFrame(window.current_point_index)
+                if im is not None:
+                    window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
+                    window.img.scale = float(self.scale_factor)
 
-        # if the current track changed and the displaying of other tracks was turned off
-        elif current_track_global != w.track.get():
-            old_track = current_track_global
-            current_track_global = w.track.get()
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.change_track(old_track)
-                window.delete_all_tracks()
-
-        # if the track did not change but we turned on displaying the rest
-        elif new_disp != displaying_all_tracks and new_disp:
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.draw_all_tracks()
-
-        # if the track did not change but we turned off the displaying of the rest of tracks
-        elif new_disp != displaying_all_tracks and not new_disp:
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.delete_all_tracks()
-
-        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            window.frameFinder.rgb = rgb
-            im = window.frameFinder.getFrame(window.current_point_index)
-            if im is not None:
-                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
-                window.img.scale = float(self.scale_factor)
-
-        current_track_global = w.track.get()
-        displaying_all_tracks = new_disp
+            current_track_global = w.tracks.currentText()
+            displaying_all_tracks = new_disp * -1
 
         self.toggleBusy()
         self.update_all_windows()
@@ -1781,7 +1780,7 @@ class ClickerWindow(pyglet.window.Window):
                 )
         # changes track to the next one in the list
         elif symbol == key.PERIOD:
-            start_time = time.clock()
+            start_time = time.time()
 
             old_track = current_track_global
             if track_list_global.index(current_track_global) + 1 < len(track_list_global):

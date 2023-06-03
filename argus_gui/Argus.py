@@ -286,7 +286,6 @@ class PygletDriver:
         self.movies = movies
         self.offsets = offsets
         self.res = res
-
         starts = []
         for k in range(len(offsets)):
             starts.append(np.max(offsets) - offsets[k])
