@@ -991,491 +991,491 @@ class ClickerGUI(BaseGUI):
 #         self.calibParse()
 
 
-# class syncGUI(GUI):
-#     def __init__(self):
-#         super(syncGUI, self).__init__()
+class syncGUI(GUI):
+    def __init__(self):
+        super(syncGUI, self).__init__()
 
-#         # Load system specific integers for Tkinter drawing differences
-#         pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'sync-gui-paddings.txt'))
-#         if 'linux' in sys.platform:
-#             pads = pads[0]
-#         elif sys.platform == 'darwin':
-#             pads = pads[1]
-#         elif sys.platform == 'win32' or sys.platform == 'win64':
-#             pads = pads[2]
-#         pads = list(map(int, pads))
+        # Load system specific integers for Tkinter drawing differences
+        pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'sync-gui-paddings.txt'))
+        if 'linux' in sys.platform:
+            pads = pads[0]
+        elif sys.platform == 'darwin':
+            pads = pads[1]
+        elif sys.platform == 'win32' or sys.platform == 'win64':
+            pads = pads[2]
+        pads = list(map(int, pads))
 
-#         tooltips = Pmw.Balloon(self.root)
+        tooltips = Pmw.Balloon(self.root)
 
-#         # Variables which store information to pass to the sync operation.
-#         self.filelist = Listbox(self.root, width=50, height=10)
-#         self.wLog = StringVar(self.root)
-#         self.start = StringVar(self.root)
-#         self.end = StringVar(self.root)
-#         self.crop = StringVar(self.root)
-#         self.onam = StringVar(self.root)
+        # Variables which store information to pass to the sync operation.
+        self.filelist = Listbox(self.root, width=50, height=10)
+        self.wLog = StringVar(self.root)
+        self.start = StringVar(self.root)
+        self.end = StringVar(self.root)
+        self.crop = StringVar(self.root)
+        self.onam = StringVar(self.root)
 
-#         # Defaults
-#         self.wLog.set('0')
-#         self.crop.set('1')
-#         self.start.set('0.0')
-#         self.end.set('4.0')
+        # Defaults
+        self.wLog.set('0')
+        self.crop.set('1')
+        self.start.set('0.0')
+        self.end.set('4.0')
 
-#         self.startEntry = Entry(self.root, textvariable=self.start, bd=3, width=8)
-#         self.endEntry = Entry(self.root, textvariable=self.end, bd=3, width=8)
+        self.startEntry = Entry(self.root, textvariable=self.start, bd=3, width=8)
+        self.endEntry = Entry(self.root, textvariable=self.end, bd=3, width=8)
 
-#         self.tmps.append(tempfile.mkdtemp())
+        self.tmps.append(tempfile.mkdtemp())
 
-#         # dictionary of cached files, relating random key to movie location
-#         self.cached = dict()
+        # dictionary of cached files, relating random key to movie location
+        self.cached = dict()
 
-#         self.crop.trace('w', lambda *args: self.checkEntries())
+        self.crop.trace('w', lambda *args: self.checkEntries())
 
-#         self.filelist.grid(row=2, column=0, padx=5, pady=5, sticky=EW)
-#         tooltips.bind(self.filelist, "List of movies to find offsets for\nPress '+' button to add movie")
+        self.filelist.grid(row=2, column=0, padx=5, pady=5, sticky=EW)
+        tooltips.bind(self.filelist, "List of movies to find offsets for\nPress '+' button to add movie")
 
-#         findInFile = Button(self.root, text=" + ", command=self.add, padx=10, pady=10)
-#         findInFile.grid(row=1, column=0, sticky=E, padx=5, pady=5)
-#         tooltips.bind(findInFile, "Open file dialog and browse for movie")
+        findInFile = Button(self.root, text=" + ", command=self.add, padx=10, pady=10)
+        findInFile.grid(row=1, column=0, sticky=E, padx=5, pady=5)
+        tooltips.bind(findInFile, "Open file dialog and browse for movie")
 
-#         Label(self.root, text="Argus-Sync", font=("Helvetica", pads[1]), fg='#56A0D3').grid(row=0, column=0, padx=15,
-#                                                                                             pady=15, sticky=S)
+        Label(self.root, text="Argus-Sync", font=("Helvetica", pads[1]), fg='#56A0D3').grid(row=0, column=0, padx=15,
+                                                                                            pady=15, sticky=S)
 
-#         aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
-#         aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
+        aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
+        aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
 
-#         delButton = Button(self.root, text=" - ",
-#                            command=self.delete, padx=10, pady=10)
-#         delButton.grid(row=1, column=0, sticky=W, padx=5, pady=5)
-#         tooltips.bind(delButton, "Remove movie from list")
+        delButton = Button(self.root, text=" - ",
+                           command=self.delete, padx=10, pady=10)
+        delButton.grid(row=1, column=0, sticky=W, padx=5, pady=5)
+        tooltips.bind(delButton, "Remove movie from list")
 
-#         showButton = Button(self.root, text="Show waves", command=self.show, padx=15, pady=5)
-#         showButton.grid(row=3, column=0, sticky=W, padx=25, pady=5)
-#         tooltips.bind(showButton, "Graph the audio tracks from the movies\nHelps better select a reasonable time range")
+        showButton = Button(self.root, text="Show waves", command=self.show, padx=15, pady=5)
+        showButton.grid(row=3, column=0, sticky=W, padx=25, pady=5)
+        tooltips.bind(showButton, "Graph the audio tracks from the movies\nHelps better select a reasonable time range")
 
-#         f = Frame(self.root, height=1, width=350, bg="black")
-#         f.grid(row=4, column=0, pady=5)
+        f = Frame(self.root, height=1, width=350, bg="black")
+        f.grid(row=4, column=0, pady=5)
 
-#         clearButton = Button(self.root, text="Clear all", command=self.clear, padx=10, pady=5)
-#         clearButton.grid(row=1, column=0, padx=5, pady=5)
-#         tooltips.bind(clearButton, "Clear all movies from the list and all cached audio tracks")
+        clearButton = Button(self.root, text="Clear all", command=self.clear, padx=10, pady=5)
+        clearButton.grid(row=1, column=0, padx=5, pady=5)
+        tooltips.bind(clearButton, "Clear all movies from the list and all cached audio tracks")
 
-#         rangeCheck = Checkbutton(self.root, text='Specify time range', variable=self.crop)
-#         rangeCheck.grid(row=5, column=0, sticky=W, padx=25, pady=5)
+        rangeCheck = Checkbutton(self.root, text='Specify time range', variable=self.crop)
+        rangeCheck.grid(row=5, column=0, sticky=W, padx=25, pady=5)
 
-#         Label(self.root, text="Time range that beeps exists in (decimal minutes):").grid(row=6, column=0, sticky=W,
-#                                                                                          padx=20)
+        Label(self.root, text="Time range that beeps exists in (decimal minutes):").grid(row=6, column=0, sticky=W,
+                                                                                         padx=20)
 
-#         Label(self.root, text="Start:").grid(row=7, sticky=W, padx=45)
-#         self.startEntry.grid(row=7, column=0, sticky=W, padx=100)
+        Label(self.root, text="Start:").grid(row=7, sticky=W, padx=45)
+        self.startEntry.grid(row=7, column=0, sticky=W, padx=100)
 
-#         f2 = Frame(self.root, height=1, width=350, bg="black")
-#         f2.grid(row=9, column=0, pady=5)
+        f2 = Frame(self.root, height=1, width=350, bg="black")
+        f2.grid(row=9, column=0, pady=5)
 
-#         writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
-#         writeLogCheck.grid(row=10, column=0, padx=25, pady=5, sticky=W)
+        writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
+        writeLogCheck.grid(row=10, column=0, padx=25, pady=5, sticky=W)
 
-#         Label(self.root, text="End:").grid(row=8, sticky=W, padx=45)
-#         self.endEntry.grid(row=8, column=0, sticky=W, padx=100)
+        Label(self.root, text="End:").grid(row=8, sticky=W, padx=45)
+        self.endEntry.grid(row=8, column=0, sticky=W, padx=100)
 
-#         Label(self.root, text="Output filename: ").grid(row=11, column=0, sticky=W, padx=10)
-#         outEntry = Entry(self.root, textvariable=self.onam, width=22)
-#         specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.onam), padx=15,
-#                             pady=10)
-#         specButton.grid(row=11, column=0, sticky=W, padx=pads[0])
-#         outEntry.grid(row=11, column=0, sticky=E, padx=10, pady=10)
+        Label(self.root, text="Output filename: ").grid(row=11, column=0, sticky=W, padx=10)
+        outEntry = Entry(self.root, textvariable=self.onam, width=22)
+        specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.onam), padx=15,
+                            pady=10)
+        specButton.grid(row=11, column=0, sticky=W, padx=pads[0])
+        outEntry.grid(row=11, column=0, sticky=E, padx=10, pady=10)
 
-#         go = Button(self.root, text="Go", command=self.go, width=6, height=3)
-#         go.grid(row=12, column=0, sticky=W, padx=5, pady=5)
+        go = Button(self.root, text="Go", command=self.go, width=6, height=3)
+        go.grid(row=12, column=0, sticky=W, padx=5, pady=5)
 
-#         quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
-#         quitButton.grid(row=12, column=0, sticky=E, padx=5, pady=5)
+        quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
+        quitButton.grid(row=12, column=0, sticky=E, padx=5, pady=5)
 
-#         self.root.mainloop()
+        self.root.mainloop()
 
-#     # Gets seconds from 'hours:minutes:seconds' string
-#     def getSec(self, s):
-#         return 60. * float(s)
+    # Gets seconds from 'hours:minutes:seconds' string
+    def getSec(self, s):
+        return 60. * float(s)
 
-#     def id_generator(self, size=12, chars=string.ascii_uppercase + string.digits):
-#         return ''.join(random.choice(chars) for _ in range(size))
+    def id_generator(self, size=12, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
 
-#     # Function for bringing up file dialogs; adds selected file to listbox
-#     def add(self):
-#         if 'linux' in sys.platform:
-#             root = Tk()
-#             root.withdraw()
-#             # root.destroy()
-#         filename = tkFileDialog.askopenfilename()
-#         if filename:
-#             self.filelist.insert(END, filename)
-#             self.cached[filename] = self.id_generator() + '-' + filename.split('/')[-1].split('.')[0] + '.wav'
-#         root = None
+    # Function for bringing up file dialogs; adds selected file to listbox
+    def add(self):
+        if 'linux' in sys.platform:
+            root = Tk()
+            root.withdraw()
+            # root.destroy()
+        filename = tkFileDialog.askopenfilename()
+        if filename:
+            self.filelist.insert(END, filename)
+            self.cached[filename] = self.id_generator() + '-' + filename.split('/')[-1].split('.')[0] + '.wav'
+        root = None
 
-#     # Takes item off the list and deletes cached wave file if there is one
-#     def delete(self):
-#         if self.filelist.get(ANCHOR) != '':
-#             if os.path.isfile(self.tmps[0] + '/' + self.cached[self.filelist.get(ANCHOR)]):
-#                 os.remove(self.tmps[0] + '/' + self.cached[self.filelist.get(ANCHOR)])
-#             del self.cached[self.filelist.get(ANCHOR)]
-#             self.filelist.delete(ANCHOR)
-#         elif self.filelist.get(END) != '':
-#             if os.path.isfile(self.tmps[0] + '/' + self.cached[self.filelist.get(END)]):
-#                 os.remove(self.tmps[0] + '/' + self.cached[self.filelist.get(END)])
-#             del self.cached[self.filelist.get(END)]
-#             self.filelist.delete(END)
+    # Takes item off the list and deletes cached wave file if there is one
+    def delete(self):
+        if self.filelist.get(ANCHOR) != '':
+            if os.path.isfile(self.tmps[0] + '/' + self.cached[self.filelist.get(ANCHOR)]):
+                os.remove(self.tmps[0] + '/' + self.cached[self.filelist.get(ANCHOR)])
+            del self.cached[self.filelist.get(ANCHOR)]
+            self.filelist.delete(ANCHOR)
+        elif self.filelist.get(END) != '':
+            if os.path.isfile(self.tmps[0] + '/' + self.cached[self.filelist.get(END)]):
+                os.remove(self.tmps[0] + '/' + self.cached[self.filelist.get(END)])
+            del self.cached[self.filelist.get(END)]
+            self.filelist.delete(END)
 
-#     # Do the sync operation
-#     def go(self):
-#         # Error checking and defining of bool to pass to the sync operation
-#         cropArg = ''
-#         files = self.filelist.get(0, END)
-#         if len(files) <= 1:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Need at least two videos to sync"
-#             )
-#             return
-#         for k in range(len(files)):
-#             try:
-#                 open(files[k])
-#             except:
-#                 six.moves.tkinter_messagebox.showwarning(
-#                     "Error",
-#                     "Could not find one or more of the specified videos"
-#                 )
-#                 return
-#         if self.crop.get() == '1':
-#             try:
-#                 float(self.start.get())
-#                 float(self.end.get())
-#             except:
-#                 six.moves.tkinter_messagebox.showwarning(
-#                     "Error",
-#                     "Start and end time must be floats"
-#                 )
-#             for k in range(len(files)):
-#                 cap = cv2.VideoCapture(files[k])
-#                 length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#                 dur = length * float(cap.get(cv2.CAP_PROP_FPS))
-#                 # dur = VideoFileClip(files[k]).duration
-#                 if self.getSec(self.start.get()) >= dur or self.getSec(self.end.get()) > dur:
-#                     six.moves.tkinter_messagebox.showwarning(
-#                         "Error",
-#                         "Time range does not exist for one or more of the specified videos"
-#                     )
-#                     return
-#                 elif self.getSec(self.start.get()) >= self.getSec(self.end.get()):
-#                     six.moves.tkinter_messagebox.showwarning(
-#                         "Error",
-#                         "Start time is further along than end time"
-#                     )
-#                     return
-#             cropArg = '1'
-#         for k in range(len(files)):
-#             try:
-#                 self.cached[files[k]]
-#             except:
-#                 self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
-#         out = list()
-#         for k in range(len(files)):
-#             out.append(self.cached[files[k]])
-#         logBool = False
-#         if self.wLog.get() == '1':
-#             logBool = True
+    # Do the sync operation
+    def go(self):
+        # Error checking and defining of bool to pass to the sync operation
+        cropArg = ''
+        files = self.filelist.get(0, END)
+        if len(files) <= 1:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Need at least two videos to sync"
+            )
+            return
+        for k in range(len(files)):
+            try:
+                open(files[k])
+            except:
+                six.moves.tkinter_messagebox.showwarning(
+                    "Error",
+                    "Could not find one or more of the specified videos"
+                )
+                return
+        if self.crop.get() == '1':
+            try:
+                float(self.start.get())
+                float(self.end.get())
+            except:
+                six.moves.tkinter_messagebox.showwarning(
+                    "Error",
+                    "Start and end time must be floats"
+                )
+            for k in range(len(files)):
+                cap = cv2.VideoCapture(files[k])
+                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                dur = length * float(cap.get(cv2.CAP_PROP_FPS))
+                # dur = VideoFileClip(files[k]).duration
+                if self.getSec(self.start.get()) >= dur or self.getSec(self.end.get()) > dur:
+                    six.moves.tkinter_messagebox.showwarning(
+                        "Error",
+                        "Time range does not exist for one or more of the specified videos"
+                    )
+                    return
+                elif self.getSec(self.start.get()) >= self.getSec(self.end.get()):
+                    six.moves.tkinter_messagebox.showwarning(
+                        "Error",
+                        "Start time is further along than end time"
+                    )
+                    return
+            cropArg = '1'
+        for k in range(len(files)):
+            try:
+                self.cached[files[k]]
+            except:
+                self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
+        out = list()
+        for k in range(len(files)):
+            out.append(self.cached[files[k]])
+        logBool = False
+        if self.wLog.get() == '1':
+            logBool = True
 
-#         # check for properly named output file (if it exists) & fix it if appropriate
-#         of = self.onam.get()
-#         if of:
-#             ofs = of.split('.')
-#             if ofs[-1].lower() != 'csv':
-#                 of = of + '.csv'
-#                 self.onam.set(of)
+        # check for properly named output file (if it exists) & fix it if appropriate
+        of = self.onam.get()
+        if of:
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'csv':
+                of = of + '.csv'
+                self.onam.set(of)
 
-#         file_str = ','.join(files)
-#         out_str = ','.join(out)
+        file_str = ','.join(files)
+        out_str = ','.join(out)
 
-#         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-sync')]
-#         # Create args list, order is important
-#         args = [file_str, '--tmp', self.tmps[0], '--start', self.start.get(), '--end', self.end.get(), '--ofile',
-#                 self.onam.get(), '--out', out_str]
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-sync')]
+        # Create args list, order is important
+        args = [file_str, '--tmp', self.tmps[0], '--start', self.start.get(), '--end', self.end.get(), '--ofile',
+                self.onam.get(), '--out', out_str]
 
-#         if self.crop.get() == '1':
-#             args = args + ['--crop']
-#         cmd = cmd + args
+        if self.crop.get() == '1':
+            args = args + ['--crop']
+        cmd = cmd + args
 
-#         super(syncGUI, self).go(cmd, logBool)
+        super(syncGUI, self).go(cmd, logBool)
 
-#     # Graph the wave files with matplotlib
-#     def show(self):
-#         files = self.filelist.get(0, END)
-#         for k in range(len(files)):
-#             try:
-#                 self.cached[files[k]]
-#             except:
-#                 self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
-#         out = list()
-#         for k in range(len(files)):
-#             out.append(self.cached[files[k]])
+    # Graph the wave files with matplotlib
+    def show(self):
+        files = self.filelist.get(0, END)
+        for k in range(len(files)):
+            try:
+                self.cached[files[k]]
+            except:
+                self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
+        out = list()
+        for k in range(len(files)):
+            out.append(self.cached[files[k]])
 
-#         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-show')]
-#         if isinstance(files, str):
-#             args = [self.tmps[0], files] + out
-#         else:
-#             args = [self.tmps[0]] + list(files) + out
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-show')]
+        if isinstance(files, str):
+            args = [self.tmps[0], files] + out
+        else:
+            args = [self.tmps[0]] + list(files) + out
 
-#         cmd = cmd + args
+        cmd = cmd + args
 
-#         super(syncGUI, self).go(cmd)
+        super(syncGUI, self).go(cmd)
 
-#     # If a user does not want to specify a specific time range, make the entries inactive
-#     def checkEntries(self):
-#         if self.crop.get() == '1':
-#             self.startEntry.config(state='normal')
-#             self.endEntry.config(state='normal')
-#         else:
-#             self.startEntry.config(state='disabled')
-#             self.endEntry.config(state='disabled')
+    # If a user does not want to specify a specific time range, make the entries inactive
+    def checkEntries(self):
+        if self.crop.get() == '1':
+            self.startEntry.config(state='normal')
+            self.endEntry.config(state='normal')
+        else:
+            self.startEntry.config(state='disabled')
+            self.endEntry.config(state='disabled')
 
-#     # Clear the file list and delete all cached waves
-#     def clear(self):
-#         if os.path.isdir(self.tmps[0]):
-#             shutil.rmtree(self.tmps[0])
-#         self.tmps[0] = tempfile.mkdtemp()
-#         self.filelist.delete(0, END)
-#         self.cached = dict()
+    # Clear the file list and delete all cached waves
+    def clear(self):
+        if os.path.isdir(self.tmps[0]):
+            shutil.rmtree(self.tmps[0])
+        self.tmps[0] = tempfile.mkdtemp()
+        self.filelist.delete(0, END)
+        self.cached = dict()
 
 
-# class WandGUI(GUI):
-#     def __init__(self):
-#         super(WandGUI, self).__init__()
+class WandGUI(GUI):
+    def __init__(self):
+        super(WandGUI, self).__init__()
 
-#         tooltips = Pmw.Balloon(self.root)
+        tooltips = Pmw.Balloon(self.root)
 
-#         group = LabelFrame(self.root, text="Options", padx=5, pady=5, fg='#56A0D3')
+        group = LabelFrame(self.root, text="Options", padx=5, pady=5, fg='#56A0D3')
 
-#         self.intModeDict = {
-#             "Optimize none": '0',
-#             "Optimize focal length": '1',
-#             "Optimize focal length and principal point": '2'
-#         }
+        self.intModeDict = {
+            "Optimize none": '0',
+            "Optimize focal length": '1',
+            "Optimize focal length and principal point": '2'
+        }
 
-#         self.disModeDict = {
-#             "Optimize none": '0',
-#             "Optimize r2": '1',
-#             "Optimize r2, r4": '2',
-#             "Optimize all distortion coefficients": '3'
-#         }
+        self.disModeDict = {
+            "Optimize none": '0',
+            "Optimize r2": '1',
+            "Optimize r2, r4": '2',
+            "Optimize all distortion coefficients": '3'
+        }
         
-#         # maybe don't need this?
-#         self.refModeDict = {
-#             "Axis points": '0',
-#             "Gravity": '1',
-#             "Plane": '2'
-#         }
+        # maybe don't need this?
+        self.refModeDict = {
+            "Axis points": '0',
+            "Gravity": '1',
+            "Plane": '2'
+        }
 
-#         self.ppts = StringVar(self.root)
-#         self.uppts = StringVar(self.root)
-#         self.cams = StringVar(self.root)
-#         self.scale = StringVar(self.root)
-#         self.intrinsic_fixes = StringVar(self.root)
-#         self.distortion_fixes = StringVar(self.root)
-#         self.display = StringVar(self.root)
-#         self.ref = StringVar(self.root)
-#         self.tag = StringVar(self.root)
-#         self.report_on_outliers = StringVar(self.root)
-#         self.should_log = StringVar(self.root)
-#         self.output_camera_profiles = StringVar(self.root)
-#         self.choose = StringVar(self.root)
-#         self.reference_type = StringVar(self.root)
-#         self.freq = StringVar(self.root)
+        self.ppts = StringVar(self.root)
+        self.uppts = StringVar(self.root)
+        self.cams = StringVar(self.root)
+        self.scale = StringVar(self.root)
+        self.intrinsic_fixes = StringVar(self.root)
+        self.distortion_fixes = StringVar(self.root)
+        self.display = StringVar(self.root)
+        self.ref = StringVar(self.root)
+        self.tag = StringVar(self.root)
+        self.report_on_outliers = StringVar(self.root)
+        self.should_log = StringVar(self.root)
+        self.output_camera_profiles = StringVar(self.root)
+        self.choose = StringVar(self.root)
+        self.reference_type = StringVar(self.root)
+        self.freq = StringVar(self.root)
 
-#         self.intrinsic_fixes.set("Optimize none")
-#         self.distortion_fixes.set("Optimize none")
-#         self.display.set('1')
-#         self.report_on_outliers.set('1')
-#         self.scale.set('1.0')
-#         self.should_log.set('0')
-#         self.output_camera_profiles.set('0')
-#         self.choose.set('1')
-#         self.reference_type.set("Axis points")
-#         self.freq.set('100')
+        self.intrinsic_fixes.set("Optimize none")
+        self.distortion_fixes.set("Optimize none")
+        self.display.set('1')
+        self.report_on_outliers.set('1')
+        self.scale.set('1.0')
+        self.should_log.set('0')
+        self.output_camera_profiles.set('0')
+        self.choose.set('1')
+        self.reference_type.set("Axis points")
+        self.freq.set('100')
 
-#         Label(self.root, text="Argus-Wand", font=("Helvetica", 40), fg='#56A0D3').grid(row=0, column=0, padx=20,
-#                                                                                        pady=20, columnspan=2)
+        Label(self.root, text="Argus-Wand", font=("Helvetica", 40), fg='#56A0D3').grid(row=0, column=0, padx=20,
+                                                                                       pady=20, columnspan=2)
 
-#         about_button = Button(self.root, text="About", command=self.about, padx=15, pady=15)
-#         about_button.grid(row=0, column=1, sticky=E, padx=5, pady=5)
+        about_button = Button(self.root, text="About", command=self.about, padx=15, pady=15)
+        about_button.grid(row=0, column=1, sticky=E, padx=5, pady=5)
 
-#         find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.cams), padx=10, pady=10,
-#                             width=10, height=1)
-#         find_in_file.grid(row=1, column=0, padx=190, sticky=W)
-#         clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.cams), padx=10, pady=10, width=10,
-#                          height=1)
-#         clear_b.grid(row=1, column=0, padx=60, sticky=E)
-#         tooltips.bind(find_in_file, 'Open a CSV file with camera intrinsic and extrinsics')
-#         Label(self.root, text="Input cameras:").grid(row=1, column=0, padx=35, sticky=W)
+        find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.cams), padx=10, pady=10,
+                            width=10, height=1)
+        find_in_file.grid(row=1, column=0, padx=190, sticky=W)
+        clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.cams), padx=10, pady=10, width=10,
+                         height=1)
+        clear_b.grid(row=1, column=0, padx=60, sticky=E)
+        tooltips.bind(find_in_file, 'Open a CSV file with camera intrinsic and extrinsics')
+        Label(self.root, text="Input cameras:").grid(row=1, column=0, padx=35, sticky=W)
 
-#         in_file_entry = Entry(self.root, textvariable=self.cams, width=20)
-#         in_file_entry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(in_file_entry, 'Path to CSV file with intrinsic and extrinsic estimates')
+        in_file_entry = Entry(self.root, textvariable=self.cams, width=20)
+        in_file_entry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        tooltips.bind(in_file_entry, 'Path to CSV file with intrinsic and extrinsic estimates')
 
-#         find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.ppts), padx=10, pady=10,
-#                             width=10, height=1)
-#         find_in_file.grid(row=3, column=0, padx=190, sticky=W)
-#         clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.ppts), padx=10, pady=10, width=10,
-#                          height=1)
-#         clear_b.grid(row=3, column=0, padx=60, sticky=E)
-#         tooltips.bind(find_in_file, 'Open a CSV file with paired pixel coordinates')
+        find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.ppts), padx=10, pady=10,
+                            width=10, height=1)
+        find_in_file.grid(row=3, column=0, padx=190, sticky=W)
+        clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.ppts), padx=10, pady=10, width=10,
+                         height=1)
+        clear_b.grid(row=3, column=0, padx=60, sticky=E)
+        tooltips.bind(find_in_file, 'Open a CSV file with paired pixel coordinates')
 
-#         Label(self.root, text="Input paired points:").grid(row=3, column=0, padx=35, sticky=W)
+        Label(self.root, text="Input paired points:").grid(row=3, column=0, padx=35, sticky=W)
 
-#         in_file_entry = Entry(self.root, textvariable=self.ppts, width=20)
-#         in_file_entry.grid(row=4, column=0, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(in_file_entry, 'Path to paired points CSV file')
+        in_file_entry = Entry(self.root, textvariable=self.ppts, width=20)
+        in_file_entry.grid(row=4, column=0, padx=10, pady=10, sticky=EW)
+        tooltips.bind(in_file_entry, 'Path to paired points CSV file')
 
-#         find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.uppts), padx=10, pady=10,
-#                             width=10, height=1)
-#         find_in_file.grid(row=5, column=0, padx=190, sticky=W)
-#         clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.uppts), padx=10, pady=10, width=10,
-#                          height=1)
-#         clear_b.grid(row=5, column=0, padx=60, sticky=E)
-#         tooltips.bind(find_in_file, 'Open a CSV file with unpaired pixel coordinates')
+        find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.uppts), padx=10, pady=10,
+                            width=10, height=1)
+        find_in_file.grid(row=5, column=0, padx=190, sticky=W)
+        clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.uppts), padx=10, pady=10, width=10,
+                         height=1)
+        clear_b.grid(row=5, column=0, padx=60, sticky=E)
+        tooltips.bind(find_in_file, 'Open a CSV file with unpaired pixel coordinates')
 
-#         Label(self.root, text="Input unpaired points:").grid(row=5, column=0, padx=35, sticky=W)
+        Label(self.root, text="Input unpaired points:").grid(row=5, column=0, padx=35, sticky=W)
 
-#         in_file_entry = Entry(self.root, textvariable=self.uppts, width=20)
-#         in_file_entry.grid(row=6, column=0, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(in_file_entry, 'Path to unpaired points CSV file')
+        in_file_entry = Entry(self.root, textvariable=self.uppts, width=20)
+        in_file_entry.grid(row=6, column=0, padx=10, pady=10, sticky=EW)
+        tooltips.bind(in_file_entry, 'Path to unpaired points CSV file')
 
-#         find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.ref), padx=10, pady=10,
-#                             width=10, height=1)
-#         find_in_file.grid(row=5, column=1, padx=190, sticky=W)
-#         clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.ref), padx=10, pady=10, width=10,
-#                          height=1)
-#         clear_b.grid(row=5, column=1, padx=60, sticky=E)
-#         tooltips.bind(find_in_file, 'Open a CSV file with axes pixel coordinates')
+        find_in_file = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.ref), padx=10, pady=10,
+                            width=10, height=1)
+        find_in_file.grid(row=5, column=1, padx=190, sticky=W)
+        clear_b = Button(self.root, text="Clear", command=lambda: self.clear_var(self.ref), padx=10, pady=10, width=10,
+                         height=1)
+        clear_b.grid(row=5, column=1, padx=60, sticky=E)
+        tooltips.bind(find_in_file, 'Open a CSV file with axes pixel coordinates')
 
-#         Label(self.root, text="Input reference points:").grid(row=5, column=1, padx=35, sticky=W)
+        Label(self.root, text="Input reference points:").grid(row=5, column=1, padx=35, sticky=W)
 
-#         in_file_entry = Entry(self.root, textvariable=self.ref, width=20)
-#         in_file_entry.grid(row=6, column=1, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(in_file_entry, 'Path to reference points text file')
+        in_file_entry = Entry(self.root, textvariable=self.ref, width=20)
+        in_file_entry.grid(row=6, column=1, padx=10, pady=10, sticky=EW)
+        tooltips.bind(in_file_entry, 'Path to reference points text file')
 
-#         # mini func to control editable state of freq entry based on ref point option
-#         def freqBoxState(*args):
-#             if self.reference_type.get() == 'Gravity':
-#                 freq_entry.config(state=NORMAL)
-#             else:
-#                 freq_entry.config(state=DISABLED)
-#         # Add new reference point options
-#         Label(self.root, text="Reference point type:").grid(row=7, column=1, padx=30, sticky=W)
-#         option_menu_window = OptionMenu(self.root, self.reference_type, "Axis points","Gravity","Plane", )
-#         option_menu_window.grid(row=7,column=1,padx=190,sticky=W)
-#         # trace the variable to control state of recording frequency box
-#         self.reference_type.trace("w", freqBoxState)
-#         tooltips.bind(option_menu_window,'Set the reference type. Axis points are 1-4 points defining the origin and axes, \nGravity is an object accelerating due to gravity, Plane are 3+ points that define the X-Y plane')
-#         Label(self.root, text="Recording frequency (Hz):").grid(row=8, column=1, padx=30, sticky=W)
-#         freq_entry = Entry(self.root, textvariable=self.freq, width=7, bd=3)
-#         freq_entry.grid(row=8, column=1, padx=200, sticky=W)
-#         tooltips.bind(freq_entry,'Recording frequency for gravity calculation.')
-#         # disable the box until "gravity" is selected
-#         freq_entry.config(state=DISABLED)
+        # mini func to control editable state of freq entry based on ref point option
+        def freqBoxState(*args):
+            if self.reference_type.get() == 'Gravity':
+                freq_entry.config(state=NORMAL)
+            else:
+                freq_entry.config(state=DISABLED)
+        # Add new reference point options
+        Label(self.root, text="Reference point type:").grid(row=7, column=1, padx=30, sticky=W)
+        option_menu_window = OptionMenu(self.root, self.reference_type, "Axis points","Gravity","Plane", )
+        option_menu_window.grid(row=7,column=1,padx=190,sticky=W)
+        # trace the variable to control state of recording frequency box
+        self.reference_type.trace("w", freqBoxState)
+        tooltips.bind(option_menu_window,'Set the reference type. Axis points are 1-4 points defining the origin and axes, \nGravity is an object accelerating due to gravity, Plane are 3+ points that define the X-Y plane')
+        Label(self.root, text="Recording frequency (Hz):").grid(row=8, column=1, padx=30, sticky=W)
+        freq_entry = Entry(self.root, textvariable=self.freq, width=7, bd=3)
+        freq_entry.grid(row=8, column=1, padx=200, sticky=W)
+        tooltips.bind(freq_entry,'Recording frequency for gravity calculation.')
+        # disable the box until "gravity" is selected
+        freq_entry.config(state=DISABLED)
 
-#         group.grid(row=1, column=1, rowspan=3, padx=5, sticky=EW)
+        group.grid(row=1, column=1, rowspan=3, padx=5, sticky=EW)
 
-#         Label(group, text="Scale (m): ").grid(row=0, column=0)
-#         row_entry = Entry(group, textvariable=self.scale, width=7, bd=3)
-#         row_entry.grid(row=0, column=1, sticky=W)
-#         tooltips.bind(row_entry, 'Distance between paired points (Wand length)')
+        Label(group, text="Scale (m): ").grid(row=0, column=0)
+        row_entry = Entry(group, textvariable=self.scale, width=7, bd=3)
+        row_entry.grid(row=0, column=1, sticky=W)
+        tooltips.bind(row_entry, 'Distance between paired points (Wand length)')
 
-#         Label(group, text="Intrinsics: ").grid(row=1, column=0)
-#         option_menu_window = OptionMenu(group, self.intrinsic_fixes, "Optimize none", "Optimize focal length",
-#                        "Optimize focal length and principal point")
-#         option_menu_window.grid(row=1, column=1, sticky=W, pady=10)
+        Label(group, text="Intrinsics: ").grid(row=1, column=0)
+        option_menu_window = OptionMenu(group, self.intrinsic_fixes, "Optimize none", "Optimize focal length",
+                       "Optimize focal length and principal point")
+        option_menu_window.grid(row=1, column=1, sticky=W, pady=10)
 
-#         Label(group, text="Distortion: ").grid(row=2, column=0)
-#         option_menu_window = OptionMenu(group, self.distortion_fixes, "Optimize none", "Optimize r2", "Optimize r2, r4",
-#                        "Optimize all distortion coefficients")
-#         option_menu_window.grid(row=2, column=1, sticky=W)
+        Label(group, text="Distortion: ").grid(row=2, column=0)
+        option_menu_window = OptionMenu(group, self.distortion_fixes, "Optimize none", "Optimize r2", "Optimize r2, r4",
+                       "Optimize all distortion coefficients")
+        option_menu_window.grid(row=2, column=1, sticky=W)
 
-#         outlier_check = Checkbutton(group, text="Report on outliers", variable=self.report_on_outliers)
-#         outlier_check.grid(row=3, column=1, padx=10, pady=10, sticky=W)
+        outlier_check = Checkbutton(group, text="Report on outliers", variable=self.report_on_outliers)
+        outlier_check.grid(row=3, column=1, padx=10, pady=10, sticky=W)
 
-#         choose_check = Checkbutton(group, text="Choose reference camera", variable=self.choose)
-#         choose_check.grid(row=3, column=2, padx=10, pady=10, sticky=W)
+        choose_check = Checkbutton(group, text="Choose reference camera", variable=self.choose)
+        choose_check.grid(row=3, column=2, padx=10, pady=10, sticky=W)
 
-#         camera_check = Checkbutton(group, text="Output camera profiles", variable=self.output_camera_profiles)
-#         camera_check.grid(row=4, column=1, padx=10, sticky=W)
+        camera_check = Checkbutton(group, text="Output camera profiles", variable=self.output_camera_profiles)
+        camera_check.grid(row=4, column=1, padx=10, sticky=W)
 
-#         find_in_file = Button(self.root, text="Specify", command=lambda: self.set_out_filename(self.tag), padx=10,
-#                             pady=10, width=10, height=1)
-#         find_in_file.grid(row=11, column=0, padx=10, pady=10)
+        find_in_file = Button(self.root, text="Specify", command=lambda: self.set_out_filename(self.tag), padx=10,
+                            pady=10, width=10, height=1)
+        find_in_file.grid(row=11, column=0, padx=10, pady=10)
 
-#         Label(self.root, text="Output tag and location:").grid(row=11, column=0, padx=20, pady=10, sticky=W)
+        Label(self.root, text="Output tag and location:").grid(row=11, column=0, padx=20, pady=10, sticky=W)
 
-#         in_file_entry = Entry(self.root, textvariable=self.tag, width=40)
-#         in_file_entry.grid(row=12, column=0, columnspan=2, padx=10, pady=5, sticky=EW)
+        in_file_entry = Entry(self.root, textvariable=self.tag, width=40)
+        in_file_entry.grid(row=12, column=0, columnspan=2, padx=10, pady=5, sticky=EW)
 
-#         write_log_check = Checkbutton(self.root, text='Write log', variable=self.should_log)
-#         write_log_check.grid(row=13, column=0, padx=20, pady=5, sticky=W)
+        write_log_check = Checkbutton(self.root, text='Write log', variable=self.should_log)
+        write_log_check.grid(row=13, column=0, padx=20, pady=5, sticky=W)
 
-#         go = Button(self.root, text="Go", command=self.go, width=6, height=3)
-#         go.grid(row=14, column=0, padx=5, pady=5, sticky=W)
+        go = Button(self.root, text="Go", command=self.go, width=6, height=3)
+        go.grid(row=14, column=0, padx=5, pady=5, sticky=W)
 
-#         quit_button = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
-#         quit_button.grid(row=14, column=1, sticky=E, padx=5, pady=5)
+        quit_button = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
+        quit_button.grid(row=14, column=1, sticky=E, padx=5, pady=5)
 
-#         self.root.mainloop()
+        self.root.mainloop()
 
-#     @staticmethod
-#     def clear_var(var):
-#         var.set('')
+    @staticmethod
+    def clear_var(var):
+        var.set('')
 
-#     def go(self):
-#         try:
-#             float(self.scale.get())
-#         except Exception as e:
-#             print(e)
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Scale must be a floating point number"
-#             )
-#             return
+    def go(self):
+        try:
+            float(self.scale.get())
+        except Exception as e:
+            print(e)
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Scale must be a floating point number"
+            )
+            return
 
-#         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-wand')]
-#         tmp = tempfile.mkdtemp()
-#         write_bool = False
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-wand')]
+        tmp = tempfile.mkdtemp()
+        write_bool = False
 
-#         #args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
-#         #        self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
-#         #        '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
-#         #        self.ref.get(), '--tmp', tmp]
-#         args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
-#                 self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
-#                 '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
-#                 self.ref.get(), '--reference_type', self.reference_type.get(), '--recording_frequency', self.freq.get(), 
-#                 '--tmp', tmp]
+        #args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
+        #        self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
+        #        '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
+        #        self.ref.get(), '--tmp', tmp]
+        args = [self.cams.get(), '--intrinsics_opt', self.intModeDict[self.intrinsic_fixes.get()], '--distortion_opt',
+                self.disModeDict[self.distortion_fixes.get()], self.tag.get(), '--paired_points', self.ppts.get(),
+                '--unpaired_points', self.uppts.get(), '--scale', self.scale.get(), '--reference_points',
+                self.ref.get(), '--reference_type', self.reference_type.get(), '--recording_frequency', self.freq.get(), 
+                '--tmp', tmp]
 
-#         if self.should_log.get() == '1':
-#             write_bool = True
+        if self.should_log.get() == '1':
+            write_bool = True
 
-#         if self.display.get() == '1':
-#             args = args + ['--graph']
+        if self.display.get() == '1':
+            args = args + ['--graph']
 
-#         if self.report_on_outliers.get() == '1':
-#             args = args + ['--outliers']
+        if self.report_on_outliers.get() == '1':
+            args = args + ['--outliers']
 
-#         if self.output_camera_profiles.get() == '1':
-#             args = args + ['--output_camera_profiles']
+        if self.output_camera_profiles.get() == '1':
+            args = args + ['--output_camera_profiles']
 
-#         if self.choose.get() == '1':
-#             args = args + ['--choose_reference']
+        if self.choose.get() == '1':
+            args = args + ['--choose_reference']
 
-#         cmd = cmd + args
-#         print(cmd) # TY DEBUG
+        cmd = cmd + args
+        print(cmd) # TY DEBUG
 
-#         super(WandGUI, self).go(cmd, write_bool)
+        super(WandGUI, self).go(cmd, write_bool)
 
 
 # class calibrateGUI(GUI):

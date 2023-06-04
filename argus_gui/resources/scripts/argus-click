@@ -62,9 +62,9 @@ class YesNoPopup(QtWidgets.QWidget):
     def __init__(self, question):
         super().__init__()
 
-        reply = QMessageBox.question(self, "Question", question, QMessageBox.Yes | QMessageBox.No)
+        reply = QtWidgets.QMessageBox.question(self, "Question", question, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
 
-        if reply == QMessageBox.Yes:
+        if reply == QtWidgets.QMessageBox.Yes:
             self.reply = "Yes"
         else:
             self.reply = "No"

@@ -13,6 +13,11 @@ RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resou
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self):
         super().__init__()
+        # Set the window title
+        self.setWindowTitle("Argus")
+
+        # Set the window icon
+        self.setWindowIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
 
         # Set up the user interface
         self.tab_widget = QtWidgets.QTabWidget()
@@ -91,10 +96,70 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_sync_tab(self):
         # Create the Sync tab with a checkbox
-        checkbox = QtWidgets.QCheckBox("Sync Checkbox")
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(checkbox)
+        # Create file list
+        self.sync_file_list = QtWidgets.QListWidget()
+        self.sync_file_list.setToolTip("List of movies to syncronize\nPress '+' button to add movie")
+        # Create add button
+        self.sync_add_button = QtWidgets.QPushButton(' + ')
+        self.sync_add_button.setToolTip('Add a movie to the list')
+        self.sync_add_button.clicked.connect(self.add)
+        # Create clear button
+        self.sync_clear_button = QtWidgets.QPushButton('Clear')
+        self.sync_clear_button.setToolTip('Clear the list of movies')
+        self.clear_button.clicked.connect(self.clear)
+        # Create remove button
+        self.sync_remove_button = QtWidgets.QPushButton(' - ')
+        self.sync_remove_button.setToolTip('Remove the selected movie from the list')
+        self.sync_remove_button.clicked.connect(self.delete)
+        # Create go button
+        self.sync_go_button = QtWidgets.QPushButton('Go')
+        self.sync_go_button.setToolTip('Synchronize the videos')
+        self.sync_go_button.clicked.connect(self.sync_go)
+        # Create quit button
+        self.sync_quit_button = QtWidgets.QPushButton('Quit')
+        self.sync_quit_button.setToolTip('Quit the program')
+        self.sync_quit_button.clicked.connect(self.quit_all)
+        self.sync_about_button = QtWidgets.QPushButton('About')
+        self.sync_about_button.setToolTip('Show information about this software')
+        self.sync_about_button.clicked.connect(self.about)
 
+        # Sync specific
+        self.show_waves_button = QtWidgets.QPushButton("Show waves")
+        self.show_waves_button.clicked.connect(self.display_waves)
+        self.crop = QtWidgets.QCheckBox("Specify time range")
+        self.crop.stateChanged.connect(self.updateCropOptions)
+        self.time_label = QtWidgets.QLabel("Time range containing sync sounds (decimal minutes)")
+        self.start_crop = QtWidgets.QSpinBox()
+        self.start_crop.setEnabled(False)
+        self.start_label = QtWidgets.QLabel("Start time")
+        self.end_crop = QtWidgets.QSpinBox()
+        self.end_crop.setEnabled(False)
+        self.end_label = QtWidgets.QLabel("End time")
+
+        self.sync_onam_label = QtWidgets.QLabel("Output filename")
+        self.sync_onam = QtWidgets.QLineEdit()
+        self.sync_onam_button = QtWidgets.QPushButton("Specify")
+        self.sync_onam_button.clicked.connect(self.save_loc)
+
+        # Layout
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.sync_file_list, 0, 0, 3, 2)
+        layout.addWidget(self.sync_add_button, 0, 2)
+        layout.addWidget(self.sync_clear_button, 2, 2)
+        layout.addWidget(self.sync_remove_button, 1, 2)
+        layout.addWidget(self.show_waves_button, 3, 1)
+        layout.addWidget(self.crop, 4, 0)
+        layout.addWidget(self.time_label, 5, 0)
+        layout.addWidget(self.start_label, 6, 0)
+        layout.addWidget(self.start_crop, 6, 1)
+        layout.addWidget(self.end_label, 7, 0)
+        layout.addWidget(self.end_crop, 7, 1)
+        layout.addWidget(self.sync_onam_label, 8, 0)
+        layout.addWidget(self.sync_onam_button, 9, 0)
+        layout.addWidget(self.sync_onam, 9, 1, 1, 2)
+        layout.addWidget(self.sync_go_button, 10, 0)
+        layout.addWidget(self.sync_about_button, 11, 2)
+        layout.addWidget(self.sync_quit_button, 11, 0)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
@@ -213,53 +278,117 @@ class MainWindow(QtWidgets.QMainWindow):
         if filename:
             var.set(filename)
 
-    ## Clicker Functions
+    
     # Function for bringing up file dialogs; adds selected file to listbox
     def add(self):
+        """
+        Adds videos to various tabs
+        """
+        # This function is used on several tabs, so get the tab name
+        current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
+
         options = QtWidgets.QFileDialog.Options()
         file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select Movie File', '', 'All Files (*)', options=options)
 
-        if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
-            print(f'adding {file_name}')
-            self.file_list.addItem(file_name)
-            
-            if len(self.offsets) != 0:
-                offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
+        # Clicker
+        if current_tab_name == "Clicker":
+            if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                print(f'adding {file_name}')
+                self.file_list.addItem(file_name)
+                
+                if len(self.offsets) != 0:
+                    offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
+                else:
+                    offset = 0
+
+                try:
+                    self.offsets.append(int(offset))
+                except ValueError:
+                    QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
+                    return
             else:
-                offset = 0
+            # if file_name in set(self.file_list):
+                QtWidgets.QMessageBox.warning(None,
+                    "Error",
+                    "You cannot click through two of the same movies"
+                )
+    
+        # Sync
+        if current_tab_name == "Sync":
+            if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                print(f'adding {file_name}')
+                self.sync_file_list.addItem(file_name)
+            else:
+                QtWidgets.QMessageBox.warning(None,
+                    "Error",
+                    "You cannot click through two of the same movies"
+                )
 
-            try:
-                self.offsets.append(int(offset))
-            except ValueError:
-                QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
-                return
-        else:
-        # if file_name in set(self.file_list):
-            QtWidgets.QMessageBox.warning(None,
-                "Error",
-                "You cannot click through two of the same movies"
-            )
     def delete(self):
-        # Get the selected item
-        selected_items = self.file_list.selectedItems()
+        """
+        Removes videos from various tabs
+        """
+        # This function is used on several tabs, so get the tab name
+        current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
+        
+        #for Clicker
+        if current_tab_name == "Clicker":
+            # Get the selected item
+            selected_items = self.file_list.selectedItems()
 
-        if selected_items:
-            # If an item is selected, delete it
-            for item in selected_items:
-                self.file_list.takeItem(self.file_list.row(item))
-                del self.offsets[self.file_list.row(item)]
-        else:
-            # If no item is selected, delete the last item in the list
-            if self.file_list.count() > 0:
-                self.file_list.takeItem(self.file_list.count() - 1)
-                del self.offsets[-1]
+            if selected_items:
+                # If an item is selected, delete it
+                for item in selected_items:
+                    self.file_list.takeItem(self.file_list.row(item))
+                    del self.offsets[self.file_list.row(item)]
+            else:
+                # If no item is selected, delete the last item in the list
+                if self.file_list.count() > 0:
+                    self.file_list.takeItem(self.file_list.count() - 1)
+                    del self.offsets[-1]
+        #for Sync
+        if current_tab_name == "Sync":
+            # Get the selected item
+            selected_items = self.sync_file_list.selectedItems()
+
+            if selected_items:
+                # If an item is selected, delete it
+                for item in selected_items:
+                    self.sync_file_list.takeItem(self.sync_file_list.row(item))
+            else:
+                # If no item is selected, delete the last item in the list
+                if self.sync_file_list.count() > 0:
+                    self.sync_file_list.takeItem(self.sync_file_list.count() - 1)
 
     def clear(self):
-        self.file_list.clear()
-        self.offsets = list()
 
+        # This function is used on several tabs, so get the tab name
+        current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
+        
+        #for Clicker
+        if current_tab_name == "Clicker":
+            self.file_list.clear()
+            self.offsets = list()
+        #for Sync
+        if current_tab_name == "Sync":
+            self.sync_file_list.clear()
+    
+    # general function to select save location
+    def save_loc(self):
+        # This function is used on several tabs, so get the tab name
+        current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
+        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self,
+         caption="Select save location")#, dir = init, filter = filt)
+        if filename:
+            #for Sync
+            if current_tab_name == "Sync":
+                self.sync_onam.setText(filename)
+    
+    ## Clicker Functions
     def load(self):
-        print('load pressed')
+        """
+        Loads config file on clicker window
+        """
         options = QtWidgets.QFileDialog.Options()
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select an Argus clicker config file', '', 'Argus clicker config files (*.yaml)', options=options)
         if filename:
@@ -290,6 +419,117 @@ class MainWindow(QtWidgets.QMainWindow):
                 "No movies to click through!"
             )
             return   
+
+    ## Sync Functions
+
+    # Gets seconds from 'hours:minutes:seconds' string
+    def getSec(self, s):
+        return 60. * float(s)
+    
+    def display_waves(self):
+        print("display wave pressed")
+
+    def updateCropOptions(self):
+        self.start_crop.setEnabled(self.crop.isChecked())
+        self.end_crop.setEnabled(self.crop.isChecked())
+
+    def sync_go(self):
+        cropArg = ''
+        files = [str(self.sync_file_list.item(x).text()) for x in range(self.sync_file_list.count())]
+        if len(files) <= 1:
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "Need at least two videos to sync"
+            )
+            return 
+        for k in range(len(files)):
+            try:
+                open(files[k])
+            except:
+                QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "Could not find one or more of the specified videos"
+            )
+            return 
+        if self.crop.isChecked():
+            try:
+                float(self.start_crop)
+                float(self.end_crop)
+            except:
+                QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "Start and end time must be floats"
+            )
+            return
+        for k in range(len(files)):
+                cap = cv2.VideoCapture(files[k])
+                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                dur = length * float(cap.get(cv2.CAP_PROP_FPS))
+                # dur = VideoFileClip(files[k]).duration
+                if self.getSec(self.start_crop) >= dur or self.getSec(self.end_crop) > dur:
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "Time range does not exist for one or more of the specified videos"
+                    )
+                    return
+                elif self.getSec(self.start_crop) >= self.getSec(self.end_crop):
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "Start time is further along than end time"
+                    )
+                    return
+                cropArg = '1'
+        for k in range(len(files)):
+            try:
+                self.cached[files[k]]
+            except:
+                self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
+        out = list()
+        for k in range(len(files)):
+            out.append(self.cached[files[k]])
+        logBool = False
+        if self.wLog.get() == '1':
+            logBool = True
+
+        # check for properly named output file (if it exists) & fix it if appropriate
+        of = self.sync_onam
+        if of:
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'csv':
+                of = of + '.csv'
+                self.onam.set(of)
+
+        file_str = ','.join(files)
+        out_str = ','.join(out)
+
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-sync')]
+        # Create args list, order is important
+        args = [file_str, '--tmp', self.tmps[0], '--start', self.start.get(), '--end', self.end.get(), '--ofile',
+                self.onam.get(), '--out', out_str]
+
+        if self.crop:
+            args = args + ['--crop']
+        cmd = cmd + args
+        self.go(cmd, logBool)
+
+    # main command caller used by all but clicker
+    def go(self, cmd, wlog=False, mode='DEBUG'):
+        cmd = [str(wlog), ''] + cmd
+        rcmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-log')]
+
+        rcmd = rcmd + cmd
+
+        startupinfo = None
+        if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+        print(type(rcmd), rcmd)
+        print(type(subprocess.PIPE))
+        print(type(startupinfo))
+
+        proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=False, startupinfo=startupinfo)
+        self.pids.append(proc.pid)
 
 # Makes a subprocess with Pyglet windows for all camera views
 class PygletDriver:

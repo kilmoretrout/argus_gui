@@ -27,6 +27,6 @@ from .triangulate import *
 from .undistort import *
 #from clickerWindow import *
 from .frameFinderPyglet import *
-from .gui import *
+#from .gui import *
 
 from . import resources
