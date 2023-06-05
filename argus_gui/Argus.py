@@ -7,6 +7,10 @@ import cv2
 import numpy as np
 import sys
 import yaml
+import string
+import random
+import tempfile
+import psutil
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
@@ -27,9 +31,14 @@ class MainWindow(QtWidgets.QMainWindow):
         # general
         self.tmps = []
         self.pids = []
+
         # clicker
         self.offsets = []
         self.drivers = []
+        
+        self.tmps.append(tempfile.mkdtemp())
+        # dictionary of cached files, relating random key to movie location
+        self.cached = dict()
 
         # Add tabs with different widgets
         self.add_clicker_tab()
@@ -125,7 +134,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Sync specific
         self.show_waves_button = QtWidgets.QPushButton("Show waves")
-        self.show_waves_button.clicked.connect(self.display_waves)
+        self.show_waves_button.clicked.connect(self.sync_show)
         self.crop = QtWidgets.QCheckBox("Specify time range")
         self.crop.stateChanged.connect(self.updateCropOptions)
         self.time_label = QtWidgets.QLabel("Time range containing sync sounds (decimal minutes)")
@@ -318,6 +327,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
                 print(f'adding {file_name}')
                 self.sync_file_list.addItem(file_name)
+                self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
             else:
                 QtWidgets.QMessageBox.warning(None,
                     "Error",
@@ -352,12 +362,20 @@ class MainWindow(QtWidgets.QMainWindow):
             selected_items = self.sync_file_list.selectedItems()
 
             if selected_items:
-                # If an item is selected, delete it
+                # If item(s) selected, delete it from list
                 for item in selected_items:
                     self.sync_file_list.takeItem(self.sync_file_list.row(item))
+                    # check if there is a cached wav, and delete it
+                    if os.path.isfile(self.tmps[0] + '/' + self.cached[item]):
+                        os.remove(self.tmps[0] + '/' + self.cached[item])
+                    del self.cached[item]
             else:
                 # If no item is selected, delete the last item in the list
                 if self.sync_file_list.count() > 0:
+                    item = self.sync_file_list[self.sync_file_list.count()-1]
+                    if os.path.isfile(self.tmps[0] + '/' + self.cached[item]):
+                        os.remove(self.tmps[0] + '/' + self.cached[item])
+                    del self.cached[item]
                     self.sync_file_list.takeItem(self.sync_file_list.count() - 1)
 
     def clear(self):
@@ -367,11 +385,13 @@ class MainWindow(QtWidgets.QMainWindow):
         
         #for Clicker
         if current_tab_name == "Clicker":
-            self.file_list.clear()
-            self.offsets = list()
+            self.file_list.selectAll()
+            self.delete()
+
         #for Sync
         if current_tab_name == "Sync":
-            self.sync_file_list.clear()
+            self.sync_file_list.selectAll()
+            self.delete()
     
     # general function to select save location
     def save_loc(self):
@@ -425,9 +445,6 @@ class MainWindow(QtWidgets.QMainWindow):
     # Gets seconds from 'hours:minutes:seconds' string
     def getSec(self, s):
         return 60. * float(s)
-    
-    def display_waves(self):
-        print("display wave pressed")
 
     def updateCropOptions(self):
         self.start_crop.setEnabled(self.crop.isChecked())
@@ -512,6 +529,31 @@ class MainWindow(QtWidgets.QMainWindow):
         cmd = cmd + args
         self.go(cmd, logBool)
 
+# Graph the wave files with matplotlib
+    def sync_show(self):
+        files = [str(self.sync_file_list.item(x).text()) for x in range(self.sync_file_list.count())]
+        for k in range(len(files)):
+            try:
+                self.cached[files[k]]
+            except:
+                self.cached[files[k]] = self.id_generator() + '-' + files[k].split('/')[-1].split('.')[0] + '.wav'
+        out = list()
+        for k in range(len(files)):
+            out.append(self.cached[files[k]])
+
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-show')]
+        if isinstance(files, str):
+            args = [self.tmps[0], files] + out
+        else:
+            args = [self.tmps[0]] + list(files) + out
+
+        cmd = cmd + args
+
+        self.go(cmd)
+
+    def id_generator(self, size=12, chars=string.ascii_uppercase + string.digits):
+        return ''.join(random.choice(chars) for _ in range(size))
+    
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):
         cmd = [str(wlog), ''] + cmd

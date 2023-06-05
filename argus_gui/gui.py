@@ -1206,7 +1206,7 @@ class syncGUI(GUI):
 
         super(syncGUI, self).go(cmd, logBool)
 
-    # Graph the wave files with matplotlib
+# Graph the wave files with matplotlib
     def show(self):
         files = self.filelist.get(0, END)
         for k in range(len(files)):
@@ -1226,7 +1226,7 @@ class syncGUI(GUI):
 
         cmd = cmd + args
 
-        super(syncGUI, self).go(cmd)
+        super(syncGUI, self).go(cmd)    
 
     # If a user does not want to specify a specific time range, make the entries inactive
     def checkEntries(self):
