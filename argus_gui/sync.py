@@ -74,7 +74,8 @@ class Syncer:
                     '-codec', 'pcm_s16le',
                     tmpName + '/' + out[k]
                 ]
-                subprocess.call(cmd, shell=True)
+                print(f"making cached sound file with {cmd}")
+                subprocess.call(cmd)
 
             else:
                 print('Found audio from file number ' + str(k + 1) + '...')

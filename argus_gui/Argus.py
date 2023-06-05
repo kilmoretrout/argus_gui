@@ -93,10 +93,10 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.remove_button, 1, 2)
         layout.addWidget(self.resolution_label, 3, 0)
         layout.addWidget(self.resolution_var, 3, 1)
-        layout.addWidget(self.load_button, 4, 2)
+        layout.addWidget(self.load_button, 5, 0)
         layout.addWidget(self.go_button, 4, 0)
-        layout.addWidget(self.about_button, 5, 2)
-        layout.addWidget(self.quit_button, 5, 0)
+        layout.addWidget(self.about_button, 6, 2)
+        layout.addWidget(self.quit_button, 6, 0)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -128,22 +128,30 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sync_quit_button = QtWidgets.QPushButton('Quit')
         self.sync_quit_button.setToolTip('Quit the program')
         self.sync_quit_button.clicked.connect(self.quit_all)
+        # Create about button
         self.sync_about_button = QtWidgets.QPushButton('About')
         self.sync_about_button.setToolTip('Show information about this software')
         self.sync_about_button.clicked.connect(self.about)
+        # creat log check box
+        self.sync_log = QtWidgets.QCheckBox("Write Log")
+
 
         # Sync specific
         self.show_waves_button = QtWidgets.QPushButton("Show waves")
         self.show_waves_button.clicked.connect(self.sync_show)
         self.crop = QtWidgets.QCheckBox("Specify time range")
         self.crop.stateChanged.connect(self.updateCropOptions)
-        self.time_label = QtWidgets.QLabel("Time range containing sync sounds (decimal minutes)")
-        self.start_crop = QtWidgets.QSpinBox()
+        self.time_label = QtWidgets.QLabel("Time range containing sync sounds")
+        self.start_crop = QtWidgets.QLineEdit()
+        self.start_crop.setValidator(QtGui.QDoubleValidator())
+        self.start_crop.setText("0.0")
         self.start_crop.setEnabled(False)
-        self.start_label = QtWidgets.QLabel("Start time")
-        self.end_crop = QtWidgets.QSpinBox()
+        self.start_label = QtWidgets.QLabel("Start time (decimal minutes)")
+        self.end_crop = QtWidgets.QLineEdit()
+        self.end_crop.setValidator(QtGui.QDoubleValidator())
+        self.end_crop.setText("4.0")
         self.end_crop.setEnabled(False)
-        self.end_label = QtWidgets.QLabel("End time")
+        self.end_label = QtWidgets.QLabel("End time  (decimal minutes)")
 
         self.sync_onam_label = QtWidgets.QLabel("Output filename")
         self.sync_onam = QtWidgets.QLineEdit()
@@ -163,12 +171,13 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.start_crop, 6, 1)
         layout.addWidget(self.end_label, 7, 0)
         layout.addWidget(self.end_crop, 7, 1)
-        layout.addWidget(self.sync_onam_label, 8, 0)
-        layout.addWidget(self.sync_onam_button, 9, 0)
-        layout.addWidget(self.sync_onam, 9, 1, 1, 2)
-        layout.addWidget(self.sync_go_button, 10, 0)
-        layout.addWidget(self.sync_about_button, 11, 2)
-        layout.addWidget(self.sync_quit_button, 11, 0)
+        layout.addWidget(self.sync_log, 8, 0)
+        layout.addWidget(self.sync_onam_label, 9, 0)
+        layout.addWidget(self.sync_onam_button, 10, 0)
+        layout.addWidget(self.sync_onam, 10, 1, 1, 2)
+        layout.addWidget(self.sync_go_button, 11, 0)
+        layout.addWidget(self.sync_about_button, 12, 2)
+        layout.addWidget(self.sync_quit_button, 12, 0)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
@@ -324,7 +333,7 @@ class MainWindow(QtWidgets.QMainWindow):
     
         # Sync
         if current_tab_name == "Sync":
-            if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+            if file_name and not self.sync_file_list.findItems(file_name, QtCore.Qt.MatchExactly):
                 print(f'adding {file_name}')
                 self.sync_file_list.addItem(file_name)
                 self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
@@ -466,8 +475,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.warning(None,
                 "Error",
                 "Could not find one or more of the specified videos"
-            )
-            return 
+                )
+                return 
         if self.crop.isChecked():
             try:
                 float(self.start_crop)
@@ -476,26 +485,27 @@ class MainWindow(QtWidgets.QMainWindow):
                 QtWidgets.QMessageBox.warning(None,
                 "Error",
                 "Start and end time must be floats"
-            )
-            return
-        for k in range(len(files)):
-                cap = cv2.VideoCapture(files[k])
-                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                dur = length * float(cap.get(cv2.CAP_PROP_FPS))
-                # dur = VideoFileClip(files[k]).duration
-                if self.getSec(self.start_crop) >= dur or self.getSec(self.end_crop) > dur:
-                    QtWidgets.QMessageBox.warning(None,
-                        "Error",
-                        "Time range does not exist for one or more of the specified videos"
-                    )
-                    return
-                elif self.getSec(self.start_crop) >= self.getSec(self.end_crop):
-                    QtWidgets.QMessageBox.warning(None,
-                        "Error",
-                        "Start time is further along than end time"
-                    )
-                    return
-                cropArg = '1'
+                )
+                return
+            for k in range(len(files)):
+                    cap = cv2.VideoCapture(files[k])
+                    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    dur = length * float(cap.get(cv2.CAP_PROP_FPS))
+                    # dur = VideoFileClip(files[k]).duration
+                    if self.getSec(self.start_crop.text()) >= dur or self.getSec(self.end_crop.text()) > dur:
+                        QtWidgets.QMessageBox.warning(None,
+                            "Error",
+                            "Time range does not exist for one or more of the specified videos"
+                        )
+                        return
+                    elif self.getSec(self.start_crop.text()) >= self.getSec(self.end_crop.text()):
+                        QtWidgets.QMessageBox.warning(None,
+                            "Error",
+                            "Start time is further along than end time"
+                        )
+                        return
+            cropArg = '1'
+
         for k in range(len(files)):
             try:
                 self.cached[files[k]]
@@ -504,25 +514,24 @@ class MainWindow(QtWidgets.QMainWindow):
         out = list()
         for k in range(len(files)):
             out.append(self.cached[files[k]])
-        logBool = False
-        if self.wLog.get() == '1':
-            logBool = True
+
+        logBool = self.sync_log
 
         # check for properly named output file (if it exists) & fix it if appropriate
-        of = self.sync_onam
+        of = self.sync_onam.text()
         if of:
             ofs = of.split('.')
             if ofs[-1].lower() != 'csv':
                 of = of + '.csv'
-                self.onam.set(of)
+                self.sync_onam.setText(of)
 
         file_str = ','.join(files)
         out_str = ','.join(out)
 
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-sync')]
         # Create args list, order is important
-        args = [file_str, '--tmp', self.tmps[0], '--start', self.start.get(), '--end', self.end.get(), '--ofile',
-                self.onam.get(), '--out', out_str]
+        args = [file_str, '--tmp', self.tmps[0], '--start', self.start_crop.text(), '--end', self.end_crop.text(), '--ofile',
+                self.sync_onam.text(), '--out', out_str]
 
         if self.crop:
             args = args + ['--crop']
