@@ -205,30 +205,112 @@ class MainWindow(QtWidgets.QMainWindow):
             "Plane": '2'
         }
 
+        # Create go button
+        self.wand_go_button = QtWidgets.QPushButton('Go')
+        self.wand_go_button.setToolTip('wandhronize the videos')
+        self.wand_go_button.clicked.connect(self.wand_go)
+        # Create quit button
+        self.wand_quit_button = QtWidgets.QPushButton('Quit')
+        self.wand_quit_button.setToolTip('Quit the program')
+        self.wand_quit_button.clicked.connect(self.quit_all)
+        # Create about button
+        self.wand_about_button = QtWidgets.QPushButton('About')
+        self.wand_about_button.setToolTip('Show information about this software')
+        self.wand_about_button.clicked.connect(self.about)
+
         ops_label = QtWidgets.QLabel("Options")
 
         self.ppts = QtWidgets.QLineEdit()
         self.ppts_button = QtWidgets.QPushButton("Select paired points file")
+        self.ppts_button.setToolTip('Open a CSV file with paired (wand) pixel coordinates')
         self.ppts_button.clicked.connect(self.add)
         self.uppts = QtWidgets.QLineEdit()
         self.uppts_button = QtWidgets.QPushButton("Select unpaired points file")
+        self.uppts_button.setToolTip('Open a CSV file with unpaired (background) pixel coordinates')
         self.uppts_button.clicked.connect(self.add)
         self.wand_cams = QtWidgets.QLineEdit()
         self.wand_cams_button = QtWidgets.QPushButton("Select camera profile")
+        self.wand_cams_button.setToolTip('Open a CSV or TXT file with camera intrinsic and extrinsics')
         self.wand_cams_button.clicked.connect(self.add)
         self.wand_refs = QtWidgets.QLineEdit()
         self.wand_refs_button = QtWidgets.QPushButton("Select reference points")
+        self.wand_refs_button.setToolTip('Open a CSV file with axes pixel coordinates')
         self.wand_refs_button.clicked.connect(self.add)
+
+        #reference point options
+        self.wand_reftype_label = QtWidgets.QLabel("Reference point type:")
+        self.wand_reftype = QtWidgets.QComboBox()
+        for key in self.refModeDict.keys():
+            self.wand_reftype.addItem(key)
+        self.wand_reftype.currentIndexChanged.connect(self.updateFreqBoxState)
+        self.wand_reftype.setToolTip('Set the reference type. \nAxis points are 1-4 points defining the origin and axes, \nGravity is an object accelerating due to gravity, \nPlane are 3+ points that define the X-Y plane')
+        #recording frequency
+        self.wand_freq_label = QtWidgets.QLabel("Recording frequency (fps)")
+        self.wand_freq = QtWidgets.QLineEdit()
+        self.wand_freq.setValidator(QtGui.QDoubleValidator())
+        self.updateFreqBoxState()
+
+        self.wand_scale_label = QtWidgets.QLabel("Wand length")
+        self.wand_scale = QtWidgets.QLineEdit()
+        self.wand_scale.setValidator(QtGui.QDoubleValidator())
+        self.wand_scale.setText("1.0")
+        self.wand_scale.setToolTip("Enter the distance between paired points (wand length).\nxyz coordinate outputs will have the same units as used here.")
+
+        self.wand_instrics_label = QtWidgets.QLabel("Intriniscs: ")
+        self.wand_intrinsics = QtWidgets.QComboBox()
+        for key in self.intModeDict.keys():
+            self.wand_intrinsics.addItem(key)
+        
+        self.wand_dist_label = QtWidgets.QLabel("Distortion: ")
+        self.wand_dist = QtWidgets.QComboBox()
+        for key in self.disModeDict.keys():
+            self.wand_dist.addItem(key)
+        #options boxes
+        self.wand_outliers = QtWidgets.QCheckBox("Report on outliers")
+        self.wand_chooseRef = QtWidgets.QCheckBox("Choose reference cameras")
+        self.wand_outputProf = QtWidgets.QCheckBox("Output camera profiles")
+        self.wand_display = QtWidgets.QCheckBox("Display results")
+        self.wand_display.setChecked(True)
+        self.wand_log = QtWidgets.QCheckBox("Write log")
+
+        self.wand_onam_label = QtWidgets.QLabel("Output file prefix and location")
+        self.wand_onam_button = QtWidgets.QPushButton("Specify")
+        self.wand_onam_button.clicked.connect(self.save_loc)
+        self.wand_onam = QtWidgets.QLineEdit()
 
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.ppts_button, 1, 0)
-        layout.addWidget(self.ppts, 1, 1, 1, 2)
+        layout.addWidget(self.ppts, 1, 1, 1, 3)
         layout.addWidget(self.uppts_button, 2, 0)
-        layout.addWidget(self.uppts, 2, 1, 1, 2)
+        layout.addWidget(self.uppts, 2, 1, 1, 3)
         layout.addWidget(self.wand_refs_button, 3, 0)
-        layout.addWidget(self.wand_refs, 3, 1, 1, 2)
+        layout.addWidget(self.wand_refs, 3, 1, 1, 3)
         layout.addWidget(self.wand_cams_button, 4, 0)
-        layout.addWidget(self.wand_cams, 4, 1, 1, 2)
+        layout.addWidget(self.wand_cams, 4, 1, 1, 3)
+        layout.addWidget(self.wand_reftype_label, 3, 4)
+        layout.addWidget(self.wand_reftype, 3, 5)
+        layout.addWidget(self.wand_freq_label, 3, 6)
+        layout.addWidget(self.wand_freq, 3, 7)
+        layout.addWidget(self.wand_scale_label, 1, 4)
+        layout.addWidget(self.wand_scale, 1, 5)
+        layout.addWidget(ops_label, 6, 1)
+        layout.addWidget(self.wand_instrics_label, 7, 0)
+        layout.addWidget(self.wand_intrinsics, 7, 1)
+        layout.addWidget(self.wand_dist_label, 8, 0)
+        layout.addWidget(self.wand_dist, 8, 1)
+        layout.addWidget(self.wand_outliers, 9, 0)
+        layout.addWidget(self.wand_chooseRef, 9, 1)
+        layout.addWidget(self.wand_outputProf, 9, 2)
+        layout.addWidget(self.wand_display, 9, 3)
+        layout.addWidget(self.wand_onam_label, 10, 0)
+        layout.addWidget(self.wand_onam_button, 11, 0)
+        layout.addWidget(self.wand_onam, 11, 1, 1, 3)
+        layout.addWidget(self.wand_log, 12, 0)
+        layout.addWidget(self.wand_go_button, 13, 0)
+        layout.addWidget(self.wand_quit_button, 14, 0)
+        layout.addWidget(self.wand_about_button, 14, 6)
+        
+        layout.setColumnMinimumWidth(1, 400)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -363,22 +445,22 @@ class MainWindow(QtWidgets.QMainWindow):
             # paired
             if button == self.ppts_button:
                 title = "Select paired points file"
-                filter = "Wand points file (*xypts.csv)"
+                filter = "Wand points file (*xypts.csv);;All files (*)"
                 target = self.ppts
             # unpaired
             if button == self.uppts_button:
                 title = "Select unpaired points file"
-                filter = "Wand points file (*xypts.csv)"
+                filter = "Wand points file (*xypts.csv);;All files (*)"
                 target = self.uppts
             #camera profile
             if button == self.wand_cams_button:
                 title = "Select camera profile"
-                filter = "CSV (*.csv);;TXT (*.txt)"
+                filter = "TXT (*.txt);;CSV (*.csv);;All files (*)"
                 target = self.wand_cams
             #reference points
             if button == self.wand_refs_button:
                 title = "Select reference points"
-                filter = "reference points (*xypts.csv)"
+                filter = "reference points (*xypts.csv);;All files (*)"
                 target = self.wand_refs
 
         # Create a file dialog with the specified title and filter
@@ -500,6 +582,8 @@ class MainWindow(QtWidgets.QMainWindow):
             #for Sync
             if current_tab_name == "Sync":
                 self.sync_onam.setText(filename)
+            if current_tab_name == "Wand":
+                self.wand_onam.setText(filename)
     
     ## Clicker Functions
     def load(self):
@@ -651,6 +735,45 @@ class MainWindow(QtWidgets.QMainWindow):
     def id_generator(self, size=12, chars=string.ascii_uppercase + string.digits):
         return ''.join(random.choice(chars) for _ in range(size))
     
+## Wand specific
+    def updateFreqBoxState(self):
+        if self.wand_reftype.currentText() == "Gravity":
+            self.wand_freq.setEnabled(True)
+            self.wand_freq_label.setEnabled(True)
+        else:
+            self.wand_freq.setEnabled(False)
+            self.wand_freq_label.setEnabled(False)
+
+    def wand_go(self):
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-wand')]
+        tmp = tempfile.mkdtemp()
+        write_bool = False
+
+        args = [self.wand_cams.text(), '--intrinsics_opt', self.intModeDict[self.wand_intrinsics.currentText()], '--distortion_opt',
+                self.disModeDict[self.wand_dist.currentText()], self.wand_onam.text(), '--paired_points', self.ppts.text(),
+                '--unpaired_points', self.uppts.text(), '--scale', self.wand_scale.text(), '--reference_points',
+                self.wand_refs.text(), '--reference_type', self.wand_reftype.currentText(), '--recording_frequency', self.wand_freq.text(), 
+                '--tmp', tmp]
+
+        if self.wand_log:
+            write_bool = True
+
+        if self.wand_display:
+            args = args + ['--graph']
+
+        if self.wand_outliers:
+            args = args + ['--outliers']
+
+        if self.wand_outputProf:
+            args = args + ['--output_camera_profiles']
+
+        if self.wand_chooseRef:
+            args = args + ['--choose_reference']
+
+        cmd = cmd + args
+        print(cmd)
+        self.go(cmd, wlog=write_bool)
+
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):
         cmd = [str(wlog), ''] + cmd
