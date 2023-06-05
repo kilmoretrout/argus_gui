@@ -340,6 +340,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.patt_display = QtWidgets.QCheckBox("Display pattern recognition in progress")
         self.patt_type_label = QtWidgets.QLabel("Pattern type: ")
         self.patt_dots = QtWidgets.QRadioButton("Dots")
+        self.patt_dots.setChecked(True)
         self.patt_chess = QtWidgets.QRadioButton("Chess board")
         self.patt_flip = QtWidgets.QCheckBox("Inverse dimensions")
         set_layout = QtWidgets.QGridLayout()
@@ -421,10 +422,35 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/grid-four-up-8x.gif')), "Patterns")
 
     def add_calibrate_tab(self):
-        # Create the Calibrate tab with a spin box
-        spin_box = QtWidgets.QSpinBox()
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(spin_box)
+        # Create the Calibrate tab 
+        self.cal_log = QtWidgets.QCheckBox("Write log")
+        # Create about button
+        self.cal_about_button = QtWidgets.QPushButton('About')
+        self.cal_about_button.setToolTip('Show information about this software')
+        self.cal_about_button.clicked.connect(self.about)
+        self.cal_onam_label = QtWidgets.QLabel("Output file prefix and location")
+        self.cal_onam_button = QtWidgets.QPushButton("Specify")
+        self.cal_onam_button.clicked.connect(self.save_loc)
+        self.cal_onam = QtWidgets.QLineEdit()
+        # Create go button
+        self.cal_go_button = QtWidgets.QPushButton('Go')
+        self.cal_go_button.setToolTip('Calculate camera calibration')
+        self.cal_go_button.clicked.connect(self.calibrate_go)
+        # Create quit button
+        self.cal_quit_button = QtWidgets.QPushButton('Quit')
+        self.cal_quit_button.setToolTip('Quit the program')
+        self.cal_quit_button.clicked.connect(self.quit_all)
+        # Create about button
+        self.cal_about_button = QtWidgets.QPushButton('About')
+        self.cal_about_button.setToolTip('Show information about this software')
+        self.cal_about_button.clicked.connect(self.about)
+
+        self.cal_file_button = QtWidgets.QPushButton('Select calibration video')
+        self.cal_file_button.clicked.connect(self.add)
+        self.cal_file = QtWidgets.QLineEdit()
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget()
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -617,6 +643,16 @@ class MainWindow(QtWidgets.QMainWindow):
             # Pattern
             if current_tab_name == "Patterns":
                 target.setText(file_name)
+                try:
+                    mov = cv2.VideoCapture(file_name)
+                    dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))
+                    self.patt_start.setText('0.0')
+                    self.patt_end.setText(str(dur))
+                except:
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "Cannot read selected video"
+                    )
 
 
     def delete(self):
@@ -692,6 +728,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.wand_onam.setText(filename)
             if current_tab_name == "Patterns":
                 self.patt_onam.setText(filename)
+            if current_tab_name == "Calibrate":
+                self.cal_onam.setTest(filename)
     
     ## Clicker Functions
     def load(self):
@@ -900,13 +938,17 @@ class MainWindow(QtWidgets.QMainWindow):
             writeBool = True
         args = [self.patt_file.text(), self.patt_onam.text(), '--rows', self.patt_rows.text(), '--cols', self.patt_cols.text(), '--spacing',
                 self.patt_space.text(), '--start', self.patt_start.text(), '--stop', self.patt_end.text()]
-        if self.dots:
+        if self.patt_dots:
             args = args + ['--dots']
-        if self.disp:
+        if self.patt_display:
             args = args + ['--display']
         cmd = cmd + args
 
         self.go(cmd, writeBool)
+
+    # Calibrate
+    def calibrate_go(self):
+        print("calibrate go pressed")
 
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):
