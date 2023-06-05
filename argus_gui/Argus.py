@@ -318,11 +318,103 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/wand.gif')),"Wand")
 
     def add_patterns_tab(self):
-        # Create the Patterns tab with a line edit
-        line_edit = QtWidgets.QLineEdit()
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(line_edit)
+        # Create the Patterns tab
+        # Create go button
+        self.patt_go_button = QtWidgets.QPushButton('Go')
+        self.patt_go_button.setToolTip('Detect patterns')
+        self.patt_go_button.clicked.connect(self.pattern_go)
+        # Create quit button
+        self.patt_quit_button = QtWidgets.QPushButton('Quit')
+        self.patt_quit_button.setToolTip('Quit the program')
+        self.patt_quit_button.clicked.connect(self.quit_all)
+        # Create about button
+        self.patt_about_button = QtWidgets.QPushButton('About')
+        self.patt_about_button.setToolTip('Show information about this software')
+        self.patt_about_button.clicked.connect(self.about)
 
+        self.patt_file_button = QtWidgets.QPushButton('Select calibration video')
+        self.patt_file_button.clicked.connect(self.add)
+        self.patt_file = QtWidgets.QLineEdit()
+        
+        # settings options
+        self.patt_display = QtWidgets.QCheckBox("Display pattern recognition in progress")
+        self.patt_type_label = QtWidgets.QLabel("Pattern type: ")
+        self.patt_dots = QtWidgets.QRadioButton("Dots")
+        self.patt_chess = QtWidgets.QRadioButton("Chess board")
+        self.patt_flip = QtWidgets.QCheckBox("Inverse dimensions")
+        set_layout = QtWidgets.QGridLayout()
+        set_layout.addWidget(self.patt_display, 0, 0)
+        set_layout.addWidget(self.patt_type_label, 1, 0)
+        set_layout.addWidget(self.patt_dots, 1, 1)
+        set_layout.addWidget(self.patt_chess, 1, 2)
+        set_layout.addWidget(self.patt_flip, 2, 0)
+
+        #settings box
+        sett_box = QtWidgets.QGroupBox("Settings")
+        sett_box.setLayout(set_layout)
+
+        #Parameters
+        param_box = QtWidgets.QGroupBox("Parameters")
+        #pattern box
+        patt_box = QtWidgets.QGroupBox("Pattern")
+        self.patt_rows_label = QtWidgets.QLabel("Marks per row:")
+        self.patt_rows = QtWidgets.QSpinBox()
+        self.patt_rows.setValue(12)
+        self.patt_cols_label = QtWidgets.QLabel("Marks per column:")
+        self.patt_cols = QtWidgets.QSpinBox()
+        self.patt_cols.setValue(9)
+        self.patt_space_label = QtWidgets.QLabel("Spacing (m)")
+        self.patt_space = QtWidgets.QLineEdit()
+        self.patt_space.setValidator(QtGui.QDoubleValidator())
+        patt_layout = QtWidgets.QGridLayout()
+        patt_layout.addWidget(self.patt_rows_label, 0, 0)
+        patt_layout.addWidget(self.patt_rows, 0, 1)
+        patt_layout.addWidget(self.patt_cols_label, 1, 0)
+        patt_layout.addWidget(self.patt_cols, 1, 1)
+        patt_layout.addWidget(self.patt_space_label, 2, 0)
+        patt_layout.addWidget(self.patt_space, 2, 1)
+        patt_box.setLayout(patt_layout)
+        #movie box
+        mov_box = QtWidgets.QGroupBox("Movie")
+        self.patt_start_label = QtWidgets.QLabel("Start time:")
+        self.patt_start = QtWidgets.QLineEdit()
+        self.patt_start.setValidator(QtGui.QDoubleValidator())
+        self.patt_end_label = QtWidgets.QLabel("End time:")
+        self.patt_end = QtWidgets.QLineEdit()
+        self.patt_end.setValidator(QtGui.QDoubleValidator())
+        mov_layout = QtWidgets.QGridLayout()
+        mov_layout.addWidget(self.patt_start_label, 0, 0)
+        mov_layout.addWidget(self.patt_start, 0, 1)
+        mov_layout.addWidget(self.patt_end_label, 1, 0)
+        mov_layout.addWidget(self.patt_end, 1, 1)
+        mov_box.setLayout(mov_layout)
+        param_layout = QtWidgets.QGridLayout()
+        param_layout.addWidget(patt_box, 0, 0)
+        param_layout.addWidget(mov_box, 0, 1)
+        param_box.setLayout(param_layout)
+
+        self.patt_log = QtWidgets.QCheckBox("Write log")
+        # Create about button
+        self.patt_about_button = QtWidgets.QPushButton('About')
+        self.patt_about_button.setToolTip('Show information about this software')
+        self.patt_about_button.clicked.connect(self.about)
+        self.patt_onam_label = QtWidgets.QLabel("Output file prefix and location")
+        self.patt_onam_button = QtWidgets.QPushButton("Specify")
+        self.patt_onam_button.clicked.connect(self.save_loc)
+        self.patt_onam = QtWidgets.QLineEdit()
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.patt_file_button, 1, 0)
+        layout.addWidget(self.patt_file, 1, 1, 1, 3)
+        layout.addWidget(sett_box, 2, 0, 1, 6)
+        layout.addWidget(param_box, 3, 0, 2, 6)
+        layout.addWidget(self.patt_onam_label, 5, 0)
+        layout.addWidget(self.patt_onam_button, 6, 0)
+        layout.addWidget(self.patt_onam, 6, 1, 1, 3)
+        layout.addWidget(self.patt_log, 7, 0)
+        layout.addWidget(self.patt_go_button, 8, 0)
+        layout.addWidget(self.patt_quit_button, 9, 0)
+        layout.addWidget(self.patt_about_button, 9, 6)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
@@ -469,7 +561,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 title = "Select reference points"
                 filter = "reference points (*xypts.csv);;All files (*)"
                 target = self.wand_refs
-
+        if current_tab_name == "Patterns":
+            title = "Select pattern video"
+            filter = "All files (*)"
+            target = self.patt_file
         # Create a file dialog with the specified title and filter
         file_dialog = QtWidgets.QFileDialog(self)
         file_dialog.setWindowTitle(title)
@@ -517,6 +612,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
             # Wand
             if current_tab_name == "Wand":
+                target.setText(file_name)
+
+            # Pattern
+            if current_tab_name == "Patterns":
                 target.setText(file_name)
 
 
@@ -591,6 +690,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.sync_onam.setText(filename)
             if current_tab_name == "Wand":
                 self.wand_onam.setText(filename)
+            if current_tab_name == "Patterns":
+                self.patt_onam.setText(filename)
     
     ## Clicker Functions
     def load(self):
@@ -780,6 +881,32 @@ class MainWindow(QtWidgets.QMainWindow):
         cmd = cmd + args
         print(cmd)
         self.go(cmd, wlog=write_bool)
+
+    def pattern_go(self):
+        # check and fix the output filename
+        if self.patt_onam.text() == '':  # no name at all
+            self.patt_onam.setText(self.patt_file.text().split('.')[0] + 'pkl')
+        of = self.patt_onam.text()
+        if of:  # check extension
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'pkl':
+                of = of + '.pkl'
+                self.patt_onam.setText(of)
+
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-patterns')]
+        writeBool = False
+
+        if self.patt_log:
+            writeBool = True
+        args = [self.patt_file.text(), self.patt_onam.text(), '--rows', self.patt_rows.text(), '--cols', self.patt_cols.text(), '--spacing',
+                self.patt_space.text(), '--start', self.patt_start.text(), '--stop', self.patt_end.text()]
+        if self.dots:
+            args = args + ['--dots']
+        if self.disp:
+            args = args + ['--display']
+        cmd = cmd + args
+
+        self.go(cmd, writeBool)
 
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):

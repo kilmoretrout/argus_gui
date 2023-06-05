@@ -1646,194 +1646,194 @@ class WandGUI(GUI):
 #         super(calibrateGUI, self).go(cmd, writeBool)
 
 
-# class patternsGUI(GUI):
-#     def __init__(self):
-#         super(patternsGUI, self).__init__()
-#         # Load system specific integers for Tkinter drawing differences
-#         pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'patterns-gui-paddings.txt'))
-#         if 'linux' in sys.platform:
-#             pads = pads[0]
-#         elif sys.platform == 'darwin':
-#             pads = pads[1]
-#         elif sys.platform == 'win32' or sys.platform == 'win64':
-#             pads = pads[2]
-#         pads = list(map(int, pads))
+class patternsGUI(GUI):
+    def __init__(self):
+        super(patternsGUI, self).__init__()
+        # Load system specific integers for Tkinter drawing differences
+        pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'patterns-gui-paddings.txt'))
+        if 'linux' in sys.platform:
+            pads = pads[0]
+        elif sys.platform == 'darwin':
+            pads = pads[1]
+        elif sys.platform == 'win32' or sys.platform == 'win64':
+            pads = pads[2]
+        pads = list(map(int, pads))
 
-#         tooltips = Pmw.Balloon(self.root)
+        tooltips = Pmw.Balloon(self.root)
 
-#         group = LabelFrame(self.root, text="Settings", padx=5, pady=5, fg='#56A0D3')
-#         group2 = LabelFrame(self.root, text="Parameters", padx=5, pady=5, fg='#56A0D3')
-#         subgroup = LabelFrame(group2, text="Pattern", padx=5, pady=5, fg='#56A0D3')
-#         subgroup2 = LabelFrame(group2, text="Movie", padx=5, pady=5, fg='#56A0D3')
+        group = LabelFrame(self.root, text="Settings", padx=5, pady=5, fg='#56A0D3')
+        group2 = LabelFrame(self.root, text="Parameters", padx=5, pady=5, fg='#56A0D3')
+        subgroup = LabelFrame(group2, text="Pattern", padx=5, pady=5, fg='#56A0D3')
+        subgroup2 = LabelFrame(group2, text="Movie", padx=5, pady=5, fg='#56A0D3')
 
-#         self.fnam = StringVar(self.root)
-#         self.onam = StringVar(self.root)
-#         self.rows = StringVar(self.root)
-#         self.cols = StringVar(self.root)
-#         self.spacing = StringVar(self.root)
-#         self.start = StringVar(self.root)
-#         self.stop = StringVar(self.root)
-#         self.disp = StringVar(self.root)
-#         self.dots = IntVar(self.root)
-#         self.crop = StringVar(self.root)
-#         self.wLog = StringVar(self.root)
+        self.fnam = StringVar(self.root)
+        self.onam = StringVar(self.root)
+        self.rows = StringVar(self.root)
+        self.cols = StringVar(self.root)
+        self.spacing = StringVar(self.root)
+        self.start = StringVar(self.root)
+        self.stop = StringVar(self.root)
+        self.disp = StringVar(self.root)
+        self.dots = IntVar(self.root)
+        self.crop = StringVar(self.root)
+        self.wLog = StringVar(self.root)
 
-#         self.wLog.set('0')
-#         self.disp.set('1')
-#         self.dots.set('1')
-#         self.crop.set('0')
-#         self.rows.set('12')
-#         self.cols.set('9')
-#         self.spacing.set('0.02')
+        self.wLog.set('0')
+        self.disp.set('1')
+        self.dots.set('1')
+        self.crop.set('0')
+        self.rows.set('12')
+        self.cols.set('9')
+        self.spacing.set('0.02')
 
-#         self.loggers = list()
+        self.loggers = list()
 
-#         stopEntry = Entry(subgroup2, textvariable=self.stop, width=10, bd=3)
-#         startEntry = Entry(subgroup2, textvariable=self.start, width=10, bd=3)
+        stopEntry = Entry(subgroup2, textvariable=self.stop, width=10, bd=3)
+        startEntry = Entry(subgroup2, textvariable=self.start, width=10, bd=3)
 
-#         Label(self.root, text="Argus-Patterns", font=("Helvetica", 25), fg='#56A0D3').grid(row=0, column=0, padx=20,
-#                                                                                            pady=20)
-#         # img = ImageTk.PhotoImage(Image.open("argus_panoptes.jpg").resize((96, 120), Image.ANTIALIAS))
-#         # panel = Label(root, image = img)
+        Label(self.root, text="Argus-Patterns", font=("Helvetica", 25), fg='#56A0D3').grid(row=0, column=0, padx=20,
+                                                                                           pady=20)
+        # img = ImageTk.PhotoImage(Image.open("argus_panoptes.jpg").resize((96, 120), Image.ANTIALIAS))
+        # panel = Label(root, image = img)
 
-#         # panel.grid(row = 0, column = 0, sticky = W)
+        # panel.grid(row = 0, column = 0, sticky = W)
 
-#         self.fnam.trace('w', lambda *args: self.setEntries())
+        self.fnam.trace('w', lambda *args: self.setEntries())
 
-#         aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
-#         aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
+        aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
+        aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
 
-#         findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
-#                             width=10, height=1)
-#         findInFile.grid(row=1, column=0, padx=180, sticky=W)
-#         tooltips.bind(findInFile, 'Open a video of a pattern')
+        findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
+                            width=10, height=1)
+        findInFile.grid(row=1, column=0, padx=180, sticky=W)
+        tooltips.bind(findInFile, 'Open a video of a pattern')
 
-#         Label(self.root, text="Input movie:").grid(row=1, column=0, padx=35, sticky=W)
+        Label(self.root, text="Input movie:").grid(row=1, column=0, padx=35, sticky=W)
 
-#         inFileEntry = Entry(self.root, textvariable=self.fnam, width=20)
-#         inFileEntry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(inFileEntry, 'Path to video')
+        inFileEntry = Entry(self.root, textvariable=self.fnam, width=20)
+        inFileEntry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        tooltips.bind(inFileEntry, 'Path to video')
 
-#         group.grid(row=3, column=0, sticky=EW, padx=5)
+        group.grid(row=3, column=0, sticky=EW, padx=5)
 
-#         dispCheck = Checkbutton(group, text="Display pattern recognition in progress", variable=self.disp)
-#         dispCheck.grid(row=0, column=0, sticky=W, padx=5, pady=5)
-#         tooltips.bind(dispCheck, 'Option to display video as patterns are found')
+        dispCheck = Checkbutton(group, text="Display pattern recognition in progress", variable=self.disp)
+        dispCheck.grid(row=0, column=0, sticky=W, padx=5, pady=5)
+        tooltips.bind(dispCheck, 'Option to display video as patterns are found')
 
-#         Label(group, text="Pattern type:").grid(row=1, column=0, sticky=W)
+        Label(group, text="Pattern type:").grid(row=1, column=0, sticky=W)
 
-#         Radiobutton(group, text="Dots", variable=self.dots, value=1).grid(row=1, column=0, pady=5)
-#         Radiobutton(group, text="Chess board", variable=self.dots, value=2).grid(row=1, column=1, pady=5)
+        Radiobutton(group, text="Dots", variable=self.dots, value=1).grid(row=1, column=0, pady=5)
+        Radiobutton(group, text="Chess board", variable=self.dots, value=2).grid(row=1, column=1, pady=5)
 
-#         group2.grid(row=4, column=0, sticky=EW, padx=5)
-#         subgroup.grid(row=0, column=0, padx=5, pady=5)
-#         subgroup2.grid(row=0, column=1, padx=5, pady=5)
+        group2.grid(row=4, column=0, sticky=EW, padx=5)
+        subgroup.grid(row=0, column=0, padx=5, pady=5)
+        subgroup2.grid(row=0, column=1, padx=5, pady=5)
 
-#         Label(subgroup, text="Columns: ").grid(row=0, column=0)
-#         rowEntry = Entry(subgroup, textvariable=self.rows, width=7, bd=3)
-#         rowEntry.grid(row=0, column=1, sticky=W)
-#         tooltips.bind(rowEntry, 'Number of rows in the grid')
+        Label(subgroup, text="Columns: ").grid(row=0, column=0)
+        rowEntry = Entry(subgroup, textvariable=self.rows, width=7, bd=3)
+        rowEntry.grid(row=0, column=1, sticky=W)
+        tooltips.bind(rowEntry, 'Number of rows in the grid')
 
-#         Label(subgroup, text="Rows: ").grid(row=1, column=0)
-#         colEntry = Entry(subgroup, textvariable=self.cols, width=7, bd=3)
-#         colEntry.grid(row=1, column=1, sticky=W)
-#         tooltips.bind(colEntry, 'Number of columns in the grid')
+        Label(subgroup, text="Rows: ").grid(row=1, column=0)
+        colEntry = Entry(subgroup, textvariable=self.cols, width=7, bd=3)
+        colEntry.grid(row=1, column=1, sticky=W)
+        tooltips.bind(colEntry, 'Number of columns in the grid')
 
-#         Label(subgroup, text="Spacing (m): ").grid(row=2, column=0)
-#         spacingEntry = Entry(subgroup, textvariable=self.spacing, width=7, bd=3)
-#         spacingEntry.grid(row=2, column=1, sticky=W)
-#         tooltips.bind(spacingEntry, 'Spacing between grid points')
+        Label(subgroup, text="Spacing (m): ").grid(row=2, column=0)
+        spacingEntry = Entry(subgroup, textvariable=self.spacing, width=7, bd=3)
+        spacingEntry.grid(row=2, column=1, sticky=W)
+        tooltips.bind(spacingEntry, 'Spacing between grid points')
 
-#         Label(subgroup2, text="Start time: ").grid(row=0, column=0, sticky=W, padx=5)
-#         startEntry.grid(row=0, column=1, pady=10)
+        Label(subgroup2, text="Start time: ").grid(row=0, column=0, sticky=W, padx=5)
+        startEntry.grid(row=0, column=1, pady=10)
 
-#         Label(subgroup2, text="Stop time: ").grid(row=1, column=0, sticky=W, padx=5)
-#         stopEntry.grid(row=1, column=1, pady=10)
+        Label(subgroup2, text="Stop time: ").grid(row=1, column=0, sticky=W, padx=5)
+        stopEntry.grid(row=1, column=1, pady=10)
 
-#         Label(self.root, text="Output filename: ").grid(row=5, column=0, sticky=W, padx=pads[2])
-#         outEntry = Entry(self.root, textvariable=self.onam, width=pads[0])
+        Label(self.root, text="Output filename: ").grid(row=5, column=0, sticky=W, padx=pads[2])
+        outEntry = Entry(self.root, textvariable=self.onam, width=pads[0])
 
-#         specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.onam), padx=15,
-#                             pady=10)
-#         specButton.grid(row=5, column=0, sticky=W, padx=pads[1], pady=10)
-#         outEntry.grid(row=5, column=0, sticky=E, padx=10, pady=10)
+        specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.onam), padx=15,
+                            pady=10)
+        specButton.grid(row=5, column=0, sticky=W, padx=pads[1], pady=10)
+        outEntry.grid(row=5, column=0, sticky=E, padx=10, pady=10)
 
-#         writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
-#         writeLogCheck.grid(row=6, column=0, pady=5, padx=30, sticky=W)
+        writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
+        writeLogCheck.grid(row=6, column=0, pady=5, padx=30, sticky=W)
 
-#         go = Button(self.root, text="Go", command=self.go, width=6, height=3)
-#         go.grid(row=7, column=0, padx=5, pady=5, sticky=W)
+        go = Button(self.root, text="Go", command=self.go, width=6, height=3)
+        go.grid(row=7, column=0, padx=5, pady=5, sticky=W)
 
-#         quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
-#         quitButton.grid(row=7, column=0, sticky=E, padx=5, pady=5)
+        quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
+        quitButton.grid(row=7, column=0, sticky=E, padx=5, pady=5)
 
-#         self.root.mainloop()
+        self.root.mainloop()
 
-#     def setEntries(self):
-#         if self.fnam.get():
-#             try:
-#                 mov = cv2.VideoCapture(self.fnam.get())
-#                 dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))
-#                 self.start.set('0.0')
-#                 self.stop.set(str(dur))
-#             except:
-#                 six.moves.tkinter_messagebox.showwarning(
-#                     "Error",
-#                     "Cannot read chosen video"
-#                 )
+    def setEntries(self):
+        if self.fnam.get():
+            try:
+                mov = cv2.VideoCapture(self.fnam.get())
+                dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))
+                self.start.set('0.0')
+                self.stop.set(str(dur))
+            except:
+                six.moves.tkinter_messagebox.showwarning(
+                    "Error",
+                    "Cannot read chosen video"
+                )
 
-#     # Run the operation
-#     def go(self):
-#         try:
-#             int(self.rows.get())
-#             int(self.cols.get())
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Both rows and columns must be integers"
-#             )
-#             return
-#         try:
-#             float(self.spacing.get())
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Spacing must be a number"
-#             )
-#             return
-#         try:
-#             float(self.start.get())
-#             float(self.stop.get())
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Start and stop time must be floats"
-#             )
-#             return
-#         # check and fix the output filename
-#         if self.onam.get() == '':  # no name at all
-#             self.onam.set(self.fnam.get()[:-3] + 'pkl')
-#         of = self.onam.get()
-#         if of:  # check extension
-#             ofs = of.split('.')
-#             if ofs[-1].lower() != 'pkl':
-#                 of = of + '.pkl'
-#                 self.onam.set(of)
+    # Run the operation
+    def go(self):
+        try:
+            int(self.rows.get())
+            int(self.cols.get())
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Both rows and columns must be integers"
+            )
+            return
+        try:
+            float(self.spacing.get())
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Spacing must be a number"
+            )
+            return
+        try:
+            float(self.start.get())
+            float(self.stop.get())
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Start and stop time must be floats"
+            )
+            return
+        # check and fix the output filename
+        if self.onam.get() == '':  # no name at all
+            self.onam.set(self.fnam.get()[:-3] + 'pkl')
+        of = self.onam.get()
+        if of:  # check extension
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'pkl':
+                of = of + '.pkl'
+                self.onam.set(of)
 
-#         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-patterns')]
-#         writeBool = False
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-patterns')]
+        writeBool = False
 
-#         if self.wLog.get() == '1':
-#             writeBool = True
-#         args = [self.fnam.get(), self.onam.get(), '--rows', self.rows.get(), '--cols', self.cols.get(), '--spacing',
-#                 self.spacing.get(), '--start', self.start.get(), '--stop', self.stop.get()]
-#         if self.dots.get() == 1:
-#             args = args + ['--dots']
-#         if self.disp.get() == '1':
-#             args = args + ['--display']
-#         cmd = cmd + args
+        if self.wLog.get() == '1':
+            writeBool = True
+        args = [self.fnam.get(), self.onam.get(), '--rows', self.rows.get(), '--cols', self.cols.get(), '--spacing',
+                self.spacing.get(), '--start', self.start.get(), '--stop', self.stop.get()]
+        if self.dots.get() == 1:
+            args = args + ['--dots']
+        if self.disp.get() == '1':
+            args = args + ['--display']
+        cmd = cmd + args
 
-#         super(patternsGUI, self).go(cmd, writeBool)
+        super(patternsGUI, self).go(cmd, writeBool)
 
 # def selectGUI(mod):
 #     app = QtWidgets.QApplication.instance()
