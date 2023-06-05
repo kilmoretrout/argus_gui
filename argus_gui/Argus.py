@@ -356,11 +356,18 @@ class MainWindow(QtWidgets.QMainWindow):
         # Call the quit_all function when the window is closed
         self.quit_all()
 
-    @staticmethod
-    def about():
+    def about(self):
+        w = QtWidgets.QDialog(self)
+        license_text = QtWidgets.QPlainTextEdit()
+
         with open(os.path.join(RESOURCE_PATH, 'LICENSE.txt'), 'r') as f:
-            license_text = f.read()
-        QtWidgets.QMessageBox.about(None, 'License', license_text)
+            text = f.read()
+        license_text.setPlainText(text)
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(license_text)
+        w.setLayout(layout)
+        w.exec_()
+
 
     def quit_all(self):
         self.close()
