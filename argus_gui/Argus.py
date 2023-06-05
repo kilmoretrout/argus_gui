@@ -104,7 +104,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/location-8x.gif')), "Clicker")
 
     def add_sync_tab(self):
-        # Create the Sync tab with a checkbox
+        # Create the Sync tab
         # Create file list
         self.sync_file_list = QtWidgets.QListWidget()
         self.sync_file_list.setToolTip("List of movies to syncronize\nPress '+' button to add movie")
@@ -183,12 +183,52 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/pulse-8x.gif')), "Sync")
 
-
     def add_wand_tab(self):
-        # Create the Wand tab with a radio button
-        radio_button = QtWidgets.QRadioButton("Wand Radio Button")
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(radio_button)
+        # Create the Wand tab
+
+        self.intModeDict = {
+            "Optimize none": '0',
+            "Optimize focal length": '1',
+            "Optimize focal length and principal point": '2'
+        }
+
+        self.disModeDict = {
+            "Optimize none": '0',
+            "Optimize r2": '1',
+            "Optimize r2, r4": '2',
+            "Optimize all distortion coefficients": '3'
+        }
+
+        self.refModeDict = {
+            "Axis points": '0',
+            "Gravity": '1',
+            "Plane": '2'
+        }
+
+        ops_label = QtWidgets.QLabel("Options")
+
+        self.ppts = QtWidgets.QLineEdit()
+        self.ppts_button = QtWidgets.QPushButton("Select paired points file")
+        self.ppts_button.clicked.connect(self.add)
+        self.uppts = QtWidgets.QLineEdit()
+        self.uppts_button = QtWidgets.QPushButton("Select unpaired points file")
+        self.uppts_button.clicked.connect(self.add)
+        self.wand_cams = QtWidgets.QLineEdit()
+        self.wand_cams_button = QtWidgets.QPushButton("Select camera profile")
+        self.wand_cams_button.clicked.connect(self.add)
+        self.wand_refs = QtWidgets.QLineEdit()
+        self.wand_refs_button = QtWidgets.QPushButton("Select reference points")
+        self.wand_refs_button.clicked.connect(self.add)
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.ppts_button, 1, 0)
+        layout.addWidget(self.ppts, 1, 1, 1, 2)
+        layout.addWidget(self.uppts_button, 2, 0)
+        layout.addWidget(self.uppts, 2, 1, 1, 2)
+        layout.addWidget(self.wand_refs_button, 3, 0)
+        layout.addWidget(self.wand_refs, 3, 1, 1, 2)
+        layout.addWidget(self.wand_cams_button, 4, 0)
+        layout.addWidget(self.wand_cams, 4, 1, 1, 2)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -300,48 +340,96 @@ class MainWindow(QtWidgets.QMainWindow):
     # Function for bringing up file dialogs; adds selected file to listbox
     def add(self):
         """
-        Adds videos to various tabs
+        Adds files to various tabs
         """
         # This function is used on several tabs, so get the tab name
         current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
 
-        options = QtWidgets.QFileDialog.Options()
-        file_name, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select Movie File', '', 'All Files (*)', options=options)
+        # Depending on tab name and/or button pushed, call the window something different, filter for different files, and save to different locations
 
         # Clicker
         if current_tab_name == "Clicker":
-            if file_name and not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
-                print(f'adding {file_name}')
-                self.file_list.addItem(file_name)
-                
-                if len(self.offsets) != 0:
-                    offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
-                else:
-                    offset = 0
-
-                try:
-                    self.offsets.append(int(offset))
-                except ValueError:
-                    QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
-                    return
-            else:
-            # if file_name in set(self.file_list):
-                QtWidgets.QMessageBox.warning(None,
-                    "Error",
-                    "You cannot click through two of the same movies"
-                )
-    
-        # Sync
+            title = "Select Movie File"
+            filter = 'All files (*)'
+            target = self.file_list
+        
         if current_tab_name == "Sync":
-            if file_name and not self.sync_file_list.findItems(file_name, QtCore.Qt.MatchExactly):
-                print(f'adding {file_name}')
-                self.sync_file_list.addItem(file_name)
-                self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
-            else:
-                QtWidgets.QMessageBox.warning(None,
-                    "Error",
-                    "You cannot click through two of the same movies"
-                )
+            title = "Select Movie File"
+            filter = 'All files (*)'
+            target = self.sync_file_list
+
+        if current_tab_name == "Wand":
+            button = self.sender()
+            # paired
+            if button == self.ppts_button:
+                title = "Select paired points file"
+                filter = "Wand points file (*xypts.csv)"
+                target = self.ppts
+            # unpaired
+            if button == self.uppts_button:
+                title = "Select unpaired points file"
+                filter = "Wand points file (*xypts.csv)"
+                target = self.uppts
+            #camera profile
+            if button == self.wand_cams_button:
+                title = "Select camera profile"
+                filter = "CSV (*.csv);;TXT (*.txt)"
+                target = self.wand_cams
+            #reference points
+            if button == self.wand_refs_button:
+                title = "Select reference points"
+                filter = "reference points (*xypts.csv)"
+                target = self.wand_refs
+
+        # Create a file dialog with the specified title and filter
+        file_dialog = QtWidgets.QFileDialog(self)
+        file_dialog.setWindowTitle(title)
+        file_dialog.setNameFilter(filter)
+
+        # Show the file dialog and get the selected file path
+        if file_dialog.exec_():
+            file_name = file_dialog.selectedFiles()[0]
+
+        if file_name:
+            # Clicker
+            if current_tab_name == "Clicker":
+                if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                    print(f'adding {file_name}')
+                    self.file_list.addItem(file_name)
+                    
+                    if len(self.offsets) != 0:
+                        offset, ok = QtWidgets.QInputDialog.getInt(self, 'Enter Offset', "Frame offset: ", value=0)
+                    else:
+                        offset = 0
+
+                    try:
+                        self.offsets.append(int(offset))
+                    except ValueError:
+                        QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
+                        return
+                else:
+                # if file_name in set(self.file_list):
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "You cannot click through two of the same movies"
+                    )
+        
+            # Sync
+            if current_tab_name == "Sync":
+                if not self.sync_file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                    print(f'adding {file_name}')
+                    self.sync_file_list.addItem(file_name)
+                    self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
+                else:
+                    QtWidgets.QMessageBox.warning(None,
+                        "Error",
+                        "You cannot click through two of the same movies"
+                    )
+
+            # Wand
+            if current_tab_name == "Wand":
+                target.setText(file_name)
+
 
     def delete(self):
         """
