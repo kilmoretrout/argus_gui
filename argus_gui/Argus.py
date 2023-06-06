@@ -440,17 +440,56 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cal_quit_button = QtWidgets.QPushButton('Quit')
         self.cal_quit_button.setToolTip('Quit the program')
         self.cal_quit_button.clicked.connect(self.quit_all)
-        # Create about button
-        self.cal_about_button = QtWidgets.QPushButton('About')
-        self.cal_about_button.setToolTip('Show information about this software')
-        self.cal_about_button.clicked.connect(self.about)
 
-        self.cal_file_button = QtWidgets.QPushButton('Select calibration video')
+        self.cal_file_button = QtWidgets.QPushButton('Select patterns file')
         self.cal_file_button.clicked.connect(self.add)
         self.cal_file = QtWidgets.QLineEdit()
+        # Options Box
+        self.cal_replicates_label = QtWidgets.QLabel("Number of replications: ")
+        self.cal_replicates = QtWidgets.QSpinBox()
+        self.cal_replicates.setRange(0, 2**31-1)
+        self.cal_replicates.setValue(100)
+        
+        self.cal_patterns_label = QtWidgets.QLabel("Sample size (frames) per replicate: ")
+        self.cal_patterns = QtWidgets.QSpinBox()
+        self.cal_patterns.setValue(20)
+        self.cal_patterns.setRange(0, 2**31-1)
+        self.cal_inv = QtWidgets.QCheckBox("Invert grid coordinates")
+        self.cal_dist_label = QtWidgets.QLabel("Distortion:")
+        self.cal_dist_model = QtWidgets.QComboBox()
+        self.cal_dist_model.addItems(["Pinhole model", "Omnidirectional model"])
+        self.cal_dist_model.setCurrentText("Pinhole model")
+        self.cal_dist_model.currentIndexChanged.connect(self.updateCalOptions)
+        self.cal_dist_option = QtWidgets.QComboBox()
+        self.cal_dist_option.addItems(["Optimize k1, k2", "Optimize k1, k2, and k3", "Optimize all distortion coefficients"])
+        self.cal_dist_option.setCurrentText("Optimize k1, k2")
+
+        options_box = QtWidgets.QGroupBox("Options")
+        opts_layout = QtWidgets.QGridLayout()
+        opts_layout.addWidget(self.cal_replicates_label, 0, 0)
+        opts_layout.addWidget(self.cal_replicates, 0, 1)
+        opts_layout.addWidget(self.cal_patterns_label, 1, 0)
+        opts_layout.addWidget(self.cal_patterns, 1, 1)
+        opts_layout.addWidget(self.cal_inv, 2, 0)
+        opts_layout.addWidget(self.cal_dist_label, 3, 0)
+        opts_layout.addWidget(self.cal_dist_model, 3, 1)
+        opts_layout.addWidget(self.cal_dist_option, 3, 2)
+
+        options_box.setLayout(opts_layout)
+
 
         layout = QtWidgets.QGridLayout()
-        layout.addWidget()
+        layout.addWidget(self.cal_file_button, 1, 0)
+        layout.addWidget(self.cal_file, 1, 1, 1, 3)
+        layout.addWidget(options_box, 2, 0, 3, 5)
+        layout.addWidget(self.cal_onam_label, 3, 0)
+        layout.addWidget(self.cal_onam_button, 4, 0)
+        layout.addWidget(self.cal_onam, 4, 1, 1, 3)
+        layout.addWidget(self.cal_log, 5, 0)
+        layout.addWidget(self.cal_go_button, 6, 0)
+        layout.addWidget(self.cal_quit_button, 7, 0)
+        layout.addWidget(self.cal_about_button, 7, 5)
+
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -458,11 +497,158 @@ class MainWindow(QtWidgets.QMainWindow):
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/calculator-8x.gif')), "Calibrate")
 
     def add_dwarp_tab(self):
-        # Create the Dwarp tab with a combo box
-        combo_box = QtWidgets.QComboBox()
-        combo_box.addItems(["Option 1", "Option 2", "Option 3"])
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(combo_box)
+        # Create the Dwarp tab
+
+        #common elements
+        self.dwarp_log = QtWidgets.QCheckBox("Write log")
+        # Create about button
+        self.dwarp_about_button = QtWidgets.QPushButton('About')
+        self.dwarp_about_button.setToolTip('Show information about this software')
+        self.dwarp_about_button.clicked.connect(self.about)
+        self.dwarp_onam_label = QtWidgets.QLabel("Output file prefix and location")
+        self.dwarp_onam_button = QtWidgets.QPushButton("Specify")
+        self.dwarp_onam_button.clicked.connect(self.save_loc)
+        self.dwarp_onam = QtWidgets.QLineEdit()
+        # Create go button
+        self.dwarp_go_button = QtWidgets.QPushButton('Go')
+        self.dwarp_go_button.setToolTip('Calculate camera calibration')
+        self.dwarp_go_button.clicked.connect(self.dwarp_go)
+        # Create quit button
+        self.dwarp_quit_button = QtWidgets.QPushButton('Quit')
+        self.dwarp_quit_button.setToolTip('Quit the program')
+        self.dwarp_quit_button.clicked.connect(self.quit_all)
+
+        self.dwarp_file_button = QtWidgets.QPushButton('Select patterns file')
+        self.dwarp_file_button.clicked.connect(self.add)
+        self.dwarp_file = QtWidgets.QLineEdit()
+
+        # create and fill the camera model and shooting mode drop down menus from the calibrations files
+        self.calibFiles = list()
+
+        self.calibFolder = os.path.join(RESOURCE_PATH, 'calibrations/')
+        for file in os.listdir(self.calibFolder):
+            if file.endswith(".csv"):
+                self.calibFiles.append(file)
+
+        self.modes = list()
+        self.models = list()
+
+        for file in self.calibFiles:
+            ifile = open(self.calibFolder + file)
+            if file.split('.')[0] != '':
+                self.models.append(file.split('.')[0])
+            line = ifile.readline()
+            mods = list()
+            while line != '':
+                line = ifile.readline().split(',')[0]
+                if line != '':
+                    mods.append(line)
+            if len(mods) != 0:
+                self.modes.append(mods)
+            ifile.close()
+
+        dwarp_model_label = QtWidgets.QLabel("Camera model:")
+        self.dwarp_models = QtWidgets.QComboBox()
+        self.dwarp_models.addItems(self.models)
+        dwarp_mode_label = QtWidgets.QLabel("Shooting Mode:")
+        self.dwarp_modes = QtWidgets.QComboBox()
+        self.dwarp_modes.addItems(self.modes)
+        dwarp_fl_label = QtWidgets.QLabel("Focal length (mm)")
+        self.dwarp_fl = QtWidgets.QLineEdit()
+        self.dwarp_fl.setValidator(QtGui.QDoubleValidator())
+        dwarp_cx_label = QtWidgets.QLabel("Horizontal center")
+        self.dwarp_cx = QtWidgets.QLineEdit()
+        self.dwarp_cx.setValidator(QtGui.QDoubleValidator())
+        dwarp_cy_label = QtWidgets.QLabel("Vertical center")
+        self.dwarp_cy = QtWidgets.QLineEdit()
+        self.dwarp_cy.setValidator(QtGui.QDoubleValidator())
+        dwarp_k1_label = QtWidgets.QLabel("Radial distortion:  k1")
+        self.dwarp_k1 = QtWidgets.QLineEdit()
+        self.dwarp_k1.setValidator(QtGui.QDoubleValidator())
+        dwarp_k2_label = QtWidgets.QLabel("k2")
+        self.dwarp_k2 = QtWidgets.QLineEdit()
+        self.dwarp_k2.setValidator(QtGui.QDoubleValidator())
+        dwarp_k3_label = QtWidgets.QLabel("k3")
+        self.dwarp_k3 = QtWidgets.QLineEdit()
+        self.dwarp_k3.setValidator(QtGui.QDoubleValidator())
+        dwarp_t1_label = QtWidgets.QLabel("t1")
+        self.dwarp_t1 = QtWidgets.QLineEdit()
+        self.dwarp_t1.setValidator(QtGui.QDoubleValidator())
+        dwarp_t2_label = QtWidgets.QLabel("t2")
+        self.dwarp_t2 = QtWidgets.QLineEdit()
+        self.dwarp_t2.setValidator(QtGui.QDoubleValidator())
+        dwarp_xi_label = QtWidgets.QLabel("xi")
+        self.dwarp_xi = QtWidgets.QLineEdit()
+        self.dwarp_xi.setValidator(QtGui.QDoubleValidator())
+        # lens parameters box
+        param_box = QtWidgets.QGroupBox("Lens Parameters")
+        param_layout = QtWidgets.QGridLayout()
+        param_layout.addWidget(dwarp_model_label, 0, 0)
+        param_layout.addWidget(self.dwarp_models, 0, 1)
+        param_layout.addWidget(dwarp_mode_label, 0, 2)
+        param_layout.addWidget(self.dwarp_modes, 0, 3)
+        param_layout.addWidget(dwarp_fl_label, 1, 0)
+        param_layout.addWidget(self.dwarp_fl, 1, 1)
+        param_layout.addWidget(dwarp_cx_label, 1, 2)
+        param_layout.addWidget(self.dwarp_cx, 1, 3)
+        param_layout.addWidget(dwarp_cy_label, 1, 4)
+        param_layout.addWidget(self.dwarp_cy, 1, 5)
+        param_layout.addWidget(dwarp_k1_label, 2, 0)
+        param_layout.addWidget(self.dwarp_k1, 2, 1)
+        param_layout.addWidget(dwarp_k2_label, 2, 2)
+        param_layout.addWidget(self.dwarp_k2, 2, 3)
+        param_layout.addWidget(dwarp_k3_label, 2, 4)
+        param_layout.addWidget(self.dwarp_k3, 2, 5)
+        param_layout.addWidget(dwarp_t1_label, 3, 0)
+        param_layout.addWidget(self.dwarp_t1, 3, 1)
+        param_layout.addWidget(dwarp_t2_label, 3, 2)
+        param_layout.addWidget(self.dwarp_t2, 3, 3)
+        param_layout.addWidget(dwarp_xi_label, 3, 4)
+        param_layout.addWidget(self.dwarp_xi, 3, 5)
+
+        param_box.setLayout(param_layout)
+        # output type options box
+        out_box = QtWidgets.QGroupBox("Output type options")
+        self.dwarp_opts_wd = QtWidgets.QRadioButton("Write and display video")
+        self.dwarp_opts_wd.setChecked(True)
+        self.dwarp_opts_do = QtWidgets.QRadioButton("Display only")
+        self.dwarp_opts_wo = QtWidgets.QRadioButton("Write only")
+        out_layout = QtWidgets.QVBoxLayout()
+        out_layout.addWidget(self.dwarp_opts_wd)
+        out_layout.addWidget(self.dwarp_opts_do)
+        out_layout.addWidget(self.dwarp_opts_wo)
+        out_box.setLayout(out_layout)
+
+        # output movie options box
+        mov_box = QtWidgets.QGroupBox("Output movie options")
+        dwarp_qual_label = QtWidgets.QLabel("Compression quality level:")
+        self.dwarp_qual = QtWidgets.QSpinBox()
+        self.dwarp_qual.setValue(12)
+        dwarp_int_label = QtWidgets.QLabel("Full frame interval")
+        self.dwarp_int = QtWidgets.QSpinBox()
+        self.dwarp_int.setValue(25)
+        self.dwarp_crop = QtWidgets.QCheckBox("Crop video to undistorted region")
+        mov_layout = QtWidgets.QGridLayout()
+        mov_layout.addWidget(dwarp_qual_label, 0, 0)
+        mov_layout.addWidget(self.dwarp_qual, 0, 1)
+        mov_layout.addWidget(dwarp_int_label, 1, 0)
+        mov_layout.addWidget(self.dwarp_int, 1, 1)
+        mov_layout.addWidget(self.dwarp_crop, 2, 0, 1, 2)
+        mov_box.setLayout(mov_layout)
+
+        layout = QtWidgets.QGridLayout()
+        layout.addWidget(self.dwarp_file_button, 1, 0)
+        layout.addWidget(self.dwarp_file, 1, 1, 1, 3)
+        layout.addWidget(param_box, 2, 0, 3, 4)
+        layout.addWidget(out_box, 6, 0, 1, 2)
+        layout.addWidget(mov_box, 6, 2, 1, 2)
+        layout.addWidget(self.dwarp_onam_label, 7, 0)
+        layout.addWidget(self.dwarp_onam_button, 8, 0)
+        layout.addWidget(self.dwarp_onam, 8, 1, 1, 3)
+        layout.addWidget(self.dwarp_log, 9, 0)
+        layout.addWidget(self.dwarp_go_button, 10, 0)
+        layout.addWidget(self.dwarp_quit_button, 11, 0)
+        layout.addWidget(self.dwarp_about_button, 11, 5)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -591,6 +777,14 @@ class MainWindow(QtWidgets.QMainWindow):
             title = "Select pattern video"
             filter = "All files (*)"
             target = self.patt_file
+        if current_tab_name == "Calibrate":
+            title = "Select detected patterns pickle"
+            filter = "pickle (*.pkl)"
+            target = self.cal_file
+        if current_tab_name == "Dwarp":
+            title = "Select movie file to dewarp"
+            filter = "All files (*)"
+            target = self.dwarp_file
         # Create a file dialog with the specified title and filter
         file_dialog = QtWidgets.QFileDialog(self)
         file_dialog.setWindowTitle(title)
@@ -637,7 +831,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
 
             # Wand
-            if current_tab_name == "Wand":
+            if current_tab_name in ["Wand", "Calibrate", "Dwarp"]:
                 target.setText(file_name)
 
             # Pattern
@@ -729,7 +923,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if current_tab_name == "Patterns":
                 self.patt_onam.setText(filename)
             if current_tab_name == "Calibrate":
-                self.cal_onam.setTest(filename)
+                self.cal_onam.setText(filename)
+            if current_tab_name == "Dwarp":
+                self.dwarp_onam.setText(filename)
     
     ## Clicker Functions
     def load(self):
@@ -947,9 +1143,57 @@ class MainWindow(QtWidgets.QMainWindow):
         self.go(cmd, writeBool)
 
     # Calibrate
-    def calibrate_go(self):
-        print("calibrate go pressed")
+    def updateCalOptions(self):
+        if self.cal_dist_model.currentText() == 'Pinhole model':
+            self.cal_dist_option.setEnabled(True)
+        else:
+            self.cal_dist_option.setEnabled(False)
 
+    def calibrate_go(self):
+        if self.cal_file.text().split('.')[-1].lower() != 'pkl':
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "Input file must be a Pickle"
+            )
+            return   
+        try:
+            int(self.cal_replicates.text())
+            int(self.cal_patterns.text())
+        except:
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "Number of samples and replicates must both be integers"
+            )
+            return
+        if not self.cal_file.text():
+            self.cal_onam.setText(self.cal_file.text()[:-3] + 'csv')
+        if self.cal_onam.text().split('.')[-1].lower != 'csv':
+            self.cal_onam.setText(self.cal_onam.text() + '.csv')
+
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-calibrate')]
+        writeBool = False
+        args = [self.cal_file.text(), self.cal_onam.text(), '--replicates', self.cal_replicates.text(), '--patterns',
+                self.cal_patterns.text()]
+        if self.cal_dist_option.currentText() == "Optimize k1, k2, and k3":
+            args = args + ['--k3']
+        elif self.cal_dist_option.currentText() == "Optimize all distortion coefficients":
+            args = args + ['--tangential']
+
+        if self.cal_dist_model.currentText() == "Omnidirectional model":
+            args = args + ['--omnidirectional']
+        if self.cal_log:
+            writeBool = True
+
+        if self.cal_inv:
+            args = args + ['--inverted']
+
+        cmd = cmd + args
+
+        self.go(cmd, writeBool)
+
+    #Dwarp
+    def dwarp_go(self):
+        print("dwarp go pressed")
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):
         cmd = [str(wlog), ''] + cmd

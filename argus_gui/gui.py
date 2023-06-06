@@ -564,431 +564,431 @@ class ClickerGUI(BaseGUI):
 #             return
 
 
-# class dwarpGUI(GUI):
-#     def __init__(self):
-#         super(dwarpGUI, self).__init__()
-#         # Load system specific integers for Tkinter drawing differences
-#         pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'dwarp-gui-paddings.txt'))
-#         if 'linux' in sys.platform:
-#             pads = pads[0]
-#         elif sys.platform == 'darwin':
-#             pads = pads[1]
-#         elif sys.platform == 'win32' or sys.platform == 'win64':
-#             pads = pads[2]
-#         pads = int(pads)
-
-#         tooltips = Pmw.Balloon(self.root)
-
-#         group = LabelFrame(self.root, text="Lens Parameters", padx=5, pady=5, fg='#56A0D3')
-#         group2 = LabelFrame(self.root, text="Output movie options", padx=5, pady=5, fg='#56A0D3')
-#         group3 = LabelFrame(self.root, text="Output type options", padx=5, pady=5, fg='#56A0D3')
-
-#         # Variables which store information for the undistort process, including
-#         # Input file name, calibrations file name, output file name, frame interval, compression quality level, camera model, shooting mode, run mode (Display, write, or both), and the undistortion coefficients
-#         self.fnam = StringVar(self.root)
-#         self.cfnam = StringVar(self.root)
-#         self.ofnam = StringVar(self.root)
-#         self.frameint = StringVar(self.root)
-#         self.sModeStr = StringVar(self.root)
-#         self.camStr = StringVar(self.root)
-#         self.crf = StringVar(self.root)
-#         self.wrdispboth = IntVar(self.root)
-#         self.k1 = StringVar(self.root)
-#         self.k2 = StringVar(self.root)
-#         self.k3 = StringVar(self.root)
-#         self.t1 = StringVar(self.root)
-#         self.t2 = StringVar(self.root)
-#         self.f = StringVar(self.root)
-#         self.cx = StringVar(self.root)
-#         self.cy = StringVar(self.root)
-#         self.wLog = StringVar(self.root)
-#         self.crop = StringVar(self.root)
-#         self.copy = StringVar(self.root)
-#         self.xi = StringVar(self.root)
-
-#         # height and width as ints
-#         self.height = 0
-#         self.width = 0
-
-#         # Set defaults
-#         self.frameint.set("25")
-#         self.crf.set("12")
-#         self.wrdispboth.set(1)
-#         self.crop.set("0")
-#         self.wLog.set("0")
-#         self.copy.set("0")
-
-#         # create and fill the camera model and shooting mode drop down menus from the calibrations files
-#         self.calibFiles = list()
-
-#         self.calibFolder = os.path.join(RESOURCE_PATH, 'calibrations/')
-#         for file in os.listdir(self.calibFolder):
-#             if file.endswith(".csv"):
-#                 self.calibFiles.append(file)
-
-#         self.modes = list()
-#         self.models = list()
-
-#         for file in self.calibFiles:
-#             ifile = open(self.calibFolder + file)
-#             if file.split('.')[0] != '':
-#                 self.models.append(file.split('.')[0])
-#             line = ifile.readline()
-#             mods = list()
-#             while line != '':
-#                 line = ifile.readline().split(',')[0]
-#                 if line != '':
-#                     mods.append(line)
-#             if len(mods) != 0:
-#                 self.modes.append(mods)
-
-#         ifile.close()
-
-#         self.w = OptionMenu(*(group, self.camStr) + tuple(self.models))
-#         self.w2 = OptionMenu(*(group, self.sModeStr) + tuple(self.modes[0]))
-#         self.w.config(width=16)
-#         self.w2.config(width=22)
-
-#         # Set defaults for camera model and shooting mode
-#         self.camStr.set(self.models[0])
-#         self.sModeStr.set(self.modes[0][0])
-
-#         # make entry boxes for camera intrinsics including distortion coefficients
-#         self.fEntry = Entry(group, textvariable=self.f, width=7, bd=3)
-#         self.cxEntry = Entry(group, textvariable=self.cx, width=7, bd=3)
-#         self.cyEntry = Entry(group, textvariable=self.cy, width=7, bd=3)
-#         self.k1Entry = Entry(group, textvariable=self.k1, width=7, bd=3)
-#         self.k2Entry = Entry(group, textvariable=self.k2, width=7, bd=3)
-#         self.k3Entry = Entry(group, textvariable=self.k3, width=7, bd=3)
-#         self.t1Entry = Entry(group, textvariable=self.t1, width=7, bd=3)
-#         self.t2Entry = Entry(group, textvariable=self.t2, width=7, bd=3)
-#         self.xiEntry = Entry(group, textvariable=self.xi, width=7, bd=3)
-
-#         self.cropCheck = Checkbutton(group2, text="Crop video to undistorted region", variable=self.crop)
-#         self.copyCheck = Checkbutton(group2, text="Copy video and audio codec before undistortion", variable=self.copy)
+class dwarpGUI(GUI):
+    def __init__(self):
+        super(dwarpGUI, self).__init__()
+        # Load system specific integers for Tkinter drawing differences
+        pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'dwarp-gui-paddings.txt'))
+        if 'linux' in sys.platform:
+            pads = pads[0]
+        elif sys.platform == 'darwin':
+            pads = pads[1]
+        elif sys.platform == 'win32' or sys.platform == 'win64':
+            pads = pads[2]
+        pads = int(pads)
+
+        tooltips = Pmw.Balloon(self.root)
+
+        group = LabelFrame(self.root, text="Lens Parameters", padx=5, pady=5, fg='#56A0D3')
+        group2 = LabelFrame(self.root, text="Output movie options", padx=5, pady=5, fg='#56A0D3')
+        group3 = LabelFrame(self.root, text="Output type options", padx=5, pady=5, fg='#56A0D3')
+
+        # Variables which store information for the undistort process, including
+        # Input file name, calibrations file name, output file name, frame interval, compression quality level, camera model, shooting mode, run mode (Display, write, or both), and the undistortion coefficients
+        self.fnam = StringVar(self.root)
+        self.cfnam = StringVar(self.root)
+        self.ofnam = StringVar(self.root)
+        self.frameint = StringVar(self.root)
+        self.sModeStr = StringVar(self.root)
+        self.camStr = StringVar(self.root)
+        self.crf = StringVar(self.root)
+        self.wrdispboth = IntVar(self.root)
+        self.k1 = StringVar(self.root)
+        self.k2 = StringVar(self.root)
+        self.k3 = StringVar(self.root)
+        self.t1 = StringVar(self.root)
+        self.t2 = StringVar(self.root)
+        self.f = StringVar(self.root)
+        self.cx = StringVar(self.root)
+        self.cy = StringVar(self.root)
+        self.wLog = StringVar(self.root)
+        self.crop = StringVar(self.root)
+        self.copy = StringVar(self.root)
+        self.xi = StringVar(self.root)
+
+        # height and width as ints
+        self.height = 0
+        self.width = 0
+
+        # Set defaults
+        self.frameint.set("25")
+        self.crf.set("12")
+        self.wrdispboth.set(1)
+        self.crop.set("0")
+        self.wLog.set("0")
+        self.copy.set("0")
+
+        # create and fill the camera model and shooting mode drop down menus from the calibrations files
+        self.calibFiles = list()
+
+        self.calibFolder = os.path.join(RESOURCE_PATH, 'calibrations/')
+        for file in os.listdir(self.calibFolder):
+            if file.endswith(".csv"):
+                self.calibFiles.append(file)
+
+        self.modes = list()
+        self.models = list()
+
+        for file in self.calibFiles:
+            ifile = open(self.calibFolder + file)
+            if file.split('.')[0] != '':
+                self.models.append(file.split('.')[0])
+            line = ifile.readline()
+            mods = list()
+            while line != '':
+                line = ifile.readline().split(',')[0]
+                if line != '':
+                    mods.append(line)
+            if len(mods) != 0:
+                self.modes.append(mods)
+
+        ifile.close()
+
+        self.w = OptionMenu(*(group, self.camStr) + tuple(self.models))
+        self.w2 = OptionMenu(*(group, self.sModeStr) + tuple(self.modes[0]))
+        self.w.config(width=16)
+        self.w2.config(width=22)
+
+        # Set defaults for camera model and shooting mode
+        self.camStr.set(self.models[0])
+        self.sModeStr.set(self.modes[0][0])
+
+        # make entry boxes for camera intrinsics including distortion coefficients
+        self.fEntry = Entry(group, textvariable=self.f, width=7, bd=3)
+        self.cxEntry = Entry(group, textvariable=self.cx, width=7, bd=3)
+        self.cyEntry = Entry(group, textvariable=self.cy, width=7, bd=3)
+        self.k1Entry = Entry(group, textvariable=self.k1, width=7, bd=3)
+        self.k2Entry = Entry(group, textvariable=self.k2, width=7, bd=3)
+        self.k3Entry = Entry(group, textvariable=self.k3, width=7, bd=3)
+        self.t1Entry = Entry(group, textvariable=self.t1, width=7, bd=3)
+        self.t2Entry = Entry(group, textvariable=self.t2, width=7, bd=3)
+        self.xiEntry = Entry(group, textvariable=self.xi, width=7, bd=3)
+
+        self.cropCheck = Checkbutton(group2, text="Crop video to undistorted region", variable=self.crop)
+        self.copyCheck = Checkbutton(group2, text="Copy video and audio codec before undistortion", variable=self.copy)
 
-#         self.calibParse()
+        self.calibParse()
 
-#         # Make the elements of the GUI from Tkinter widgets added via the grid method
-#         # Elements include the title, in Carolina Blue, of the program and the following widgets all with labels:
-#         # Open-file-dialog button with manual entry field
-#         # Camera model drop-down menu with various GoPro models to choose from
-#         # Shooting model drop-down menu with various GoPro shooting modes to choose from
-#         # Editable boxes with all the relevant distortion parameters
-#         # Radiobutton for write and display options
-#         # Entry boxes for the interval between full frames and the compression quality level
-#         # Checkboxes for writing the log and cropping the video the undistorted region
-#         # Output-file manual-entry text box
-#         # Go button
+        # Make the elements of the GUI from Tkinter widgets added via the grid method
+        # Elements include the title, in Carolina Blue, of the program and the following widgets all with labels:
+        # Open-file-dialog button with manual entry field
+        # Camera model drop-down menu with various GoPro models to choose from
+        # Shooting model drop-down menu with various GoPro shooting modes to choose from
+        # Editable boxes with all the relevant distortion parameters
+        # Radiobutton for write and display options
+        # Entry boxes for the interval between full frames and the compression quality level
+        # Checkboxes for writing the log and cropping the video the undistorted region
+        # Output-file manual-entry text box
+        # Go button
 
-#         Label(self.root, text="Argus-DWarp", font=("Helvetica", 40), fg='#56A0D3').grid(row=0, column=0, padx=20,
-#                                                                                         pady=20)
+        Label(self.root, text="Argus-DWarp", font=("Helvetica", 40), fg='#56A0D3').grid(row=0, column=0, padx=20,
+                                                                                        pady=20)
 
-#         aboutButton = Button(self.root, text="About", command=self.about, padx=15, pady=15)
-#         aboutButton.grid(row=0, column=0, sticky=E, padx=10, pady=10)
+        aboutButton = Button(self.root, text="About", command=self.about, padx=15, pady=15)
+        aboutButton.grid(row=0, column=0, sticky=E, padx=10, pady=10)
 
-#         findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
-#                             width=10, height=1)
-#         findInFile.grid(row=1, column=0, padx=130, sticky=W)
+        findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
+                            width=10, height=1)
+        findInFile.grid(row=1, column=0, padx=130, sticky=W)
 
-#         Label(self.root, text="Input movie:").grid(row=1, column=0, padx=35, sticky=W)
+        Label(self.root, text="Input movie:").grid(row=1, column=0, padx=35, sticky=W)
 
-#         inFileEntry = Entry(self.root, textvariable=self.fnam, width=pads)
-#         inFileEntry.grid(row=1, column=0, padx=10, sticky=E)
+        inFileEntry = Entry(self.root, textvariable=self.fnam, width=pads)
+        inFileEntry.grid(row=1, column=0, padx=10, sticky=E)
 
-#         group.grid(row=2, padx=10, pady=10, sticky=EW)
+        group.grid(row=2, padx=10, pady=10, sticky=EW)
 
-#         Label(group, text="Camera Model:").grid(row=0, column=0, padx=10)
+        Label(group, text="Camera Model:").grid(row=0, column=0, padx=10)
 
-#         self.w.grid(row=0, column=1)
+        self.w.grid(row=0, column=1)
 
-#         self.camStr.trace('w', lambda *args: self.updateCam())
-#         self.sModeStr.trace('w', lambda *args: self.updateMode())
+        self.camStr.trace('w', lambda *args: self.updateCam())
+        self.sModeStr.trace('w', lambda *args: self.updateMode())
 
-#         Label(group, text="Shooting Mode:").grid(row=0, column=2, padx=10)
+        Label(group, text="Shooting Mode:").grid(row=0, column=2, padx=10)
 
-#         self.w2.grid(row=0, column=3)
+        self.w2.grid(row=0, column=3)
 
-#         Label(group, text="Focal length (mm): ").grid(row=1, column=0, padx=10, pady=10)
-#         self.fEntry.grid(row=1, column=1, sticky=W)
-#         tooltips.bind(self.fEntry, 'Focal length (mm)')
+        Label(group, text="Focal length (mm): ").grid(row=1, column=0, padx=10, pady=10)
+        self.fEntry.grid(row=1, column=1, sticky=W)
+        tooltips.bind(self.fEntry, 'Focal length (mm)')
 
-#         Label(group, text="Horizontal center: ").grid(row=1, column=2, padx=10, pady=10)
-#         self.cxEntry.grid(row=1, column=3, sticky=W)
-#         tooltips.bind(self.cxEntry, 'x-coordinate of optical midpoint')
+        Label(group, text="Horizontal center: ").grid(row=1, column=2, padx=10, pady=10)
+        self.cxEntry.grid(row=1, column=3, sticky=W)
+        tooltips.bind(self.cxEntry, 'x-coordinate of optical midpoint')
 
-#         Label(group, text="Vertical center: ").grid(row=1, column=4, padx=10, pady=10)
-#         self.cyEntry.grid(row=1, column=5)
-#         tooltips.bind(self.cyEntry, 'y-coordinate of optical midpoint')
+        Label(group, text="Vertical center: ").grid(row=1, column=4, padx=10, pady=10)
+        self.cyEntry.grid(row=1, column=5)
+        tooltips.bind(self.cyEntry, 'y-coordinate of optical midpoint')
 
-#         Label(group, text="Radial Distortion         k1: ").grid(row=2, column=0, padx=5, pady=10, sticky=W)
-#         self.k1Entry.grid(row=2, column=1, sticky=W)
-#         tooltips.bind(self.k1Entry, '2nd order radial\ndistortion coefficient')
+        Label(group, text="Radial Distortion         k1: ").grid(row=2, column=0, padx=5, pady=10, sticky=W)
+        self.k1Entry.grid(row=2, column=1, sticky=W)
+        tooltips.bind(self.k1Entry, '2nd order radial\ndistortion coefficient')
 
-#         Label(group, text="k2: ").grid(row=2, column=2, padx=10, pady=10, sticky=E)
-#         self.k2Entry.grid(row=2, column=3, sticky=W)
-#         tooltips.bind(self.k2Entry, '4th order radial\ndistortion coefficient')
+        Label(group, text="k2: ").grid(row=2, column=2, padx=10, pady=10, sticky=E)
+        self.k2Entry.grid(row=2, column=3, sticky=W)
+        tooltips.bind(self.k2Entry, '4th order radial\ndistortion coefficient')
 
-#         Label(group, text="k3: ").grid(row=2, column=4, padx=10, pady=10, sticky=E)
-#         self.k3Entry.grid(row=2, column=5)
-#         tooltips.bind(self.k3Entry, '6th order radial\ndistortion coefficient')
+        Label(group, text="k3: ").grid(row=2, column=4, padx=10, pady=10, sticky=E)
+        self.k3Entry.grid(row=2, column=5)
+        tooltips.bind(self.k3Entry, '6th order radial\ndistortion coefficient')
 
-#         Label(group, text="Tangential Distortion   t1: ").grid(row=3, column=0, padx=5, pady=10, sticky=W)
-#         self.t1Entry.grid(row=3, column=1, sticky=W)
-#         tooltips.bind(self.t1Entry, '1st decentering\ndistortion coefficient')
+        Label(group, text="Tangential Distortion   t1: ").grid(row=3, column=0, padx=5, pady=10, sticky=W)
+        self.t1Entry.grid(row=3, column=1, sticky=W)
+        tooltips.bind(self.t1Entry, '1st decentering\ndistortion coefficient')
 
-#         Label(group, text="t2: ").grid(row=3, column=2, padx=10, pady=10, sticky=E)
-#         self.t2Entry.grid(row=3, column=3, sticky=W)
-#         tooltips.bind(self.t2Entry, '2nd decentering\ndistortion coefficient')
+        Label(group, text="t2: ").grid(row=3, column=2, padx=10, pady=10, sticky=E)
+        self.t2Entry.grid(row=3, column=3, sticky=W)
+        tooltips.bind(self.t2Entry, '2nd decentering\ndistortion coefficient')
 
-#         Label(group, text="xi: ").grid(row=3, column=4, padx=10, pady=10, sticky=E)
-#         self.xiEntry.grid(row=3, column=5)
-#         tooltips.bind(self.xiEntry, "Camera shape parameter for CMei's \n omnidirectional model")
+        Label(group, text="xi: ").grid(row=3, column=4, padx=10, pady=10, sticky=E)
+        self.xiEntry.grid(row=3, column=5)
+        tooltips.bind(self.xiEntry, "Camera shape parameter for CMei's \n omnidirectional model")
 
-#         group3.grid(row=3, sticky=W, padx=10)
+        group3.grid(row=3, sticky=W, padx=10)
 
-#         Radiobutton(group3, text="Write and display video", variable=self.wrdispboth, value=1).grid(row=0, column=0,
-#                                                                                                     pady=5, padx=50,
-#                                                                                                     sticky=W)
-#         Radiobutton(group3, text="Display only", variable=self.wrdispboth, value=2).grid(row=1, column=0, pady=10,
-#                                                                                          padx=50, sticky=W)
-#         Radiobutton(group3, text="Write only", variable=self.wrdispboth, value=3).grid(row=2, column=0, pady=10,
-#                                                                                        padx=50, sticky=W)
+        Radiobutton(group3, text="Write and display video", variable=self.wrdispboth, value=1).grid(row=0, column=0,
+                                                                                                    pady=5, padx=50,
+                                                                                                    sticky=W)
+        Radiobutton(group3, text="Display only", variable=self.wrdispboth, value=2).grid(row=1, column=0, pady=10,
+                                                                                         padx=50, sticky=W)
+        Radiobutton(group3, text="Write only", variable=self.wrdispboth, value=3).grid(row=2, column=0, pady=10,
+                                                                                       padx=50, sticky=W)
 
-#         group2.grid(row=3, sticky=E, padx=150)
+        group2.grid(row=3, sticky=E, padx=150)
 
-#         Label(group2, text="Compression quality level:").grid(row=0, column=0, sticky=W, padx=20)
+        Label(group2, text="Compression quality level:").grid(row=0, column=0, sticky=W, padx=20)
 
-#         bufferEntry = Entry(group2, textvariable=self.crf, bd=3, width=5)
-#         bufferEntry.grid(row=0, column=1, sticky=E)
-#         tooltips.bind(bufferEntry, 'Must be an integer between 0 and 63')
+        bufferEntry = Entry(group2, textvariable=self.crf, bd=3, width=5)
+        bufferEntry.grid(row=0, column=1, sticky=E)
+        tooltips.bind(bufferEntry, 'Must be an integer between 0 and 63')
 
-#         Label(group2, text="Full frame interval:").grid(row=1, column=0, sticky=W, padx=20)
+        Label(group2, text="Full frame interval:").grid(row=1, column=0, sticky=W, padx=20)
 
-#         frameintEntry = Entry(group2, textvariable=self.frameint, bd=3, width=5)
-#         frameintEntry.grid(row=1, column=1, pady=5, )
-#         tooltips.bind(frameintEntry,
-#                       'Number of frames inbetween full frames\nHigher numbers mean larger file size but faster seek')
-
-#         self.cropCheck.grid(row=2, pady=5, padx=5, sticky=W)
+        frameintEntry = Entry(group2, textvariable=self.frameint, bd=3, width=5)
+        frameintEntry.grid(row=1, column=1, pady=5, )
+        tooltips.bind(frameintEntry,
+                      'Number of frames inbetween full frames\nHigher numbers mean larger file size but faster seek')
+
+        self.cropCheck.grid(row=2, pady=5, padx=5, sticky=W)
 
-#         self.copyCheck.grid(row=3, pady=5, padx=5, sticky=W)
-
-#         writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
-#         writeLogCheck.grid(row=4, column=0, pady=10, padx=30, sticky=W)
-
-#         go = Button(self.root, text="Go", command=self.go, width=6, height=3)
-#         go.grid(row=5, column=0, padx=10, pady=5, sticky=W)
-
-#         Label(self.root, text="Output file:").grid(row=5, column=0, padx=180, sticky=W)
-
-#         outFileEntry = Entry(self.root, textvariable=self.ofnam, width=50)
-#         outFileEntry.grid(row=5, column=0, sticky=E, padx=100)
-
-#         specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.ofnam), padx=10,
-#                             pady=10)
-#         specButton.grid(row=5, column=0, sticky=W, padx=285)
-
-#         quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
-#         quitButton.grid(row=5, column=0, sticky=E, padx=10, pady=10)
-
-#         self.root.mainloop()
-
-#     def disableEntries(self):
-#         self.crop.set('0')
-#         self.cropCheck.config(state='disabled')
-
-#         self.fEntry.config(state='disabled')
-#         self.cxEntry.config(state='disabled')
-#         self.cyEntry.config(state='disabled')
-#         self.k1Entry.config(state='disabled')
-#         self.k2Entry.config(state='disabled')
-#         self.k3Entry.config(state='disabled')
-#         self.t1Entry.config(state='disabled')
-#         self.t2Entry.config(state='disabled')
-#         self.xiEntry.config(state='disabled')
-
-#     def enableEntries(self):
-#         self.cropCheck.config(state='normal')
-#         self.fEntry.config(state='normal')
-#         self.cxEntry.config(state='normal')
-#         self.cyEntry.config(state='normal')
-#         self.k1Entry.config(state='normal')
-#         self.k2Entry.config(state='normal')
-#         self.k3Entry.config(state='normal')
-#         self.t1Entry.config(state='normal')
-#         self.t2Entry.config(state='normal')
-#         self.xiEntry.config(state='normal')
-
-#     # Define function for filling the entry fields for the undistortion coefficients and other relevant numbers
-#     def calibParse(self):
-#         self.cfnam.set(self.calibFolder + self.camStr.get() + '.csv')
-
-#         ifile = open(self.cfnam.get(), "r")
-
-#         line = ifile.readline().split(',')
-#         while line[0] != self.sModeStr.get():
-#             line = ifile.readline().split(',')
-#         ifile.close()
-#         if '(Fisheye)' in self.sModeStr.get():
-#             # no entries enabled for Scaramuzzas Fisheye
-#             self.disableEntries()
-#         elif '(CMei)' in self.sModeStr.get():
-#             # enable everything except k3
-#             self.enableEntries()
-#             self.k1.set(line[7])
-#             self.k2.set(line[9])
-#             self.t1.set(line[9])
-#             self.t2.set(line[10])
-
-#             self.width = int(line[2])
-#             self.height = int(line[3])
-
-#             self.xi.set(line[11])
-
-#             self.k3.set('0.0')
-#             self.k3Entry.config(state='disabled')
-
-#             self.f.set(line[1])
-#             self.cx.set(line[4])
-#             self.cy.set(line[5])
-#         else:
-#             self.enableEntries()
-
-#             self.xi.set('1.0')
-#             self.xiEntry.config(state='disabled')
-
-#             self.k1.set(line[7])
-#             self.k2.set(line[8])
-#             self.t1.set(line[9])
-#             self.t2.set(line[10])
-#             self.k3.set(line[11])
-#             self.f.set(line[1])
-#             self.cx.set(line[4])
-#             self.cy.set(line[5])
-
-#     def omniParse(self):
-#         self.cfnam.set(self.calibFolder + self.camStr.get() + '.csv')
-#         ifile = open(self.cfnam.get(), "r")
-
-#         line = ifile.readline()  # first line is the header
-#         l = line.split(',')
-#         while l[0] != self.sModeStr.get():
-#             line = ifile.readline()
-#             l = line.rstrip('\n').rstrip(',').split(',')
-#         ifile.close()
-#         return ','.join(l[1:])
-
-#     # Define function for returning an array of coefficients from the strings in the entry fields, call an error box from tkinter if they're not floats
-#     def getCoefficients(self):
-#         try:
-#             if not '(CMei)' in self.sModeStr.get():
-#                 co = [self.f.get(), self.cx.get(), self.cy.get(), self.k1.get(), self.k2.get(), self.t1.get(),
-#                       self.t2.get(), self.k3.get()]
-#                 ret = ','.join(co)
-#                 return ret
-#             else:
-#                 co = [self.f.get(), str(self.width), str(self.height), self.cx.get(), self.cy.get(), self.k1.get(),
-#                       self.k2.get(), self.t1.get(), self.t2.get(), self.xi.get()]
-#                 ret = ','.join(co)
-#                 return ret
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Undistortion coefficients must all be floats"
-#             )
-#             return
-
-#     # This executes the undistort by wrapping it in a thread which then has its stdout and stderr monitored
-#     # by by tkinter text window with a scrollbar.  Closing the log or pressing 'Done' kills the process, deleting the temporary directory if one exists.
-#     def go(self):
-#         # make sure the crf and frame interval are integers
-#         try:
-#             int(self.crf.get())
-#             int(self.frameint.get())
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Compression quality level and frame interval must be positive integers"
-#             )
-#             return
-
-#         if int(self.crf.get()) > 63 or int(self.crf.get()) < 0:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Compression quality level must be between 0 and 63"
-#             )
-#             return
-
-#         # check for properly named output file (if it exists) & fix it if appropriate
-#         of = self.ofnam.get()
-#         if of:
-#             ofs = of.split('.')
-#             if ofs[-1].lower() != 'mp4':
-#                 of = of + '.mp4'
-#                 self.ofnam.set(of)
-
-#         tmpName = ''
-#         # Extra bools and a string for passing temp dir, write option and display option to the undistorter object
-#         if self.getCoefficients():
-#             cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-dwarp')]
-
-#             # build basic command line arguments
-#             args = [self.fnam.get(), '--frameint', self.frameint.get(), '--crf', self.crf.get()]
-
-#             if self.wrdispboth.get() != 2:  # 1 = write only, 2 = display only, 3 = write + display
-#                 args = args + ['--ofile', self.ofnam.get()]
-#                 tmpName = tempfile.mkdtemp()
-#                 args = args + ['--write', '--tmp', tmpName]
-
-#             if '(Fisheye)' in self.sModeStr.get():  # assume it is not a fisheye calibration unless it says that it is
-#                 omni = self.omniParse()
-#                 args = args + ['--omni', omni]
-#             else:
-#                 omni = ''
-#                 args = args + ['--coefficients', self.getCoefficients()]
-
-#             if self.wrdispboth.get() == 1 or self.wrdispboth.get() == 2:
-#                 disp = True
-#                 args = args + ['--disp']
-
-#             if self.crop.get() == '1':
-#                 args = args + ['--crop']
-
-#             if self.copy.get() == '1':
-#                 args = args + ['--copy']
-
-#             if '(CMei)' in self.sModeStr.get():
-#                 args = args + ['--cmei']
-
-#             cmd = cmd + args
-#         else:
-#             return
-
-#         if self.wLog.get() == '1':
-#             logBool = True
-#         else:
-#             logBool = False
-
-#         super(dwarpGUI, self).go(cmd, logBool)
-
-#     # Functions for updating the entry fields and drop down menus if needed
-#     def updateMode(self):
-#         self.calibParse()
-
-#     def updateCam(self):
-#         m = self.w2.children['menu']
-#         m.delete(0, END)
-#         a = 0
-#         for k in range(0, len(self.models)):
-#             if self.models[k] == self.camStr.get():
-#                 a = k
-#                 break
-#         newvalues = self.modes[a]
-#         for val in newvalues:
-#             m.add_command(label=val, command=lambda v=self.sModeStr, l=val: v.set(l))
-#         self.sModeStr.set(self.modes[a][0])
-#         self.calibParse()
+        self.copyCheck.grid(row=3, pady=5, padx=5, sticky=W)
+
+        writeLogCheck = Checkbutton(self.root, text="Write log", variable=self.wLog)
+        writeLogCheck.grid(row=4, column=0, pady=10, padx=30, sticky=W)
+
+        go = Button(self.root, text="Go", command=self.go, width=6, height=3)
+        go.grid(row=5, column=0, padx=10, pady=5, sticky=W)
+
+        Label(self.root, text="Output file:").grid(row=5, column=0, padx=180, sticky=W)
+
+        outFileEntry = Entry(self.root, textvariable=self.ofnam, width=50)
+        outFileEntry.grid(row=5, column=0, sticky=E, padx=100)
+
+        specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.ofnam), padx=10,
+                            pady=10)
+        specButton.grid(row=5, column=0, sticky=W, padx=285)
+
+        quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
+        quitButton.grid(row=5, column=0, sticky=E, padx=10, pady=10)
+
+        self.root.mainloop()
+
+    def disableEntries(self):
+        self.crop.set('0')
+        self.cropCheck.config(state='disabled')
+
+        self.fEntry.config(state='disabled')
+        self.cxEntry.config(state='disabled')
+        self.cyEntry.config(state='disabled')
+        self.k1Entry.config(state='disabled')
+        self.k2Entry.config(state='disabled')
+        self.k3Entry.config(state='disabled')
+        self.t1Entry.config(state='disabled')
+        self.t2Entry.config(state='disabled')
+        self.xiEntry.config(state='disabled')
+
+    def enableEntries(self):
+        self.cropCheck.config(state='normal')
+        self.fEntry.config(state='normal')
+        self.cxEntry.config(state='normal')
+        self.cyEntry.config(state='normal')
+        self.k1Entry.config(state='normal')
+        self.k2Entry.config(state='normal')
+        self.k3Entry.config(state='normal')
+        self.t1Entry.config(state='normal')
+        self.t2Entry.config(state='normal')
+        self.xiEntry.config(state='normal')
+
+    # Define function for filling the entry fields for the undistortion coefficients and other relevant numbers
+    def calibParse(self):
+        self.cfnam.set(self.calibFolder + self.camStr.get() + '.csv')
+
+        ifile = open(self.cfnam.get(), "r")
+
+        line = ifile.readline().split(',')
+        while line[0] != self.sModeStr.get():
+            line = ifile.readline().split(',')
+        ifile.close()
+        if '(Fisheye)' in self.sModeStr.get():
+            # no entries enabled for Scaramuzzas Fisheye
+            self.disableEntries()
+        elif '(CMei)' in self.sModeStr.get():
+            # enable everything except k3
+            self.enableEntries()
+            self.k1.set(line[7])
+            self.k2.set(line[9])
+            self.t1.set(line[9])
+            self.t2.set(line[10])
+
+            self.width = int(line[2])
+            self.height = int(line[3])
+
+            self.xi.set(line[11])
+
+            self.k3.set('0.0')
+            self.k3Entry.config(state='disabled')
+
+            self.f.set(line[1])
+            self.cx.set(line[4])
+            self.cy.set(line[5])
+        else:
+            self.enableEntries()
+
+            self.xi.set('1.0')
+            self.xiEntry.config(state='disabled')
+
+            self.k1.set(line[7])
+            self.k2.set(line[8])
+            self.t1.set(line[9])
+            self.t2.set(line[10])
+            self.k3.set(line[11])
+            self.f.set(line[1])
+            self.cx.set(line[4])
+            self.cy.set(line[5])
+
+    def omniParse(self):
+        self.cfnam.set(self.calibFolder + self.camStr.get() + '.csv')
+        ifile = open(self.cfnam.get(), "r")
+
+        line = ifile.readline()  # first line is the header
+        l = line.split(',')
+        while l[0] != self.sModeStr.get():
+            line = ifile.readline()
+            l = line.rstrip('\n').rstrip(',').split(',')
+        ifile.close()
+        return ','.join(l[1:])
+
+    # Define function for returning an array of coefficients from the strings in the entry fields, call an error box from tkinter if they're not floats
+    def getCoefficients(self):
+        try:
+            if not '(CMei)' in self.sModeStr.get():
+                co = [self.f.get(), self.cx.get(), self.cy.get(), self.k1.get(), self.k2.get(), self.t1.get(),
+                      self.t2.get(), self.k3.get()]
+                ret = ','.join(co)
+                return ret
+            else:
+                co = [self.f.get(), str(self.width), str(self.height), self.cx.get(), self.cy.get(), self.k1.get(),
+                      self.k2.get(), self.t1.get(), self.t2.get(), self.xi.get()]
+                ret = ','.join(co)
+                return ret
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Undistortion coefficients must all be floats"
+            )
+            return
+
+    # This executes the undistort by wrapping it in a thread which then has its stdout and stderr monitored
+    # by by tkinter text window with a scrollbar.  Closing the log or pressing 'Done' kills the process, deleting the temporary directory if one exists.
+    def go(self):
+        # make sure the crf and frame interval are integers
+        try:
+            int(self.crf.get())
+            int(self.frameint.get())
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Compression quality level and frame interval must be positive integers"
+            )
+            return
+
+        if int(self.crf.get()) > 63 or int(self.crf.get()) < 0:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Compression quality level must be between 0 and 63"
+            )
+            return
+
+        # check for properly named output file (if it exists) & fix it if appropriate
+        of = self.ofnam.get()
+        if of:
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'mp4':
+                of = of + '.mp4'
+                self.ofnam.set(of)
+
+        tmpName = ''
+        # Extra bools and a string for passing temp dir, write option and display option to the undistorter object
+        if self.getCoefficients():
+            cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-dwarp')]
+
+            # build basic command line arguments
+            args = [self.fnam.get(), '--frameint', self.frameint.get(), '--crf', self.crf.get()]
+
+            if self.wrdispboth.get() != 2:  # 1 = write only, 2 = display only, 3 = write + display
+                args = args + ['--ofile', self.ofnam.get()]
+                tmpName = tempfile.mkdtemp()
+                args = args + ['--write', '--tmp', tmpName]
+
+            if '(Fisheye)' in self.sModeStr.get():  # assume it is not a fisheye calibration unless it says that it is
+                omni = self.omniParse()
+                args = args + ['--omni', omni]
+            else:
+                omni = ''
+                args = args + ['--coefficients', self.getCoefficients()]
+
+            if self.wrdispboth.get() == 1 or self.wrdispboth.get() == 2:
+                disp = True
+                args = args + ['--disp']
+
+            if self.crop.get() == '1':
+                args = args + ['--crop']
+
+            if self.copy.get() == '1':
+                args = args + ['--copy']
+
+            if '(CMei)' in self.sModeStr.get():
+                args = args + ['--cmei']
+
+            cmd = cmd + args
+        else:
+            return
+
+        if self.wLog.get() == '1':
+            logBool = True
+        else:
+            logBool = False
+
+        super(dwarpGUI, self).go(cmd, logBool)
+
+    # Functions for updating the entry fields and drop down menus if needed
+    def updateMode(self):
+        self.calibParse()
+
+    def updateCam(self):
+        m = self.w2.children['menu']
+        m.delete(0, END)
+        a = 0
+        for k in range(0, len(self.models)):
+            if self.models[k] == self.camStr.get():
+                a = k
+                break
+        newvalues = self.modes[a]
+        for val in newvalues:
+            m.add_command(label=val, command=lambda v=self.sModeStr, l=val: v.set(l))
+        self.sModeStr.set(self.modes[a][0])
+        self.calibParse()
 
 
 class syncGUI(GUI):
@@ -1478,172 +1478,172 @@ class WandGUI(GUI):
         super(WandGUI, self).go(cmd, write_bool)
 
 
-# class calibrateGUI(GUI):
-#     def __init__(self):
-#         super(calibrateGUI, self).__init__()
+class calibrateGUI(GUI):
+    def __init__(self):
+        super(calibrateGUI, self).__init__()
 
-#         # Load system specific integers for Tkinter drawing differences
-#         pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'calib-gui-paddings.txt'))
-#         if 'linux' in sys.platform:
-#             pads = pads[0]
-#         elif sys.platform == 'darwin':
-#             pads = pads[1]
-#         elif sys.platform == 'win32' or sys.platform == 'win64':
-#             pads = pads[2]
-#         pads = list(map(int, pads))
+        # Load system specific integers for Tkinter drawing differences
+        pads = np.loadtxt(os.path.join(RESOURCE_PATH, 'calib-gui-paddings.txt'))
+        if 'linux' in sys.platform:
+            pads = pads[0]
+        elif sys.platform == 'darwin':
+            pads = pads[1]
+        elif sys.platform == 'win32' or sys.platform == 'win64':
+            pads = pads[2]
+        pads = list(map(int, pads))
 
-#         tooltips = Pmw.Balloon(self.root)
+        tooltips = Pmw.Balloon(self.root)
 
-#         group = LabelFrame(self.root, text="Options", padx=5, pady=5, fg='#56A0D3')
+        group = LabelFrame(self.root, text="Options", padx=5, pady=5, fg='#56A0D3')
 
-#         # option variables:
-#         # fnam - input file name and location
-#         # inv - whether or not object points are inverted
-#         # replicates - number of passes through OpenCVs solver
-#         # ofnam - output file name and location
-#         # wLog - write a log?
-#         # option - what distortion coefficients to solve for
-#         self.fnam = StringVar(self.root)
-#         self.inv = StringVar(self.root)
-#         self.replicates = StringVar(self.root)
-#         self.patterns = StringVar(self.root)
-#         self.ofnam = StringVar(self.root)
-#         self.wLog = StringVar(self.root)
-#         self.option = StringVar(self.root)
-#         self.model_option = StringVar(self.root)
+        # option variables:
+        # fnam - input file name and location
+        # inv - whether or not object points are inverted
+        # replicates - number of passes through OpenCVs solver
+        # ofnam - output file name and location
+        # wLog - write a log?
+        # option - what distortion coefficients to solve for
+        self.fnam = StringVar(self.root)
+        self.inv = StringVar(self.root)
+        self.replicates = StringVar(self.root)
+        self.patterns = StringVar(self.root)
+        self.ofnam = StringVar(self.root)
+        self.wLog = StringVar(self.root)
+        self.option = StringVar(self.root)
+        self.model_option = StringVar(self.root)
 
-#         # set defaults:
-#         self.option.set("Optimize k1, k2")
-#         self.model_option.set("Pinhole model")
-#         self.inv.set('0')
-#         self.wLog.set('0')
-#         self.replicates.set('100')
-#         self.patterns.set('20')
+        # set defaults:
+        self.option.set("Optimize k1, k2")
+        self.model_option.set("Pinhole model")
+        self.inv.set('0')
+        self.wLog.set('0')
+        self.replicates.set('100')
+        self.patterns.set('20')
 
-#         self.model_option.trace('w', lambda *args: self.updateOptions())
+        self.model_option.trace('w', lambda *args: self.updateOptions())
 
-#         Label(self.root, text="Argus-Calibrate", font=("Helvetica", 30), fg='#56A0D3').grid(row=0, column=0, padx=20,
-#                                                                                             pady=20)
-#         # img = ImageTk.PhotoImage(Image.open("argus_panoptes.jpg").resize((96, 120), Image.ANTIALIAS))
-#         # panel = Label(root, image = img)
+        Label(self.root, text="Argus-Calibrate", font=("Helvetica", 30), fg='#56A0D3').grid(row=0, column=0, padx=20,
+                                                                                            pady=20)
+        # img = ImageTk.PhotoImage(Image.open("argus_panoptes.jpg").resize((96, 120), Image.ANTIALIAS))
+        # panel = Label(root, image = img)
 
-#         # panel.grid(row = 0, column = 0, sticky = W)
+        # panel.grid(row = 0, column = 0, sticky = W)
 
-#         aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
-#         aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
+        aboutButton = Button(self.root, text="About", command=self.about, padx=10, pady=10)
+        aboutButton.grid(row=0, column=0, sticky=E, padx=5, pady=5)
 
-#         findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
-#                             width=7, height=1)
-#         findInFile.grid(row=1, column=0, padx=180, sticky=W)
-#         tooltips.bind(findInFile, 'Find Pickle file with patterns')
+        findInFile = Button(self.root, text="Open", command=lambda: self.set_in_filename(self.fnam), padx=10, pady=10,
+                            width=7, height=1)
+        findInFile.grid(row=1, column=0, padx=180, sticky=W)
+        tooltips.bind(findInFile, 'Find Pickle file with patterns')
 
-#         Label(self.root, text="Input Patterns results:").grid(row=1, column=0, padx=18, sticky=W)
+        Label(self.root, text="Input Patterns results:").grid(row=1, column=0, padx=18, sticky=W)
 
-#         inFileEntry = Entry(self.root, textvariable=self.fnam, width=20)
-#         inFileEntry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
-#         tooltips.bind(inFileEntry, 'Path to pickle')
+        inFileEntry = Entry(self.root, textvariable=self.fnam, width=20)
+        inFileEntry.grid(row=2, column=0, padx=10, pady=10, sticky=EW)
+        tooltips.bind(inFileEntry, 'Path to pickle')
 
-#         group.grid(row=3, column=0, sticky=EW, padx=5)
+        group.grid(row=3, column=0, sticky=EW, padx=5)
 
-#         Label(group, text="Number of replications:").grid(row=0, column=0, padx=5, pady=10)
-#         repEntry = Entry(group, textvariable=self.replicates, width=10, bd=3)
-#         repEntry.grid(row=0, column=1, padx=10, sticky=W)
-#         tooltips.bind(repEntry, 'Number of times to sample the frames and solve the distortion equations')
+        Label(group, text="Number of replications:").grid(row=0, column=0, padx=5, pady=10)
+        repEntry = Entry(group, textvariable=self.replicates, width=10, bd=3)
+        repEntry.grid(row=0, column=1, padx=10, sticky=W)
+        tooltips.bind(repEntry, 'Number of times to sample the frames and solve the distortion equations')
 
-#         invCheck = Checkbutton(group, text='Invert grid coordinates', variable=self.inv)
-#         invCheck.grid(row=2, column=0, padx=20, pady=5, sticky=W)
-#         tooltips.bind(invCheck, "If you're getting poor results, try checking this option")
+        invCheck = Checkbutton(group, text='Invert grid coordinates', variable=self.inv)
+        invCheck.grid(row=2, column=0, padx=20, pady=5, sticky=W)
+        tooltips.bind(invCheck, "If you're getting poor results, try checking this option")
 
-#         Label(group, text="Sample size (frames):").grid(row=1, column=0, padx=5, pady=10)
-#         patEntry = Entry(group, textvariable=self.patterns, width=10, bd=3)
-#         patEntry.grid(row=1, column=1, padx=10, sticky=W)
-#         tooltips.bind(patEntry, 'Number of frames to use in each sample')
+        Label(group, text="Sample size (frames):").grid(row=1, column=0, padx=5, pady=10)
+        patEntry = Entry(group, textvariable=self.patterns, width=10, bd=3)
+        patEntry.grid(row=1, column=1, padx=10, sticky=W)
+        tooltips.bind(patEntry, 'Number of frames to use in each sample')
 
-#         Label(group, text="Distortion:").grid(row=3, column=0, sticky=E, padx=10, pady=10)
-#         self.w1 = OptionMenu(group, self.model_option, "Pinhole model", "Omnidirectional model")
-#         self.w1.grid(row=3, column=1, sticky=W, padx=10, pady=10)
+        Label(group, text="Distortion:").grid(row=3, column=0, sticky=E, padx=10, pady=10)
+        self.w1 = OptionMenu(group, self.model_option, "Pinhole model", "Omnidirectional model")
+        self.w1.grid(row=3, column=1, sticky=W, padx=10, pady=10)
 
-#         self.w = OptionMenu(group, self.option, "Optimize k1, k2", "Optimize k1, k2, and k3",
-#                             "Optimize all distortion coefficients")
-#         self.w.grid(row=3, column=2, sticky=W, padx=10, pady=10)
+        self.w = OptionMenu(group, self.option, "Optimize k1, k2", "Optimize k1, k2, and k3",
+                            "Optimize all distortion coefficients")
+        self.w.grid(row=3, column=2, sticky=W, padx=10, pady=10)
 
-#         Label(self.root, text="Output filename: ").grid(row=4, column=0, sticky=W, padx=pads[1])
-#         outEntry = Entry(self.root, textvariable=self.ofnam, width=pads[0])
-#         specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.ofnam), padx=15,
-#                             pady=10)
-#         specButton.grid(row=4, column=0, sticky=W, padx=130, pady=5)
-#         outEntry.grid(row=4, column=0, sticky=E, padx=10, pady=10)
+        Label(self.root, text="Output filename: ").grid(row=4, column=0, sticky=W, padx=pads[1])
+        outEntry = Entry(self.root, textvariable=self.ofnam, width=pads[0])
+        specButton = Button(self.root, text='Specify', command=lambda: self.set_out_filename(self.ofnam), padx=15,
+                            pady=10)
+        specButton.grid(row=4, column=0, sticky=W, padx=130, pady=5)
+        outEntry.grid(row=4, column=0, sticky=E, padx=10, pady=10)
 
-#         wLogCheck = Checkbutton(self.root, text='Write log', variable=self.wLog)
-#         wLogCheck.grid(row=5, column=0, padx=20, pady=5, sticky=W)
+        wLogCheck = Checkbutton(self.root, text='Write log', variable=self.wLog)
+        wLogCheck.grid(row=5, column=0, padx=20, pady=5, sticky=W)
 
-#         go = Button(self.root, text="Go", command=self.go, width=6, height=3)
-#         go.grid(row=6, column=0, padx=5, pady=5, sticky=W)
+        go = Button(self.root, text="Go", command=self.go, width=6, height=3)
+        go.grid(row=6, column=0, padx=5, pady=5, sticky=W)
 
-#         quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
-#         quitButton.grid(row=6, column=0, sticky=E, padx=5, pady=5)
+        quitButton = Button(self.root, text="Quit", command=self.quit_all, width=6, height=3)
+        quitButton.grid(row=6, column=0, sticky=E, padx=5, pady=5)
 
-#         self.root.mainloop()
+        self.root.mainloop()
 
-#     def updateOptions(self):
-#         # Reset var and delete all old options
-#         self.option.set('')
-#         self.w['menu'].delete(0, 'end')
+    def updateOptions(self):
+        # Reset var and delete all old options
+        self.option.set('')
+        self.w['menu'].delete(0, 'end')
 
-#         if self.model_option.get() == "Pinhole model":
-#             self.w.config(state='normal')
-#             # Insert list of new options (tk._setit hooks them up to var)
-#             new_choices = ("Optimize k1, k2", "Optimize k1, k2, and k3", "Optimize all distortion coefficients")
-#             for val in new_choices:
-#                 self.w['menu'].add_command(label=val, command=lambda v=self.option, l=val: v.set(l))
+        if self.model_option.get() == "Pinhole model":
+            self.w.config(state='normal')
+            # Insert list of new options (tk._setit hooks them up to var)
+            new_choices = ("Optimize k1, k2", "Optimize k1, k2, and k3", "Optimize all distortion coefficients")
+            for val in new_choices:
+                self.w['menu'].add_command(label=val, command=lambda v=self.option, l=val: v.set(l))
 
-#             self.option.set(new_choices[0])
+            self.option.set(new_choices[0])
 
-#         else:
-#             self.w.config(state='disabled')
+        else:
+            self.w.config(state='disabled')
 
-#     # Start the subprocess and begin OpenCVs solving routine
-#     def go(self):
-#         if self.fnam.get().split('.')[-1].lower() != 'pkl':
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Input file must be a Pickle"
-#             )
-#             return
-#         try:
-#             int(self.replicates.get())
-#             int(self.patterns.get())
-#         except:
-#             six.moves.tkinter_messagebox.showwarning(
-#                 "Error",
-#                 "Number of samples and replicates must both be integers"
-#             )
-#             return
-#         if not self.ofnam.get():
-#             self.ofnam.set(self.fnam.get()[:-3] + 'csv')
-#         if self.ofnam.get().split('.')[-1].lower != 'csv':
-#             self.ofnam.set(self.ofnam.get() + '.csv')
+    # Start the subprocess and begin OpenCVs solving routine
+    def go(self):
+        if self.fnam.get().split('.')[-1].lower() != 'pkl':
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Input file must be a Pickle"
+            )
+            return
+        try:
+            int(self.replicates.get())
+            int(self.patterns.get())
+        except:
+            six.moves.tkinter_messagebox.showwarning(
+                "Error",
+                "Number of samples and replicates must both be integers"
+            )
+            return
+        if not self.ofnam.get():
+            self.ofnam.set(self.fnam.get()[:-3] + 'csv')
+        if self.ofnam.get().split('.')[-1].lower != 'csv':
+            self.ofnam.set(self.ofnam.get() + '.csv')
 
-#         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-calibrate')]
-#         writeBool = False
-#         args = [self.fnam.get(), self.ofnam.get(), '--replicates', self.replicates.get(), '--patterns',
-#                 self.patterns.get()]
-#         if self.option.get() == "Optimize k1, k2, and k3":
-#             args = args + ['--k3']
-#         elif self.option.get() == "Optimize all distortion coefficients":
-#             args = args + ['--tangential']
+        cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-calibrate')]
+        writeBool = False
+        args = [self.fnam.get(), self.ofnam.get(), '--replicates', self.replicates.get(), '--patterns',
+                self.patterns.get()]
+        if self.option.get() == "Optimize k1, k2, and k3":
+            args = args + ['--k3']
+        elif self.option.get() == "Optimize all distortion coefficients":
+            args = args + ['--tangential']
 
-#         if self.model_option.get() == "Omnidirectional model":
-#             args = args + ['--omnidirectional']
-#         if self.wLog.get() == '1':
-#             writeBool = True
+        if self.model_option.get() == "Omnidirectional model":
+            args = args + ['--omnidirectional']
+        if self.wLog.get() == '1':
+            writeBool = True
 
-#         if self.inv.get() == '1':
-#             args = args + ['--inverted']
+        if self.inv.get() == '1':
+            args = args + ['--inverted']
 
-#         cmd = cmd + args
+        cmd = cmd + args
 
-#         super(calibrateGUI, self).go(cmd, writeBool)
+        super(calibrateGUI, self).go(cmd, writeBool)
 
 
 class patternsGUI(GUI):
