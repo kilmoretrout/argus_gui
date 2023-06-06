@@ -518,7 +518,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dwarp_quit_button.setToolTip('Quit the program')
         self.dwarp_quit_button.clicked.connect(self.quit_all)
 
-        self.dwarp_file_button = QtWidgets.QPushButton('Select patterns file')
+        self.dwarp_file_button = QtWidgets.QPushButton('Select movie file')
         self.dwarp_file_button.clicked.connect(self.add)
         self.dwarp_file = QtWidgets.QLineEdit()
 
