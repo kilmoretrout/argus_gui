@@ -7,81 +7,10 @@
 import os
 import pkg_resources
 import sys
-from PySide6 import QtWidgets, QtGui
-from argus_gui import gui
+import pkg_resources
+from argus_gui.resources import Argus
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
-class Window(QtWidgets.QWidget):
-    def __init__(self):
-        super().__init__()
-        self.init_ui()
-
-    def init_ui(self):
-        # Create buttons
-        self.dwarp_button = QtWidgets.QPushButton('Dwarp')
-        self.sync_button = QtWidgets.QPushButton('Sync')
-        self.patterns_button = QtWidgets.QPushButton('Patterns')
-        self.calibrate_button = QtWidgets.QPushButton('Calibrate')
-        self.clicker_button = QtWidgets.QPushButton('Clicker')
-        self.wand_button = QtWidgets.QPushButton('Wand')
-
-        # Set button icons
-        self.dwarp_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
-        self.sync_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/pulse-8x.gif')))
-        self.patterns_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/grid-four-up-8x.gif')))
-        self.calibrate_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/calculator-8x.gif')))
-        self.clicker_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/location-8x.gif')))
-        self.wand_button.setIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/wand.gif')))
-
-        # Connect buttons to functions
-        self.dwarp_button.clicked.connect(self.dwarp)
-        self.sync_button.clicked.connect(self.sync)
-        self.patterns_button.clicked.connect(self.patterns)
-        self.calibrate_button.clicked.connect(self.calibrate)
-        self.clicker_button.clicked.connect(self.clicker)
-        self.wand_button.clicked.connect(self.wand)
-
-        # Create horizontal layout and add buttons
-        h_box = QtWidgets.QHBoxLayout()
-        h_box.addWidget(self.dwarp_button)
-        h_box.addWidget(self.sync_button)
-        h_box.addWidget(self.patterns_button)
-        h_box.addWidget(self.calibrate_button)
-        h_box.addWidget(self.clicker_button)
-        h_box.addWidget(self.wand_button)
-
-        # Set layout and window title
-        self.setLayout(h_box)
-        self.setWindowTitle('PyQt GUI')
-
-    def dwarp(self):
-        print('dwarp called')
-        gui.dwarpGUI()
-
-    def sync(self):
-        print('sync called')
-        gui.syncGUI()
-
-    def patterns(self):
-        print('patterns called')
-        gui.patternsGUI()
-
-    def calibrate(self):
-        print('calibrate called')
-        gui.calibrateGUI()
-
-    def clicker(self):
-        print('clicker called')
-        self.cw = gui.ClickerGUI()
-        self.cw.show()
-
-    def wand(self):
-        print('wand called')
-        gui.WandGUI()
-
-# Run the application
-app = QtWidgets.QApplication(sys.argv)
-window = Window()
-window.show()
-app.exec_()
+if __name__ == '__main__':
+    Argus()

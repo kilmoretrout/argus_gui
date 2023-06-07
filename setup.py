@@ -24,7 +24,8 @@ setup(
         "argus >= 0.0.6",
         "pykalman",
         "future >= 0.16.0",
-        "PyYAML >= 5.0",		
+        "PyYAML >= 5.0",
+        "pyside6 >= 6.4"	
         ],
     dependency_links=[
         #'http://opencv.org/downloads.html',
