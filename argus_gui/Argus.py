@@ -5,6 +5,7 @@ import shutil
 import subprocess
 import cv2
 import numpy as np
+import pandas as pd
 import sys
 import yaml
 import string
@@ -530,29 +531,32 @@ class MainWindow(QtWidgets.QMainWindow):
             if file.endswith(".csv"):
                 self.calibFiles.append(file)
 
-        self.modes = list()
-        self.models = list()
+        # self.modes = list()
+        self.models = {}
 
         for file in self.calibFiles:
-            ifile = open(self.calibFolder + file)
             if file.split('.')[0] != '':
-                self.models.append(file.split('.')[0])
+                mod = file.split('.')[0]
+                self.models[mod] = {}
+            ifile = open(self.calibFolder + file)
             line = ifile.readline()
-            mods = list()
-            while line != '':
-                line = ifile.readline().split(',')[0]
-                if line != '':
-                    mods.append(line)
-            if len(mods) != 0:
-                self.modes.append(mods)
-            ifile.close()
-
+            while line != ['']:
+                line = ifile.readline().split(',')
+                mode = line[0]
+                vals = line[1:]
+                self.models[mod][mode] = vals
+            
+            # modesdf = pd.read_csv(ifile, index_col=0)
+            # for mode in modesdf.index:
+            #     self.models[mod][mode] = modesdf.loc[mode, :].tolist()
         dwarp_model_label = QtWidgets.QLabel("Camera model:")
         self.dwarp_models = QtWidgets.QComboBox()
-        self.dwarp_models.addItems(self.models)
+        for key in self.models.keys():
+            self.dwarp_models.addItem(key)
+        self.dwarp_models.currentIndexChanged.connect(self.updateCam)
         dwarp_mode_label = QtWidgets.QLabel("Shooting Mode:")
         self.dwarp_modes = QtWidgets.QComboBox()
-        self.dwarp_modes.addItems(self.modes)
+        self.dwarp_modes.currentIndexChanged.connect(self.calibParse)
         dwarp_fl_label = QtWidgets.QLabel("Focal length (mm)")
         self.dwarp_fl = QtWidgets.QLineEdit()
         self.dwarp_fl.setValidator(QtGui.QDoubleValidator())
@@ -624,16 +628,19 @@ class MainWindow(QtWidgets.QMainWindow):
         dwarp_qual_label = QtWidgets.QLabel("Compression quality level:")
         self.dwarp_qual = QtWidgets.QSpinBox()
         self.dwarp_qual.setValue(12)
+        self.dwarp_qual.setRange(0, 63)
         dwarp_int_label = QtWidgets.QLabel("Full frame interval")
         self.dwarp_int = QtWidgets.QSpinBox()
         self.dwarp_int.setValue(25)
         self.dwarp_crop = QtWidgets.QCheckBox("Crop video to undistorted region")
+        self.dwarp_copy = QtWidgets.QCheckBox("Copy video and audio codec before undistortion")
         mov_layout = QtWidgets.QGridLayout()
         mov_layout.addWidget(dwarp_qual_label, 0, 0)
         mov_layout.addWidget(self.dwarp_qual, 0, 1)
         mov_layout.addWidget(dwarp_int_label, 1, 0)
         mov_layout.addWidget(self.dwarp_int, 1, 1)
         mov_layout.addWidget(self.dwarp_crop, 2, 0, 1, 2)
+        mov_layout.addWidget(self.dwarp_copy, 3, 0, 1, 2)
         mov_box.setLayout(mov_layout)
 
         layout = QtWidgets.QGridLayout()
@@ -653,6 +660,7 @@ class MainWindow(QtWidgets.QMainWindow):
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
+        self.updateCam()
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')), "Dwarp")
     
     ## General Functions
@@ -1029,7 +1037,7 @@ class MainWindow(QtWidgets.QMainWindow):
         for k in range(len(files)):
             out.append(self.cached[files[k]])
 
-        logBool = self.sync_log
+        logBool = self.sync_log.isChecked()
 
         # check for properly named output file (if it exists) & fix it if appropriate
         of = self.sync_onam.text()
@@ -1047,7 +1055,7 @@ class MainWindow(QtWidgets.QMainWindow):
         args = [file_str, '--tmp', self.tmps[0], '--start', self.start_crop.text(), '--end', self.end_crop.text(), '--ofile',
                 self.sync_onam.text(), '--out', out_str]
 
-        if self.crop:
+        if self.crop.isChecked():
             args = args + ['--crop']
         cmd = cmd + args
         self.go(cmd, logBool)
@@ -1097,19 +1105,19 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.wand_refs.text(), '--reference_type', self.wand_reftype.currentText(), '--recording_frequency', self.wand_freq.text(), 
                 '--tmp', tmp]
 
-        if self.wand_log:
+        if self.wand_log.isChecked():
             write_bool = True
 
-        if self.wand_display:
+        if self.wand_display.isChecked():
             args = args + ['--graph']
 
-        if self.wand_outliers:
+        if self.wand_outliers.isChecked():
             args = args + ['--outliers']
 
-        if self.wand_outputProf:
+        if self.wand_outputProf.isChecked():
             args = args + ['--output_camera_profiles']
 
-        if self.wand_chooseRef:
+        if self.wand_chooseRef.isChecked():
             args = args + ['--choose_reference']
 
         cmd = cmd + args
@@ -1130,13 +1138,13 @@ class MainWindow(QtWidgets.QMainWindow):
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-patterns')]
         writeBool = False
 
-        if self.patt_log:
+        if self.patt_log.isChecked():
             writeBool = True
         args = [self.patt_file.text(), self.patt_onam.text(), '--rows', self.patt_rows.text(), '--cols', self.patt_cols.text(), '--spacing',
                 self.patt_space.text(), '--start', self.patt_start.text(), '--stop', self.patt_end.text()]
-        if self.patt_dots:
+        if self.patt_dots.isChecked():
             args = args + ['--dots']
-        if self.patt_display:
+        if self.patt_display.isChecked():
             args = args + ['--display']
         cmd = cmd + args
 
@@ -1181,10 +1189,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
         if self.cal_dist_model.currentText() == "Omnidirectional model":
             args = args + ['--omnidirectional']
-        if self.cal_log:
+        if self.cal_log.isChecked():
             writeBool = True
 
-        if self.cal_inv:
+        if self.cal_inv.isChecked():
             args = args + ['--inverted']
 
         cmd = cmd + args
@@ -1192,8 +1200,149 @@ class MainWindow(QtWidgets.QMainWindow):
         self.go(cmd, writeBool)
 
     #Dwarp
+    def disableEntries(self):
+        self.dwarp_crop.setChecked(False)
+        self.dwarp_crop.setCheckable(False)
+        self.dwarp_fl.setEnabled(False)
+        self.dwarp_cx.setEnabled(False)
+        self.dwarp_cy.setEnabled(False)
+        self.dwarp_k1.setEnabled(False)
+        self.dwarp_k2.setEnabled(False)
+        self.dwarp_k3.setEnabled(False)
+        self.dwarp_t1.setEnabled(False)
+        self.dwarp_t2.setEnabled(False)
+        self.dwarp_xi.setEnabled(False)
+
+    def enableEntries(self):
+        self.dwarp_crop.setChecked(True)
+        self.dwarp_crop.setCheckable(True)
+        self.dwarp_fl.setEnabled(True)
+        self.dwarp_cx.setEnabled(True)
+        self.dwarp_cy.setEnabled(True)
+        self.dwarp_k1.setEnabled(True)
+        self.dwarp_k2.setEnabled(True)
+        self.dwarp_k3.setEnabled(True)
+        self.dwarp_t1.setEnabled(True)
+        self.dwarp_t2.setEnabled(True)
+        self.dwarp_xi.setEnabled(True)
+
+    def updateCam(self):
+        self.dwarp_modes.clear()
+        model = self.dwarp_models.currentText()
+        for key in self.models[model].keys():
+            self.dwarp_modes.addItem(key)
+        self.calibParse()
+
+    # Define function for filling the entry fields for the undistortion coefficients and other relevant numbers
+    def calibParse(self):
+        model = self.dwarp_models.currentText()
+        mode = self.dwarp_modes.currentText()
+        vals = self.models[model][mode]
+        if '(Fisheye)' in mode:
+            # no entries for Scaramuzzas Fisheye
+            self.disableEntries()
+        elif '(CMei)' in mode:
+            # enable everythign except k3
+            self.enableEntries()
+            self.dwarp_k1.setText(vals[6])
+            self.dwarp_k2.setText(vals[7])
+            self.dwarp_t1.setText(vals[8])
+            self.dwarp_t2.setText(vals[9])
+            self.dwarp_width = int(vals[1])
+            self.dwarp_height = int(vals[2])
+            self.dwarp_xi.setText(vals[10])
+            self.dwarp_k3.setText('0.0')
+            self.dwarp_k3.setEnabled(False)
+            self.dwarp_fl.setText(vals[0])
+            self.dwarp_cx.setText(vals[3])
+            self.dwarp_cy.setText(vals[4])
+        else:
+            self.enableEntries()
+            self.dwarp_k1.setText(vals[6])
+            self.dwarp_k2.setText(vals[7])
+            self.dwarp_t1.setText(vals[8])
+            self.dwarp_t2.setText(vals[9])
+            self.dwarp_width = int(vals[1])
+            self.dwarp_height = int(vals[2])
+            self.dwarp_xi.setText('1.0')
+            self.dwarp_xi.setEnabled(False)
+            self.dwarp_k3.setText('0.0')
+            self.dwarp_fl.setText(vals[0])
+            self.dwarp_cx.setText(vals[3])
+            self.dwarp_cy.setText(vals[4])
+
+    def getCoefficients(self):
+        try:
+            if not '(CMei)' in self.dwarp_modes.currentText:
+                co = [self.dwarp_fl.text(), self.dwarp_cx.text(), self.dwarp_cy.text(), self.dwarp_k1.text(), self.dwarp_k2.text(), self.dwarp_t1.text(),
+                      self.dwarp_t2.text(), self.dwarp_k3.text()]
+                ret = ','.join(co)
+                return ret
+            else:
+                co = [self.dwarp_fl.text(), str(self.width), str(self.height), self.dwarp_cx.text(), self.dwarp_cy.text(), self.dwarp_k1.text(),
+                      self.dwarp_k2.text(), self.dwarp_t1.text(), self.dwarp_t2.text(), self.dwarp_xi.text()]
+                ret = ','.join(co)
+                return ret
+        except:
+            QtWidgets.QMessageBox.warning(None, 'Error', 'Undistortion coefficients must all be floats')
+            return
+        
+    def omniParse(self):
+        return ','.join(self.models[self.dwarp_models.currentText()][self.dwarp_modes.currentText()])
+
     def dwarp_go(self):
-        print("dwarp go pressed")
+        of = self.dwarp_onam.text()
+        # check for properly named output file (if it exists) & fix it if appropriate
+        if of:
+            ofs = of.split('.')
+            if ofs[-1].lower() != 'mp4':
+                of = of + '.mp4'
+                self.dwarp_onam.set(of)
+        
+        tmpName = ''
+        # Extra bools and a string for passing temp dir, write option and display option to the undistorter object
+        if self.getCoefficients():
+            cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-dwarp')]
+
+            # build basic command line arguments
+            args = [self.dwarp_file.text(), '--frameint', self.dwarp_int.text(), '--crf', self.dwarp_qual.text()]
+
+            if self.dwarp_opts_wd.isChecked() or self.dwarp_opts_wo.isChecked():
+                args = args + ['--ofile', self.dwarp_onam.text()]
+                tmpName = tempfile.mkdtemp()
+                args = args + ['--write', '--tmp', tmpName]
+
+            if '(Fisheye)' in self.sModeStr.get():  # assume it is not a fisheye calibration unless it says that it is
+                omni = self.omniParse()
+                args = args + ['--omni', omni]
+            else:
+                omni = ''
+                args = args + ['--coefficients', self.getCoefficients()]
+
+            if self.dwarp_opts_wd.isChecked() or self.dwarp_opts_do.isChecked():
+                args = args + ['--disp']
+
+            if self.dwarp_crop.isChecked():
+                args = args + ['--crop']
+
+            if self.dwarp_copy.isChecked():
+                args = args + ['--copy']
+
+            if '(CMei)' in self.dwarp_modes.currentText():
+                args = args + ['--cmei']
+
+            cmd = cmd + args
+        else:
+            return
+
+        if self.dwarp_log.isChecked():
+            logBool = True
+        else:
+            logBool = False
+
+        self.go(cmd, logBool)
+        
+        
     # main command caller used by all but clicker
     def go(self, cmd, wlog=False, mode='DEBUG'):
         cmd = [str(wlog), ''] + cmd
