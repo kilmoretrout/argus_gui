@@ -7,7 +7,18 @@ setup(
     name='argus_gui',
     version='2.1.5',
     packages=['argus_gui', 'argus_gui.resources'],
-    scripts=['argus_gui/resources/scripts/argus-dwarp', 'argus_gui/resources/scripts/argus-click', 'argus_gui/resources/scripts/Argus', 'argus_gui/resources/scripts/Argus_win.py', 'argus_gui/resources/scripts/argus-sync', 'argus_gui/resources/scripts/argus-patterns', 'argus_gui/resources/scripts/argus-calibrate', 'argus_gui/resources/scripts/argus-log', 'argus_gui/resources/scripts/argus-wand', 'argus_gui/resources/scripts/argus-show'],
+    scripts=[
+        'argus_gui/resources/scripts/argus-dwarp', 
+        'argus_gui/resources/scripts/argus-click', 
+        'argus_gui/resources/scripts/Argus', 
+        #'argus_gui/Argus.py',
+        'argus_gui/resources/scripts/Argus_win.py', 
+        'argus_gui/resources/scripts/argus-sync', 
+        'argus_gui/resources/scripts/argus-patterns', 
+        'argus_gui/resources/scripts/argus-calibrate', 
+        'argus_gui/resources/scripts/argus-log', 
+        'argus_gui/resources/scripts/argus-wand', 
+        'argus_gui/resources/scripts/argus-show'],
     # dependencies
     install_requires=[
         "numpy >= 1.9.1",

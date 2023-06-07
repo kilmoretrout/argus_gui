@@ -28,5 +28,6 @@ from .undistort import *
 #from clickerWindow import *
 from .frameFinderPyglet import *
 #from .gui import *
+from .Argus import *
 
 from . import resources

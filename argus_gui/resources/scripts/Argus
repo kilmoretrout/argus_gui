@@ -4,13 +4,11 @@
 # Author: Dylan Ray
 # rebuilt by Brandon E. Jackson 20230601
 
-import os
-import pkg_resources
-import sys
-import pkg_resources
-from argus_gui.resources import Argus
-
-RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
+from PySide6 import QtGui, QtWidgets, QtCore
+from argus_gui import Argus
 
 if __name__ == '__main__':
-    Argus()
+    app = QtWidgets.QApplication()
+    window = Argus.MainWindow()
+    window.show()
+    app.exec_()
