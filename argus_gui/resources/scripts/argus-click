@@ -82,16 +82,16 @@ class SaveFilePopup(QtWidgets.QWidget):
         super().__init__()
         self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt)
 
-class SleepyWindow(object):
-    """# Ghostly, or sleepy window, helps Mac OS oddities
-    """
+# class SleepyWindow(object):
+#     """# Ghostly, or sleepy window, helps Mac OS oddities
+#     """
 
-    def __init__(self, master):
-        top = self.top = Toplevel(master)
-        top.withdraw()
+#     def __init__(self, master):
+#         top = self.top = Toplevel(master)
+#         top.withdraw()
 
-    def cleanup(self):
-        self.top.destroy()
+#     def cleanup(self):
+#         self.top.destroy()
 
 def load_camera(filename):
     global camera_profile
@@ -1829,7 +1829,7 @@ class ClickerWindow(pyglet.window.Window):
             app = QtWidgets.QApplication.instance()
             if app is None:
                 app = QtWidgets.QApplication([])
-            w = YesNoPopup(f"Clear all tracks for camera {actual_camera_number}. Are you sure?")
+            w = YesNoPopup(f"Clear all tracks for camera {self.actual_camera_number}. Are you sure?")
             if w.exec_() == QtWidgets.QDialog.Accepted:
                 if w.reply == 'Yes':
                     self.points = dict()
