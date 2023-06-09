@@ -343,13 +343,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.patt_dots = QtWidgets.QRadioButton("Dots")
         self.patt_dots.setChecked(True)
         self.patt_chess = QtWidgets.QRadioButton("Chess board")
-        self.patt_flip = QtWidgets.QCheckBox("Inverse dimensions")
         set_layout = QtWidgets.QGridLayout()
         set_layout.addWidget(self.patt_display, 0, 0)
         set_layout.addWidget(self.patt_type_label, 1, 0)
         set_layout.addWidget(self.patt_dots, 1, 1)
         set_layout.addWidget(self.patt_chess, 1, 2)
-        set_layout.addWidget(self.patt_flip, 2, 0)
 
         #settings box
         sett_box = QtWidgets.QGroupBox("Settings")
@@ -471,30 +469,26 @@ class MainWindow(QtWidgets.QMainWindow):
         opts_layout.addWidget(self.cal_replicates, 0, 1)
         opts_layout.addWidget(self.cal_patterns_label, 1, 0)
         opts_layout.addWidget(self.cal_patterns, 1, 1)
-        opts_layout.addWidget(self.cal_inv, 2, 0)
         opts_layout.addWidget(self.cal_dist_label, 3, 0)
         opts_layout.addWidget(self.cal_dist_model, 3, 1)
         opts_layout.addWidget(self.cal_dist_option, 3, 2)
 
         options_box.setLayout(opts_layout)
 
-
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.cal_file_button, 1, 0)
         layout.addWidget(self.cal_file, 1, 1, 1, 3)
-        layout.addWidget(options_box, 2, 0, 3, 5)
-        layout.addWidget(self.cal_onam_label, 3, 0)
-        layout.addWidget(self.cal_onam_button, 4, 0)
-        layout.addWidget(self.cal_onam, 4, 1, 1, 3)
-        layout.addWidget(self.cal_log, 5, 0)
-        layout.addWidget(self.cal_go_button, 6, 0)
-        layout.addWidget(self.cal_quit_button, 7, 0)
-        layout.addWidget(self.cal_about_button, 7, 5)
-
-
+        layout.addWidget(self.cal_inv, 2, 0)
+        layout.addWidget(options_box, 3, 0, 3, 5)
+        layout.addWidget(self.cal_onam_label, 4, 0)
+        layout.addWidget(self.cal_onam_button, 5, 0)
+        layout.addWidget(self.cal_onam, 5, 1, 1, 3)
+        layout.addWidget(self.cal_log, 6, 0)
+        layout.addWidget(self.cal_go_button, 7, 0)
+        layout.addWidget(self.cal_quit_button, 8, 0)
+        layout.addWidget(self.cal_about_button, 9, 5)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
-
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/calculator-8x.gif')), "Calibrate")
 
     def add_dwarp_tab(self):
@@ -544,7 +538,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 line = ifile.readline().split(',')
                 mode = line[0]
                 vals = line[1:]
-                self.models[mod][mode] = vals
+                if mode != '':
+                    self.models[mod][mode] = vals
             
             # modesdf = pd.read_csv(ifile, index_col=0)
             # for mode in modesdf.index:
@@ -758,6 +753,7 @@ class MainWindow(QtWidgets.QMainWindow):
             title = "Select Movie File"
             filter = 'All files (*)'
             target = self.sync_file_list
+            onam = self.sync_onam
 
         if current_tab_name == "Wand":
             button = self.sender()
@@ -766,6 +762,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 title = "Select paired points file"
                 filter = "Wand points file (*xypts.csv);;All files (*)"
                 target = self.ppts
+                onam = self.wand_onam
             # unpaired
             if button == self.uppts_button:
                 title = "Select unpaired points file"
@@ -785,14 +782,17 @@ class MainWindow(QtWidgets.QMainWindow):
             title = "Select pattern video"
             filter = "All files (*)"
             target = self.patt_file
+            onam = self.patt_onam
         if current_tab_name == "Calibrate":
             title = "Select detected patterns pickle"
             filter = "pickle (*.pkl)"
             target = self.cal_file
+            onam = self.cal_onam
         if current_tab_name == "Dwarp":
             title = "Select movie file to dewarp"
             filter = "All files (*)"
             target = self.dwarp_file
+            onam = self.dwarp_onam
         # Create a file dialog with the specified title and filter
         file_dialog = QtWidgets.QFileDialog(self)
         file_dialog.setWindowTitle(title)
@@ -832,6 +832,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     print(f'adding {file_name}')
                     self.sync_file_list.addItem(file_name)
                     self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
+                    onam.setText(target.itemFromIndex(0).split('.')[0] + "_offsets.csv")
                 else:
                     QtWidgets.QMessageBox.warning(None,
                         "Error",
@@ -839,8 +840,15 @@ class MainWindow(QtWidgets.QMainWindow):
                     )
 
             # Wand
-            if current_tab_name in ["Wand", "Calibrate", "Dwarp"]:
+            if current_tab_name == "Wand":
                 target.setText(file_name)
+                onam.setText(self.ppts.text().split('.')[0] + '_cal')
+            if current_tab_name == "Calibrate":
+                target.setText(file_name)
+                onam.setText(file_name.split('.')[0] + ".csv")
+            if current_tab_name == "Dwarp":
+                target.setText(file_name)
+                onam.setText(file_name.split('.')[0] + "_dwarped." + file_name.split('.')[1])
 
             # Pattern
             if current_tab_name == "Patterns":
@@ -850,6 +858,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))
                     self.patt_start.setText('0.0')
                     self.patt_end.setText(str(dur))
+                    self.patt_onam.setText(file_name.split('.')[0] + "_patterns.pkl")
                 except:
                     QtWidgets.QMessageBox.warning(None,
                         "Error",
@@ -1173,7 +1182,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Number of samples and replicates must both be integers"
             )
             return
-        if not self.cal_file.text():
+        if not self.cal_onam.text():
             self.cal_onam.setText(self.cal_file.text()[:-3] + 'csv')
         if self.cal_onam.text().split('.')[-1].lower != 'csv':
             self.cal_onam.setText(self.cal_onam.text() + '.csv')
@@ -1231,13 +1240,19 @@ class MainWindow(QtWidgets.QMainWindow):
         model = self.dwarp_models.currentText()
         for key in self.models[model].keys():
             self.dwarp_modes.addItem(key)
-        self.calibParse()
+            self.dwarp_modes.setCurrentIndex(0)
+        # self.calibParse()
 
     # Define function for filling the entry fields for the undistortion coefficients and other relevant numbers
     def calibParse(self):
         model = self.dwarp_models.currentText()
         mode = self.dwarp_modes.currentText()
+        if mode == '':
+            self.dwarp_modes.setCurrentIndex(1)
+            mode = self.dwarp_modes.currentText()
+        print(f"selected model: {model} and mode {mode}")
         vals = self.models[model][mode]
+        print(f"vals: {vals}")
         if '(Fisheye)' in mode:
             # no entries for Scaramuzzas Fisheye
             self.disableEntries()
@@ -1266,7 +1281,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.dwarp_height = int(vals[2])
             self.dwarp_xi.setText('1.0')
             self.dwarp_xi.setEnabled(False)
-            self.dwarp_k3.setText('0.0')
+            self.dwarp_k3.setText(vals[10])
             self.dwarp_fl.setText(vals[0])
             self.dwarp_cx.setText(vals[3])
             self.dwarp_cy.setText(vals[4])
