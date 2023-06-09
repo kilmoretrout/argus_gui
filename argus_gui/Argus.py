@@ -546,8 +546,7 @@ class MainWindow(QtWidgets.QMainWindow):
             #     self.models[mod][mode] = modesdf.loc[mode, :].tolist()
         dwarp_model_label = QtWidgets.QLabel("Camera model:")
         self.dwarp_models = QtWidgets.QComboBox()
-        for key in self.models.keys():
-            self.dwarp_models.addItem(key)
+        self.dwarp_models.addItems(list(self.models.keys()))
         self.dwarp_models.currentIndexChanged.connect(self.updateCam)
         dwarp_mode_label = QtWidgets.QLabel("Shooting Mode:")
         self.dwarp_modes = QtWidgets.QComboBox()
@@ -1238,18 +1237,14 @@ class MainWindow(QtWidgets.QMainWindow):
     def updateCam(self):
         self.dwarp_modes.clear()
         model = self.dwarp_models.currentText()
-        for key in self.models[model].keys():
-            self.dwarp_modes.addItem(key)
-            self.dwarp_modes.setCurrentIndex(0)
-        # self.calibParse()
+        self.dwarp_modes.addItems(list(self.models[model].keys()))
 
     # Define function for filling the entry fields for the undistortion coefficients and other relevant numbers
     def calibParse(self):
         model = self.dwarp_models.currentText()
         mode = self.dwarp_modes.currentText()
-        if mode == '':
-            self.dwarp_modes.setCurrentIndex(1)
-            mode = self.dwarp_modes.currentText()
+        if len(mode) == 0:
+            return
         print(f"selected model: {model} and mode {mode}")
         vals = self.models[model][mode]
         print(f"vals: {vals}")
@@ -1288,7 +1283,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def getCoefficients(self):
         try:
-            if not '(CMei)' in self.dwarp_modes.currentText:
+            if not '(CMei)' in self.dwarp_modes.currentText():
                 co = [self.dwarp_fl.text(), self.dwarp_cx.text(), self.dwarp_cy.text(), self.dwarp_k1.text(), self.dwarp_k2.text(), self.dwarp_t1.text(),
                       self.dwarp_t2.text(), self.dwarp_k3.text()]
                 ret = ','.join(co)
@@ -1327,7 +1322,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 tmpName = tempfile.mkdtemp()
                 args = args + ['--write', '--tmp', tmpName]
 
-            if '(Fisheye)' in self.sModeStr.get():  # assume it is not a fisheye calibration unless it says that it is
+            if '(Fisheye)' in self.dwarp_modes.currentText():  # assume it is not a fisheye calibration unless it says that it is
                 omni = self.omniParse()
                 args = args + ['--omni', omni]
             else:
