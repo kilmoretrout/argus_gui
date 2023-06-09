@@ -19,7 +19,10 @@ import itertools
 import math
 import pandas
 import argus.ocam
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
