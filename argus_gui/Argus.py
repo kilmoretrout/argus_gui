@@ -831,7 +831,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     print(f'adding {file_name}')
                     self.sync_file_list.addItem(file_name)
                     self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
-                    onam.setText(target.itemFromIndex(0).split('.')[0] + "_offsets.csv")
+                    onam.setText(target.item(0).text().split('.')[0] + "_offsets.csv")
                 else:
                     QtWidgets.QMessageBox.warning(None,
                         "Error",
@@ -1009,8 +1009,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 return 
         if self.crop.isChecked():
             try:
-                float(self.start_crop)
-                float(self.end_crop)
+                float(self.start_crop.text())
+                float(self.end_crop.text())
             except:
                 QtWidgets.QMessageBox.warning(None,
                 "Error",
@@ -1245,9 +1245,7 @@ class MainWindow(QtWidgets.QMainWindow):
         mode = self.dwarp_modes.currentText()
         if len(mode) == 0:
             return
-        print(f"selected model: {model} and mode {mode}")
         vals = self.models[model][mode]
-        print(f"vals: {vals}")
         if '(Fisheye)' in mode:
             # no entries for Scaramuzzas Fisheye
             self.disableEntries()
