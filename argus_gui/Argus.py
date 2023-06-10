@@ -272,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.wand_dist.addItem(key)
         #options boxes
         self.wand_outliers = QtWidgets.QCheckBox("Report on outliers")
-        self.wand_outliers.setToolTip()
+        self.wand_outliers.setToolTip("Process outlier point with option to remove")
         self.wand_chooseRef = QtWidgets.QCheckBox("Choose reference cameras")
         self.wand_outputProf = QtWidgets.QCheckBox("Output camera profiles")
         self.wand_display = QtWidgets.QCheckBox("Display results")
