@@ -67,7 +67,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.remove_button.setToolTip('Remove the selected movie from the list')
         self.remove_button.clicked.connect(self.delete)
         # Create resolution dropdown
-        self.resolution_label = QtWidgets.QLabel('Resolution: ')
+        self.resolution_label = QtWidgets.QLabel('Diplay Resolution: ')
         self.resolution_var = QtWidgets.QComboBox()
         self.resolution_var.addItems(['Half', 'Full'])
         # Create about button
@@ -76,15 +76,15 @@ class MainWindow(QtWidgets.QMainWindow):
         self.about_button.clicked.connect(self.about)
         # Create load config button
         self.load_button = QtWidgets.QPushButton('Load Config')
-        self.load_button.setToolTip('Load configuration from a file')
+        self.load_button.setToolTip('Load Clicker configuration from a file')
         self.load_button.clicked.connect(self.load)
         # Create go button
         self.go_button = QtWidgets.QPushButton('Go')
-        self.go_button.setToolTip('Start clicking through the movies')
+        self.go_button.setToolTip('Start digitizing through the movies')
         self.go_button.clicked.connect(self.clicker_go)
         # Create quit button
         self.quit_button = QtWidgets.QPushButton('Quit')
-        self.quit_button.setToolTip('Quit the program')
+        self.quit_button.setToolTip('Quit Argus')
         self.quit_button.clicked.connect(self.quit_all)
         # Layout
         layout = QtWidgets.QGridLayout()
@@ -127,7 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sync_go_button.clicked.connect(self.sync_go)
         # Create quit button
         self.sync_quit_button = QtWidgets.QPushButton('Quit')
-        self.sync_quit_button.setToolTip('Quit the program')
+        self.sync_quit_button.setToolTip('Quit Argus')
         self.sync_quit_button.clicked.connect(self.quit_all)
         # Create about button
         self.sync_about_button = QtWidgets.QPushButton('About')
@@ -139,6 +139,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Sync specific
         self.show_waves_button = QtWidgets.QPushButton("Show waves")
+        self.show_waves_button.setToolTip("Graph the audio tracks from the movies\nHelps better select a reasonable time range")
         self.show_waves_button.clicked.connect(self.sync_show)
         self.crop = QtWidgets.QCheckBox("Specify time range")
         self.crop.stateChanged.connect(self.updateCropOptions)
@@ -208,11 +209,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Create go button
         self.wand_go_button = QtWidgets.QPushButton('Go')
-        self.wand_go_button.setToolTip('wandhronize the videos')
+        self.wand_go_button.setToolTip('Calculate the DLT calibration')
         self.wand_go_button.clicked.connect(self.wand_go)
         # Create quit button
         self.wand_quit_button = QtWidgets.QPushButton('Quit')
-        self.wand_quit_button.setToolTip('Quit the program')
+        self.wand_quit_button.setToolTip('Quit Argus')
         self.wand_quit_button.clicked.connect(self.quit_all)
         # Create about button
         self.wand_about_button = QtWidgets.QPushButton('About')
@@ -255,7 +256,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wand_scale = QtWidgets.QLineEdit()
         self.wand_scale.setValidator(QtGui.QDoubleValidator())
         self.wand_scale.setText("1.0")
-        self.wand_scale.setToolTip("Enter the distance between paired points (wand length).\nxyz coordinate outputs will have the same units as used here.")
+        self.wand_scale.setToolTip("Enter the distance between paired points (wand length) as m")
 
         self.wand_instrics_label = QtWidgets.QLabel("Intriniscs: ")
         self.wand_intrinsics = QtWidgets.QComboBox()
@@ -268,6 +269,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.wand_dist.addItem(key)
         #options boxes
         self.wand_outliers = QtWidgets.QCheckBox("Report on outliers")
+        self.wand_outliers.setToolTip()
         self.wand_chooseRef = QtWidgets.QCheckBox("Choose reference cameras")
         self.wand_outputProf = QtWidgets.QCheckBox("Output camera profiles")
         self.wand_display = QtWidgets.QCheckBox("Display results")
@@ -322,23 +324,25 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the Patterns tab
         # Create go button
         self.patt_go_button = QtWidgets.QPushButton('Go')
-        self.patt_go_button.setToolTip('Detect patterns')
+        self.patt_go_button.setToolTip('Detect patterns in video')
         self.patt_go_button.clicked.connect(self.pattern_go)
         # Create quit button
         self.patt_quit_button = QtWidgets.QPushButton('Quit')
-        self.patt_quit_button.setToolTip('Quit the program')
+        self.patt_quit_button.setToolTip('Quit Argus')
         self.patt_quit_button.clicked.connect(self.quit_all)
         # Create about button
         self.patt_about_button = QtWidgets.QPushButton('About')
         self.patt_about_button.setToolTip('Show information about this software')
         self.patt_about_button.clicked.connect(self.about)
 
-        self.patt_file_button = QtWidgets.QPushButton('Select calibration video')
+        self.patt_file_button = QtWidgets.QPushButton('Select video of a pattern')
         self.patt_file_button.clicked.connect(self.add)
         self.patt_file = QtWidgets.QLineEdit()
+
         
         # settings options
         self.patt_display = QtWidgets.QCheckBox("Display pattern recognition in progress")
+        self.patt_display.setToolTip("Check to view pattern detection live - slows down processing")
         self.patt_type_label = QtWidgets.QLabel("Pattern type: ")
         self.patt_dots = QtWidgets.QRadioButton("Dots")
         self.patt_dots.setChecked(True)
@@ -357,13 +361,13 @@ class MainWindow(QtWidgets.QMainWindow):
         param_box = QtWidgets.QGroupBox("Parameters")
         #pattern box
         patt_box = QtWidgets.QGroupBox("Pattern")
-        self.patt_rows_label = QtWidgets.QLabel("Marks per row:")
+        self.patt_rows_label = QtWidgets.QLabel("Shapes per row:")
         self.patt_rows = QtWidgets.QSpinBox()
         self.patt_rows.setValue(12)
-        self.patt_cols_label = QtWidgets.QLabel("Marks per column:")
+        self.patt_cols_label = QtWidgets.QLabel("Shapes per column:")
         self.patt_cols = QtWidgets.QSpinBox()
         self.patt_cols.setValue(9)
-        self.patt_space_label = QtWidgets.QLabel("Spacing (m)")
+        self.patt_space_label = QtWidgets.QLabel("Spacing between shapes (m)")
         self.patt_space = QtWidgets.QLineEdit()
         self.patt_space.setValidator(QtGui.QDoubleValidator())
         patt_layout = QtWidgets.QGridLayout()
@@ -378,9 +382,11 @@ class MainWindow(QtWidgets.QMainWindow):
         mov_box = QtWidgets.QGroupBox("Movie")
         self.patt_start_label = QtWidgets.QLabel("Start time:")
         self.patt_start = QtWidgets.QLineEdit()
+        self.patt_start.setToolTip("Time in the video to begin pattern recognition.")
         self.patt_start.setValidator(QtGui.QDoubleValidator())
         self.patt_end_label = QtWidgets.QLabel("End time:")
         self.patt_end = QtWidgets.QLineEdit()
+        self.patt_end.setToolTip("Time in the video to stop pattern recognition.")
         self.patt_end.setValidator(QtGui.QDoubleValidator())
         mov_layout = QtWidgets.QGridLayout()
         mov_layout.addWidget(self.patt_start_label, 0, 0)
@@ -437,23 +443,27 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cal_go_button.clicked.connect(self.calibrate_go)
         # Create quit button
         self.cal_quit_button = QtWidgets.QPushButton('Quit')
-        self.cal_quit_button.setToolTip('Quit the program')
+        self.cal_quit_button.setToolTip('Quit Argus')
         self.cal_quit_button.clicked.connect(self.quit_all)
 
         self.cal_file_button = QtWidgets.QPushButton('Select patterns file')
         self.cal_file_button.clicked.connect(self.add)
+        self.cal_file_button.setToolTip('Find pickle ("pkl") file of detected patterns')
         self.cal_file = QtWidgets.QLineEdit()
         # Options Box
         self.cal_replicates_label = QtWidgets.QLabel("Number of replications: ")
         self.cal_replicates = QtWidgets.QSpinBox()
         self.cal_replicates.setRange(0, 2**31-1)
         self.cal_replicates.setValue(100)
+        self.cal_replicates.setToolTip('Number of times to sample the frames and solve the distortion equations')
         
         self.cal_patterns_label = QtWidgets.QLabel("Sample size (frames) per replicate: ")
         self.cal_patterns = QtWidgets.QSpinBox()
         self.cal_patterns.setValue(20)
         self.cal_patterns.setRange(0, 2**31-1)
+        self.cal_patterns.setToolTip('Number of frames to include in each replicate. \nHigher numbers may improve calibration but exponentially increase processing time')
         self.cal_inv = QtWidgets.QCheckBox("Invert grid coordinates")
+        self.cal_inv.setToolTip("If you're getting poor results, try checking this option")
         self.cal_dist_label = QtWidgets.QLabel("Distortion:")
         self.cal_dist_model = QtWidgets.QComboBox()
         self.cal_dist_model.addItems(["Pinhole model", "Omnidirectional model"])
@@ -554,30 +564,38 @@ class MainWindow(QtWidgets.QMainWindow):
         dwarp_fl_label = QtWidgets.QLabel("Focal length (mm)")
         self.dwarp_fl = QtWidgets.QLineEdit()
         self.dwarp_fl.setValidator(QtGui.QDoubleValidator())
-        dwarp_cx_label = QtWidgets.QLabel("Horizontal center")
+        dwarp_cx_label = QtWidgets.QLabel("Horizontal center: ")
         self.dwarp_cx = QtWidgets.QLineEdit()
         self.dwarp_cx.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_cx.setToolTip('x-coordinate of optical midpoint')
         dwarp_cy_label = QtWidgets.QLabel("Vertical center")
         self.dwarp_cy = QtWidgets.QLineEdit()
         self.dwarp_cy.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_cy.setToolTip('y-coordinate of optical midpoint')
         dwarp_k1_label = QtWidgets.QLabel("Radial distortion:  k1")
         self.dwarp_k1 = QtWidgets.QLineEdit()
         self.dwarp_k1.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_k1.setToolTip('2n order radial\ndistortion coefficient')
         dwarp_k2_label = QtWidgets.QLabel("k2")
         self.dwarp_k2 = QtWidgets.QLineEdit()
         self.dwarp_k2.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_k2.setToolTip('4th order radial\ndistortion coefficient')
         dwarp_k3_label = QtWidgets.QLabel("k3")
         self.dwarp_k3 = QtWidgets.QLineEdit()
         self.dwarp_k3.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_k3.setToolTip('6th order radial\ndistortion coefficient')
         dwarp_t1_label = QtWidgets.QLabel("t1")
         self.dwarp_t1 = QtWidgets.QLineEdit()
         self.dwarp_t1.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_t1.setToolTip('1st decentering\ndistortion coefficient')
         dwarp_t2_label = QtWidgets.QLabel("t2")
         self.dwarp_t2 = QtWidgets.QLineEdit()
         self.dwarp_t2.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_t2.setToolTip('2nd decentering\ndistortion coefficient')
         dwarp_xi_label = QtWidgets.QLabel("xi")
         self.dwarp_xi = QtWidgets.QLineEdit()
         self.dwarp_xi.setValidator(QtGui.QDoubleValidator())
+        self.dwarp_xi.setToolTip("Camera shape parameter for CMei's \n omnidirectional model")
         # lens parameters box
         param_box = QtWidgets.QGroupBox("Lens Parameters")
         param_layout = QtWidgets.QGridLayout()
@@ -619,13 +637,15 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # output movie options box
         mov_box = QtWidgets.QGroupBox("Output movie options")
-        dwarp_qual_label = QtWidgets.QLabel("Compression quality level:")
+        dwarp_qual_label = QtWidgets.QLabel("Compression level:")
         self.dwarp_qual = QtWidgets.QSpinBox()
         self.dwarp_qual.setValue(12)
         self.dwarp_qual.setRange(0, 63)
+        self.dwarp_qual.setToolTip('Must be an integer between 0 and 63.')
         dwarp_int_label = QtWidgets.QLabel("Full frame interval")
         self.dwarp_int = QtWidgets.QSpinBox()
         self.dwarp_int.setValue(25)
+        self.dwarp_int.setToolTip('Number of frames in between full frames.\nHigher numbers mean larger file size but faster seek')
         self.dwarp_crop = QtWidgets.QCheckBox("Crop video to undistorted region")
         self.dwarp_copy = QtWidgets.QCheckBox("Copy video and audio codec before undistortion")
         mov_layout = QtWidgets.QGridLayout()
