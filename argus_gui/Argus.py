@@ -24,6 +24,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Set the window icon
         self.setWindowIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
 
+        # Set the initial directory to the user's home directory
+        self.current_directory = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
+
         # Set up the user interface
         self.tab_widget = QtWidgets.QTabWidget()
         self.setCentralWidget(self.tab_widget)
@@ -813,8 +816,8 @@ class MainWindow(QtWidgets.QMainWindow):
             target = self.dwarp_file
             onam = self.dwarp_onam
         # Create a file dialog with the specified title and filter
-        file_dialog = QtWidgets.QFileDialog(self)
-        file_dialog.setWindowTitle(title)
+        file_dialog = QtWidgets.QFileDialog(self, title, self.current_directory)
+        file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
         file_dialog.setNameFilter(filter)
 
         # Show the file dialog and get the selected file path
@@ -822,6 +825,8 @@ class MainWindow(QtWidgets.QMainWindow):
             file_name = file_dialog.selectedFiles()[0]
 
         if file_name:
+            # Update the current directory
+            self.current_directory = QtCore.QFileInfo(file_name).absolutePath()
             # Clicker
             if current_tab_name == "Clicker":
                 if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
@@ -949,8 +954,10 @@ class MainWindow(QtWidgets.QMainWindow):
         # This function is used on several tabs, so get the tab name
         current_tab_name = self.tab_widget.tabText(self.tab_widget.currentIndex())
         filename, _ = QtWidgets.QFileDialog.getSaveFileName(self,
-         caption="Select save location")#, dir = init, filter = filt)
+         caption="Select save location", dir = self.current_directory)#, dir = init, filter = filt)
         if filename:
+            # Update the current directory
+            self.current_directory = QtCore.QFileInfo(filename).absolutePath()
             #for Sync
             if current_tab_name == "Sync":
                 self.sync_onam.setText(filename)
