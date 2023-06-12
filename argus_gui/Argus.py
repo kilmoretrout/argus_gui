@@ -373,6 +373,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.patt_space_label = QtWidgets.QLabel("Spacing between shapes (m)")
         self.patt_space = QtWidgets.QLineEdit()
         self.patt_space.setValidator(QtGui.QDoubleValidator())
+        self.patt_space.setText('0.02')
         patt_layout = QtWidgets.QGridLayout()
         patt_layout.addWidget(self.patt_rows_label, 0, 0)
         patt_layout.addWidget(self.patt_rows, 0, 1)
