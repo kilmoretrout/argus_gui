@@ -19,7 +19,10 @@ import itertools
 import math
 import pandas
 import argus.ocam
+import matplotlib
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
@@ -78,17 +81,6 @@ class SaveFilePopup(QtWidgets.QWidget):
     def __init__(self, win_title, init, filt):
         super().__init__()
         self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt)
-
-class SleepyWindow(object):
-    """# Ghostly, or sleepy window, helps Mac OS oddities
-    """
-
-    def __init__(self, master):
-        top = self.top = Toplevel(master)
-        top.withdraw()
-
-    def cleanup(self):
-        self.top.destroy()
 
 def load_camera(filename):
     global camera_profile
@@ -166,7 +158,7 @@ class OptionsPopupWindow(QtWidgets.QDialog):
     """# popup window for the options dialog
     """
 
-    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, rgb, parent=None):
+    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, rgb, radius, thickness, parent=None):
 
         super().__init__(parent)
         self.setWindowTitle("Options")
@@ -199,6 +191,13 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
         self.auto = QtWidgets.QCheckBox("Automatically advance frames")
         self.auto.setChecked(auto)
+
+        self.radius_label = QtWidgets.QLabel("Marker radius")
+        self.radius = QtWidgets.QSpinBox()
+        self.radius.setValue(radius)
+        self.thickness_label = QtWidgets.QLabel("Marker line thickness")
+        self.thickness = QtWidgets.QSpinBox()
+        self.thickness.setValue(thickness)
 
         self.bstrap = QtWidgets.QCheckBox("Save 95% CIs, spline filtering weights,\nand error tolerance")
         self.bstrap.setChecked(bstrap)
@@ -259,8 +258,12 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         layout.addWidget(self.disp, 6, 0)
         layout.addWidget(self.auto, 7, 0)
         layout.addWidget(self.sync, 8, 0)
+        layout.addWidget(self.radius_label, 8, 1)
+        layout.addWidget(self.radius, 8, 2)
         layout.addWidget(self.colorlabel, 9, 0)
         layout.addWidget(self.colorbox, 9, 0, QtCore.Qt.AlignRight)
+        layout.addWidget(self.thickness_label, 9, 1)
+        layout.addWidget(self.thickness, 9, 2)
         
         layout.addWidget(divider2, 10, 0, 1, 3)
         layout.addWidget(outlabel, 11, 0, 1, 3)
@@ -367,9 +370,10 @@ def draw_circle(coordinates, radius, color=(255, 255, 255), batch=None, strip=Fa
     :param strip: // TODO: Better documentation
     :return:
     """
+    global thickness
 
     (x, y) = coordinates
-    radius = radius
+    # radius = radius
 
     vertices = [float(x), float(y)]
 
@@ -378,6 +382,9 @@ def draw_circle(coordinates, radius, color=(255, 255, 255), batch=None, strip=Fa
         vertices.extend((x + math.sin(angle) * radius, y + math.cos(angle) * radius))
 
     pn = int(len(vertices) / 2)
+
+    # Set the point size
+    glPointSize(thickness) 
     list_of_vertices = batch.add(pn, GL_POINTS, None,
                                  ('v2f/static', vertices),
                                  ('c4B/static', color * pn)
@@ -419,6 +426,8 @@ rgb = True
 vx = 15
 vy = 15
 # vf = 30
+radius = 3
+thickness = 3
 
 dlt_filename = ''
 camera_filename = ''
@@ -577,14 +586,6 @@ class ClickerWindow(pyglet.window.Window):
 
         self.update_tracks()
 
-        # It's the strangest thing... (I'm assuming that this is the only way it will work on Darwin systems)
-        # if last and sys.platform == 'darwin':
-        #     root = Tk()
-        #     root.withdraw()
-        #     root.after(100, root.destroy)
-        #     w = SleepyWindow(root)
-        #     root.wait_window(w.top)
-
         self.init_gl()
 
         self.changed = False
@@ -599,12 +600,12 @@ class ClickerWindow(pyglet.window.Window):
         positions = self.points[track].A
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
-        radius = 2
+        # radius = 2
 
         if self.current_point_index - 1 in non_zeros:
             self.current_marker = draw_circle(
                 tuple(positions[self.current_point_index - 1]),
-                4,
+                radius + 4,
                 MARKER_COLOR,
                 self.track_batch
             )
@@ -668,7 +669,7 @@ class ClickerWindow(pyglet.window.Window):
 
     # called when the user changes tracks
     def change_track(self, old_track):
-        radius = 2
+        #radius = 2
 
         for k in range(len(self.drawn_points[old_track])):
             if self.drawn_points[old_track][k] is not None:
@@ -689,7 +690,7 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in nz:
-            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), 4, MARKER_COLOR,
+            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
                                               self.track_batch)
 
         for k in nz:
@@ -732,7 +733,7 @@ class ClickerWindow(pyglet.window.Window):
     # draw a new point
     def draw_new_point(self, x, y):
         track = current_track_global
-        radius = 2
+        # radius = 2
 
         new_point_index = self.current_point_index - 1
         old_point_index = self.current_point_index - 2
@@ -796,12 +797,13 @@ class ClickerWindow(pyglet.window.Window):
         if new_point_index in non_zero_points:
             self.current_marker = draw_circle(
                 tuple(positions[new_point_index]),
-                radius=4,
+                radius= radius + 4,
                 color=MARKER_COLOR,
                 batch=self.track_batch
             )
 
     def change_marker(self):
+        global radius
         self.update_tracks()
         track = current_track_global
 
@@ -813,7 +815,7 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in non_zero_points:
-            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), 4, MARKER_COLOR,
+            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
                                               self.track_batch)
 
     # delete a point
@@ -993,8 +995,8 @@ class ClickerWindow(pyglet.window.Window):
             # sys.stdout.flush()
             current_track_index = track_list_global.index(track)
             self.points[track] = load_data_global[:,
-                                 2 * current_track_index * no_cameras_global + 2 * self.original_index:
-                                 2 * current_track_index * no_cameras_global + 2 * self.original_index + 2]
+                                 2 * current_track_index * no_cameras_global + 4 * self.original_index:
+                                 2 * current_track_index * no_cameras_global + 4 * self.original_index + 4]
 
             if self.points[track].shape[0] > self.end:
                 matching = False
@@ -1507,6 +1509,8 @@ class ClickerWindow(pyglet.window.Window):
         global rgb
         global vx
         global vy
+        global radius
+        global thickness
 
         self.toggleBusy()
 
@@ -1515,7 +1519,7 @@ class ClickerWindow(pyglet.window.Window):
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication([])
-        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb)
+        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb, radius, thickness)
         if w.exec_() == QtWidgets.QDialog.Accepted:
             auto_advance = w.auto.isChecked()
             sync = w.sync.isChecked()
@@ -1523,6 +1527,8 @@ class ClickerWindow(pyglet.window.Window):
             bstrap = w.bstrap.isChecked()
             outputSparse = w.o_sparse
             rgb = w.rgb
+            radius = int(w.radius.text())
+            thickness = int(w.thickness.text())
 
             track_list_global = w.track_list
 
@@ -1826,7 +1832,7 @@ class ClickerWindow(pyglet.window.Window):
             app = QtWidgets.QApplication.instance()
             if app is None:
                 app = QtWidgets.QApplication([])
-            w = YesNoPopup(f"Clear all tracks for camera {actual_camera_number}. Are you sure?")
+            w = YesNoPopup(f"Clear all tracks for camera {self.actual_camera_number}. Are you sure?")
             if w.exec_() == QtWidgets.QDialog.Accepted:
                 if w.reply == 'Yes':
                     self.points = dict()
