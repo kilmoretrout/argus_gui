@@ -14,7 +14,6 @@ import scipy
 import scipy.io.wavfile
 import scipy.signal
 from moviepy.config import get_setting
-from six.moves import range
 from texttable import *
 
 

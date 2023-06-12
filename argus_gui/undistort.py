@@ -21,8 +21,6 @@ import numpy as np
 import pkg_resources
 from moviepy.config import get_setting
 from moviepy.editor import *
-from six.moves import map
-from six.moves import range
 from six.moves.tkinter import *
 
 from argus_gui import ArgusError

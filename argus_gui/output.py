@@ -2,8 +2,6 @@ from __future__ import absolute_import
 
 import numpy as np
 import pandas
-from six.moves import range
-
 
 class WandOutputter():
     # name - output tag and location

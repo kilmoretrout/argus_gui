@@ -6,8 +6,6 @@ from __future__ import print_function
 import os
 
 import pkg_resources
-from six.moves import input
-from six.moves import map
 
 cwd = os.getcwd()
 os.chdir(pkg_resources.resource_filename('argus_gui.resources', ''))
@@ -16,9 +14,6 @@ import sba
 
 os.chdir(cwd)
 
-# import multiTriangulator
-# import wandGrapher
-# import wandOutputter
 from .triangulate import *
 from .graphers import *
 import pandas

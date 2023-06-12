@@ -6,7 +6,6 @@ import numpy as np
 import scipy as sp
 from scipy import interpolate
 from argus.ocam import PointUndistorter, ocam_model
-from six.moves import range
 from tqdm import *
 
 

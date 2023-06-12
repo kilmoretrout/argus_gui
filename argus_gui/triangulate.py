@@ -6,7 +6,6 @@ import numpy as np
 import cv2
 import sba.quaternions as quaternions
 from .tools import ArgusError
-from six.moves import range
 
 
 # Gram-Schmidt column orthonormalization

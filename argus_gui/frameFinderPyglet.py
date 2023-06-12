@@ -12,7 +12,6 @@ from pykalman import KalmanFilter
 from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import fmin_tnc
 from scipy.signal import correlate2d
-from six.moves import range
 
 
 def acceptable(contour, llimit=0., blimit=720.):

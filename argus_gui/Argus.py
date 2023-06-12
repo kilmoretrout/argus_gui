@@ -869,9 +869,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 target.setText(file_name)
                 if button == self.ppts_button and onam.text() == '':
                     onam.setText(self.ppts.text().split('.')[0] + '_cal')
+
             if current_tab_name == "Calibrate":
                 target.setText(file_name)
                 onam.setText(file_name.split('.')[0] + ".csv")
+
             if current_tab_name == "Dwarp":
                 target.setText(file_name)
                 onam.setText(file_name.split('.')[0] + "_dwarped." + file_name.split('.')[1])
@@ -1210,9 +1212,10 @@ class MainWindow(QtWidgets.QMainWindow):
                 "Number of samples and replicates must both be integers"
             )
             return
-        if not self.cal_onam.text():
+        if self.cal_onam.text() == '':
             self.cal_onam.setText(self.cal_file.text()[:-3] + 'csv')
-        if self.cal_onam.text().split('.')[-1].lower != 'csv':
+        
+        if self.cal_onam.text().split('.')[-1].lower() != 'csv':
             self.cal_onam.setText(self.cal_onam.text() + '.csv')
 
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-calibrate')]
@@ -1330,7 +1333,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def dwarp_go(self):
         of = self.dwarp_onam.text()
         # check for properly named output file (if it exists) & fix it if appropriate
-        if of:
+        if of != '':
             ofs = of.split('.')
             if ofs[-1].lower() != 'mp4':
                 of = of + '.mp4'

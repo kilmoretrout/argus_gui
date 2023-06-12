@@ -13,8 +13,6 @@ import numpy as np
 import pandas
 from argus.ocam import PointUndistorter, ocam_model
 from scipy.sparse import lil_matrix
-from six.moves import map
-from six.moves import range
 
 import argus_gui
 
