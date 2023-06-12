@@ -1,7 +1,6 @@
 name: argus
 channels:
   - anaconda
-  - free
   - conda-forge
 dependencies:
   - python=3.10
