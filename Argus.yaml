@@ -20,7 +20,7 @@ dependencies:
     - imageio
     - imageio-ffmpeg
     - opencv-contrib-python
-    - pyglet
+    - pyglet<2
     - sba
     - git+https://github.com/kilmoretrout/argus_gui.git
     
