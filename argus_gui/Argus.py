@@ -866,7 +866,8 @@ class MainWindow(QtWidgets.QMainWindow):
             # Wand
             if current_tab_name == "Wand":
                 target.setText(file_name)
-                onam.setText(self.ppts.text().split('.')[0] + '_cal')
+                if button == self.ppts_button and onam.text() == '':
+                    onam.setText(self.ppts.text().split('.')[0] + '_cal')
             if current_tab_name == "Calibrate":
                 target.setText(file_name)
                 onam.setText(file_name.split('.')[0] + ".csv")
