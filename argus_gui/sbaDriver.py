@@ -13,15 +13,15 @@ os.chdir(pkg_resources.resource_filename('argus_gui.resources', ''))
 import sba
 
 os.chdir(cwd)
-
+from PySide6 import QtWidgets
 from .triangulate import *
 from .graphers import *
 import pandas
 from texttable import *
-import six.moves.tkinter_messagebox
-from six.moves.tkinter import *
+# import six.moves.tkinter_messagebox
+# from six.moves.tkinter import *
 import copy
-import six.moves.tkinter_filedialog
+# import six.moves.tkinter_filedialog
 # import matplotlib.backends.backend_tkagg as tkagg
 from scipy.sparse import lil_matrix
 import string
@@ -336,10 +336,11 @@ class sbaArgusDriver():
         if self.display:
             print('Graphing and writing output files...')
             sys.stdout.flush()
-            if self.report:
-                root = Tk()
+            # if self.report:
+                # root = Tk()
 
-        outliers, index = grapher.graph()
+        self.outliers, self.index = grapher.graph()
+        sys.stdout.flush()
         # outliers = sorted(outliers)
 
         nps = np.loadtxt(self.name + '-sba-profile.txt')
@@ -352,132 +353,151 @@ class sbaArgusDriver():
                 np.savetxt(self.name + '-camera-' + str(self.order[k] + 1) + '-profile.txt', np.asarray([l]),
                            fmt='%-1.5g')
 
-        def redo():
-            if self.display and self.report:
-                root.destroy()
-            self.pts = np.delete(self.pts, index, axis=0)
-
-            # print 'Index length: {0}'.format(len(index))
-
-            # a = 0
-            tmp = self.indices['paired']
-            # print 'Length of all paired indices: {0}'.format(len(tmp[0]) + len(tmp[1]))
-            if tmp is not None:
-                for k in range(len(outliers)):
-                    if '(set 1)' in outliers[k][2]:
-                        # print 'removed outlier'
-                        try:
-                            tmp[0].remove(outliers[k][0] - 1)
-                            # a += 1
-                            self.nppts -= 1
-                        except:
-                            pass
-                    elif '(set 2)' in outliers[k][2]:
-                        # print 'removed outlier'
-                        try:
-                            tmp[1].remove(outliers[k][0] - 1)
-                            # a += 1
-                            self.nppts -= 1
-                        except:
-                            pass
-
-            # print 'Number of paired indices removed: {0}'.format(a)
-            # print len(self.pts)
-            self.indices['paired'] = copy.copy(tmp)
-            # print len(self.indices['paired'][0]) + len(self.indices['paired'][0])
-
-            tmp = copy.copy(self.indices['unpaired'])
-            if tmp is not None:
-                for k in range(len(outliers)):
-                    if 'Unpaired' in outliers[k][2]:
-                        try:
-                            tmp[outliers[k][-1]].remove(outliers[k][0] - 1)
-                            self.nuppts -= 1
-                        except:
-                            pass
-
-            self.indices['unpaired'] = tmp
-
-            print('\nRunning again with outliers removed...')
-
-            self.fix()
-
-        def exitLoop():
-            if self.display and self.report:
-                root.destroy()
-            # sys.exit()
-
         if self.report:
-            if len(outliers) == 0:
-                root.withdraw()
-                six.moves.tkinter_messagebox.showwarning(
+            if len(self.outliers) == 0:
+                QtWidgets.QMessageBox.warning(None,
                     "No outliers",
                     "No outliers were found! Exiting..."
                 )
-                root.mainloop()
+                if self.outwindow.isVisible():
+                    self.outwindow.close()
             else:
-                table = Texttable()
-                table.header(['Frame', 'Undistorted Pixel Coordinate', 'Point Type', 'Error'])
-                for k in range(len(outliers)):
-                    if len(outliers[k]) == 4:
-                        table.add_row(outliers[k])
-                    else:
-                        table.add_row(outliers[k][:-1])
+                app = QtWidgets.QApplication.instance()
+                self.running = True
+                if app is None:
+                    self.running = False
+                    app = QtWidgets.QApplication(sys.argv)
+                self.outwindow = OutlierWindow(self, self.outliers) 
 
                 if self.display:
-                    root.resizable(width=FALSE, height=FALSE)
+                    if not self.outwindow.isVisible():
+                        # Show the window
+                        self.outwindow.show()
 
-                    root.wm_title("Argus - Outlier report")
-
-                    Label(root, text='Found ' + str(len(outliers)) + ' possible outliers:', font="-weight bold").grid(
-                        row=0, column=0, sticky=W, padx=10, pady=10)
-
-                    scrollbar = Scrollbar(root, width=20)
-                    log = Text(root, yscrollcommand=scrollbar.set, bg="white", fg="black")
-                    log.grid(row=1, column=0, padx=10, pady=5)
-                    scrollbar.grid(row=1, column=1, padx=5, pady=5, sticky=NS)
-
-                    scrollbar.configure(command=log.yview)
-
-                    # Label(root, text = 'Try again without these outliers?').grid(row = 2,
-                    # column = 0, padx = 10, pady = 10, sticky = W)
-
-                    yes = Button(root, text='Try Again', command=redo, padx=5, pady=5)
-                    yes.grid(row=2, column=0, padx=5, pady=10)
-
-                    no = Button(root, text='Happy with calibration', command=exitLoop, padx=5, pady=5)
-                    no.grid(row=2, column=0, padx=50, sticky=W)
-
-                    log.insert(END, table.draw())
-                    """
-                    f = mplfig.Figure(figsize=(5,4), dpi=100)
-                    a = f.add_subplot(111)
-
-                    x = np.zeros(len(outliers))
-                    y = np.zeros(len(outliers))
-
-                    for k in range(len(outliers)):
-                        x[k] = outliers[k][1][0]
-                        y[k] = outliers[k][1][1]
-
-                    a.plot(x, y, 'ro')
-
-                    canvas = tkagg.FigureCanvasTkAgg(f, master=root)
-                    canvas.show()
-                    canvas.get_tk_widget().grid(row = 1, column = 2, padx = 5, pady = 5)
-                    """
-                    root.mainloop()
+                        if not self.running:
+                            app.exec()      
+                    else:
+                        self.outwindow.outliers = self.outliers
+                        self.outwindow.updateTable()
+                    # log.insert(END, table.draw())
+                    # root.mainloop()
                 else:
-                    print('Found ' + str(len(outliers)) + ' possible outliers:')
-                    print(table.draw())
+                    print('Found ' + str(len(self.outliers)) + ' possible outliers:')
+                    # print(table.draw())
                     go_again = input('Try again without these outliers? (Y/n): ')
                     if go_again == 'y' or go_again == 'Y':
-                        redo()
+                        self.redo()
                     else:
-                        exitLoop()
+                        self.exitLoop()
         else:
-            exitLoop()
+            self.exitLoop()
 
+    def redo(self):
+        sys.stdout.flush()
+        # if self.display and self.report:
+        #     # Clear the contents of the window
+        #     for widget in outwindow.findChildren(QtWidgets.QWidget):
+        #         widget.deleteLater()
+        #     outwindow.close()
+            # root.destroy()
+        self.pts = np.delete(self.pts, self.index, axis=0)
+
+        # print 'Index length: {0}'.format(len(index))
+
+        # a = 0
+        tmp = self.indices['paired']
+        # print 'Length of all paired indices: {0}'.format(len(tmp[0]) + len(tmp[1]))
+        if tmp is not None:
+            for k in range(len(self.outliers)):
+                if '(set 1)' in self.outliers[k][2]:
+                    # print 'removed outlier'
+                    try:
+                        tmp[0].remove(self.outliers[k][0] - 1)
+                        # a += 1
+                        self.nppts -= 1
+                    except:
+                        pass
+                elif '(set 2)' in self.outliers[k][2]:
+                    # print 'removed outlier'
+                    try:
+                        tmp[1].remove(self.outliers[k][0] - 1)
+                        # a += 1
+                        self.nppts -= 1
+                    except:
+                        pass
+
+        # print 'Number of paired indices removed: {0}'.format(a)
+        # print len(self.pts)
+        self.indices['paired'] = copy.copy(tmp)
+        # print len(self.indices['paired'][0]) + len(self.indices['paired'][0])
+
+        tmp = copy.copy(self.indices['unpaired'])
+        if tmp is not None:
+            for k in range(len(self.outliers)):
+                if 'Unpaired' in self.outliers[k][2]:
+                    try:
+                        tmp[self.outliers[k][-1]].remove(self.outliers[k][0] - 1)
+                        self.nuppts -= 1
+                    except:
+                        pass
+
+        self.indices['unpaired'] = tmp
+
+        print('\nRunning again with outliers removed...')
+        sys.stdout.flush()
+        self.fix()
+    
+    def exitLoop(self):
+        if self.outwindow.isVisible():
+            self.outwindow.close()
+
+class OutlierWindow(QtWidgets.QWidget):
+    def __init__(self, my_app, outliers):
+        super().__init__()
+        self.my_app = my_app
+        self.outliers = outliers
+        # Create a window
+        self.setWindowTitle("Argus - Outlier Report")
+        self.resize(500, 500)
+        layout = QtWidgets.QVBoxLayout(self)
+
+        # Create a table widget and add it to the layout
+        self.table = QtWidgets.QTableWidget(1, 4)
+        # Set the column headers
+        self.table.setHorizontalHeaderLabels(['Frame', 'Undistorted Pixel Coordinate', 'Point Type', 'Error'])
+        layout.addWidget(self.table)
+        # Create a label and add it to the layout
+        self.label = QtWidgets.QLabel("")
+        self.label.setStyleSheet("font-weight: bold;")
+        layout.addWidget(self.label)
+
+        # Create two buttons and add them to the layout
+        try_again_button = QtWidgets.QPushButton("Remove these and try again")
+        try_again_button.clicked.connect(self.redo)
+        layout.addWidget(try_again_button)
+
+        im_happy_button = QtWidgets.QPushButton("I'm happy, don't remove outliers")
+        im_happy_button.clicked.connect(self.exitLoop)
+        layout.addWidget(im_happy_button)
+        self.updateTable()
+
+    def updateTable(self):
+        self.table.setRowCount(len(self.outliers))
+        for row, row_data in enumerate(self.outliers):
+            if len(row_data) > 4:
+                row_data = row_data[0:4]
+            row_data[1] = np.array2string(row_data[1], separator=', ')
+            items = [QtWidgets.QTableWidgetItem(str(cell)) for cell in row_data]
+
+            for column, item in enumerate(items):
+                self.table.setItem(row, column, item)
+        self.label.setText(f"Found {len(self.outliers)} possible outliers")
+
+    def exitLoop(self):
+        self.close()
+
+    def redo(self):
+        self.my_app.redo()
 
 # gets data from CSVs. Expects a header.
 def parseCSVs(csv):
