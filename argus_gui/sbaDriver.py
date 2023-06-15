@@ -486,8 +486,10 @@ class OutlierWindow(QtWidgets.QWidget):
         for row, row_data in enumerate(self.outliers):
             if len(row_data) > 4:
                 row_data = row_data[0:4]
-            row_data[1] = np.array2string(row_data[1], separator=', ')
-            items = [QtWidgets.QTableWidgetItem(str(cell)) for cell in row_data]
+            row_data[1] = np.array2string(row_data[1], separator=', ', formatter={'float_kind': lambda x: f"{x:.2f}"})
+            # format and convert to strings
+            items = [f"{x:.2f}" if isinstance(x, float) else str(x) for x in row_data]
+            items = [QtWidgets.QTableWidgetItem(str(cell)) for cell in items]
 
             for column, item in enumerate(items):
                 self.table.setItem(row, column, item)

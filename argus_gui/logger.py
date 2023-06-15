@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-logger.py - Takes a command, executes it, and displays its live stderr and stdout in a Tkinter window.
+logger.py - Takes a command, executes it, and displays its live stderr and stdout in a Qt window.
 Has options for writing output to txt, and can be told of any temproary directory that the command
 uses for proper cleanup.
 """
