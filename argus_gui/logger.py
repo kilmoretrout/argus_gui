@@ -104,7 +104,7 @@ class Logger(QtWidgets.QDialog):
         self.worker_thread = QtCore.QThread()
         self.worker.moveToThread(self.worker_thread)
         self.worker.output.connect(self.append_output)
-        self.worker.finished.connect(self.finished)
+        self.worker.finished.connect(self.guifinished)
         self.worker_thread.started.connect(self.worker.run)
         self.worker_thread.finished.connect(self.worker_thread.deleteLater)
         self.worker_thread.start()
@@ -130,7 +130,7 @@ class Logger(QtWidgets.QDialog):
             self.linecount += 1
 
 
-    def finished(self, returncode):
+    def guifinished(self, returncode):
         self.append_output(f"\nProcess finished with exit code {returncode}")
         self.cancel_button.setText("Done")
 
@@ -174,8 +174,3 @@ class Logger(QtWidgets.QDialog):
 
     def flush(self):
         pass
-
-    def finished(self, returncode):
-        if returncode is not None:
-            self.append_output(f"\nProcess finished with exit code {returncode}")
-            self.cancel_button.setText("Done")
