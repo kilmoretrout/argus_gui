@@ -52,17 +52,14 @@ class Worker(QtCore.QRunnable):
         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True)#, startupinfo=startupinfo)
 
 
-        while self.running:
+        while True:
             line = self.process.stdout.readline()
             if line == '' and self.process.poll() is not None:
-                # self.process.kill()
                 self.update_log('Process complete')
-                self.running = False
                 self.logfile.close()
                 break
             if line:
                 self.update_log(line.strip())
-                # self.log_display.appendPlainText(line.strip())
         
         self.signals.finished.emit()
 
@@ -87,15 +84,16 @@ class Worker(QtCore.QRunnable):
             if self.logfile:
                 text = "\n" + text
                 self.logfile.write(text.encode('utf-8'))
+
             # self.linecount += 1
             
-    def cancel(self):
-        self.running = False
-        if self.process:
-            self.process.kill()
-            self.update_log("Canceled process")
-            self.logfile.close()
-            self.process = None
+    # def cancel(self):
+    #     self.running = False
+    #     if self.process:
+    #         self.process.kill()
+    #         self.update_log("Canceled process")
+    #         self.logfile.close()
+    #         self.process = None
 
 class Logger(QtWidgets.QDialog):
     def __init__(self, cmd, tmp='', wLog=True, doneButton=True, parent=None):
@@ -126,7 +124,7 @@ class Logger(QtWidgets.QDialog):
 
         # Set the window titleand size
         self.setWindowTitle("Argus ouput")
-        self.resize(800, 600)
+        self.resize(600, 600)
 
         if wLog:
             self.fo = open("Log--" + time.strftime("%Y-%m-%d-%H-%M") + ".txt", "wb")
@@ -134,11 +132,13 @@ class Logger(QtWidgets.QDialog):
             self.fo = None
         self.linecount = 0
         self.show()
+        self.loop = QtCore.QEventLoop()
 
     @QtCore.Slot()
     def update_log(self):
         #start the thread
         self.worker = Worker(self.cmd, self.log, self.fo)
+        self.worker.signals.finished.connect(self.task_finished)
         QtCore.QThreadPool.globalInstance().start(self.worker)
 
     # def guifinished(self, returncode):
@@ -147,16 +147,23 @@ class Logger(QtWidgets.QDialog):
     @QtCore.Slot()
     def cancel(self):
         QtCore.QThreadPool.globalInstance().clear()
+        QtCore.QThreadPool.globalInstance().waitForDone()
+        QtWidgets.QApplication.processEvents()
         self.cancel_button.setText('Done')
         self.cancel_button.clicked.disconnect()
-        self.cancel_button.clicked.connect(self.close)
+        self.cancel_button.clicked.connect(self.done)
         
     @QtCore.Slot()
     def task_finished(self):
+        QtWidgets.QApplication.processEvents()
         self.cancel_button.setText('Done')
         self.cancel_button.clicked.disconnect()
-        self.cancel_button.clicked.connect(self.close)
+        self.cancel_button.clicked.connect(self.done)
     
+    @QtCore.Slot()
+    def done(self):
+        self.loop.quit()
+        
     def closeEvent(self, event):
         if self.tmp != '':
             if os.path.isdir(self.tmp):
@@ -168,4 +175,5 @@ class Logger(QtWidgets.QDialog):
             self.worker.cancel()
             self.worker.kill()
             self.worker_thread.wait()
-        super().closeEvent(event)
+            
+        # super().closeEvent(event)
