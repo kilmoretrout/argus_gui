@@ -197,17 +197,17 @@ class Undistorter(object):
 
         if audio is not None:
             cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', \
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), '-pix_fmt', 'rgb24', \
+                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), \
                    '-r', str(self.fps), '-i', '-', '-i', audio, \
                    '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile', 'baseline', '-threads', \
+                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile:v', 'baseline', '-threads', \
                    '0', '-pix_fmt', 'yuv420p', str(ofnam)]
         else:
             cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', \
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), '-pix_fmt', 'rgb24', \
+                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), \
                    '-r', str(self.fps), '-i', '-', '-an', \
                    '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile', 'baseline', '-threads', \
+                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile:v', 'baseline', '-threads', \
                    '0', '-pix_fmt', 'yuv420p', str(ofnam)]
 
         if write:
@@ -235,7 +235,7 @@ class Undistorter(object):
 
         print('Beginning to undistort images and compile with FFMPEG...')
         sys.stdout.flush()
-
+        print(cmd)
         p = Popen(cmd, stdin=PIPE)
 
         if display:
