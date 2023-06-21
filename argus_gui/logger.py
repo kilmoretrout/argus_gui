@@ -25,41 +25,79 @@ from PySide6 import QtGui, QtWidgets, QtCore
 
 # Takes a command and displays its stdout and stderr as its running.  Used by most of the Argus programs to display progress.
 
-class Worker(QtCore.QThread):
+class WorkerSignals(QtCore.QObject):
+    finished = QtCore.Signal()
+
+class Worker(QtCore.QRunnable):
     """
     run a command in its own thread
     """
-    output = QtCore.Signal(str)
-    finished = QtCore.Signal(int)
 
-    def __init__(self, cmd):
+    def __init__(self, cmd, log_display, logfile):
         super().__init__()
         self.cmd = cmd
-        self.process = None
+        self.cmd = cmd
+        self.log_display = log_display
+        self.logfile = logfile
         self.running = True
+        self.signals = WorkerSignals()
 
     def run(self):
-        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        startupinfo = None
+        if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+            # Set up the startupinfo to suppress the console window
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # Start the process
+        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True, startupinfo=startupinfo)
+
 
         while self.running:
             line = self.process.stdout.readline()
-            if not line:
+            if line == '' and self.process.poll() is not None:
+                self.process.kill()
+                self.update_log('Process complete')
+                self.running = False
+                self.logfile.close()
                 break
-            self.output.emit(line)
+            if line:
+                self.update_log(line.strip())
+                # self.log_display.appendPlainText(line.strip())
+        self.signals.finished.emit()
 
-        if self.process:
-            self.process.terminate()
-            self.process.wait()
-            self.finished.emit(self.process.returncode)
-
+    def update_log(self, text):
+        bad_phrases = ['iters',
+                        'it/s',
+                        'InsecureRequestWarning',
+                        'axes3d.py',
+                        'Python',
+                        '_createMenuRef',
+                        '0x',
+                        'ApplePersistenceIgnoreState',
+                        'self._edgecolors',
+                        'objc',
+                        'warnings.warn',
+                        'UserWarning',
+                        ]
+         
+        if not any(bad_phrase in text for bad_phrase in bad_phrases):
+            self.log_display.appendPlainText(text)
+            
+            if self.logfile:
+                text = "\n" + text
+                self.logfile.write(text.encode('utf-8'))
+            # self.linecount += 1
+            
     def cancel(self):
         self.running = False
         if self.process:
-            self.process.terminate()
+            self.process.kill()
+            self.update_log("Canceled process")
+            self.logfile.close()
             self.process = None
 
 class Logger(QtWidgets.QDialog):
-    def __init__(self, cmd, tmp='', wLog=False, doneButton=True, parent=None):
+    def __init__(self, cmd, tmp='', wLog=True, doneButton=True, parent=None):
         super().__init__(parent)
         self.cmd = cmd
         self.tmp = tmp
@@ -84,11 +122,7 @@ class Logger(QtWidgets.QDialog):
         layout.addWidget(self.log)
         layout.addWidget(self.cancel_button)
         self.setLayout(layout)
-        
-        # Redirect stdout to the output widget
-        self.original_stdout = sys.stdout
-        sys.stdout = self
-        
+
         # Set the window titleand size
         self.setWindowTitle("Argus ouput")
         self.resize(800, 600)
@@ -98,66 +132,29 @@ class Logger(QtWidgets.QDialog):
         else:
             self.fo = None
         self.linecount = 0
+        self.show()
 
+    @QtCore.Slot()
+    def update_log(self):
         #start the thread
-        self.worker = Worker(cmd)
-        self.worker_thread = QtCore.QThread()
-        self.worker.moveToThread(self.worker_thread)
-        self.worker.output.connect(self.append_output)
-        self.worker.finished.connect(self.guifinished)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.worker_thread.start()
-    
-    def append_output(self, text):
-        bad_phrases = ['iters',
-                        'it/s',
-                        'InsecureRequestWarning',
-                        'axes3d.py',
-                        'Python',
-                        '_createMenuRef',
-                        '0x',
-                        'ApplePersistenceIgnoreState',
-                        'self._edgecolors',
-                        'objc',
-                        'warnings.warn',
-                        'UserWarning']
-        if not any(bad_phrase in text for bad_phrase in bad_phrases):
-            self.log.moveCursor(QtGui.QTextCursor.End)
-            self.log.insertPlainText(text)
-            if self.fo:
-                self.fo.write(text.encode('utf-8'))
-            self.linecount += 1
+        self.worker = Worker(self.cmd, self.log, self.fo)
+        QtCore.QThreadPool.globalInstance().start(self.worker)
 
-
-    def guifinished(self, returncode):
-        self.append_output(f"\nProcess finished with exit code {returncode}")
-        self.cancel_button.setText("Done")
-
+    # def guifinished(self, returncode):
+    #     self.append_output(f"\nProcess finished with exit code {returncode}")
+    #     self.cancel_button.setText("Done")
+    @QtCore.Slot()
     def cancel(self):
-        if not self.worker_thread.isFinished():
-            self.worker.cancel()
-            if not isinstance(self.sender(), QtWidgets.QPushButton):
-                # If cancel is called from closeEvent
-                # wait for worker thread to finish before closing window
-                # otherwise just change button text
-                # and let user decide when to close window
-                # (and wait for worker thread to finish in closeEvent)
-                # This prevents window from freezing while waiting for worker thread to finish
-                # when user clicks on Cancel button
-                return
-            else:
-                # If cancel is called from Cancel button click
-                # just change button text and let user decide when to close window
-                # (and wait for worker thread to finish in closeEvent)
-                # This prevents window from freezing while waiting for worker thread to finish
-                # when user clicks on Cancel button
-                pass
-            if isinstance(self.sender(), QtWidgets.QPushButton):
-                if self.cancel_button.text() == "Done":
-                    self.close()
-                else:
-                    self.cancel_button.setText("Done")
+        QtCore.QThreadPool.globalInstance().clear()
+        self.cancel_button.setText('Done')
+        self.cancel_button.clicked.disconnect()
+        self.cancel_button.clicked.connect(self.close)
+        
+    @QtCore.Slot()
+    def task_finished(self):
+        self.cancel_button.setText('Done')
+        self.cancel_button.clicked.disconnect()
+        self.cancel_button.clicked.connect(self.close)
     
     def closeEvent(self, event):
         if self.tmp != '':
@@ -166,9 +163,9 @@ class Logger(QtWidgets.QDialog):
         if self.wLog:
             self.fo.close()
 
-        if not self.worker_thread.isFinished():
+        if self.worker.process:
             self.worker.cancel()
-            self.worker_thread.quit()
+            self.worker.kill
             self.worker_thread.wait()
         super().closeEvent(event)
 

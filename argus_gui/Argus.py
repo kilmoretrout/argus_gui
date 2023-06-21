@@ -1391,15 +1391,15 @@ class MainWindow(QtWidgets.QMainWindow):
         rcmd = rcmd + cmd
 
         startupinfo = None
-        if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+        #     startupinfo = subprocess.STARTUPINFO()
+        #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
         print(type(rcmd), rcmd)
         print(type(subprocess.PIPE))
         print(type(startupinfo))
 
-        proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=False, startupinfo=startupinfo)
+        proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
         self.pids.append(proc.pid)
 
 # Makes a subprocess with Pyglet windows for all camera views

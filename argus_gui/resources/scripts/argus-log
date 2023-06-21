@@ -31,5 +31,6 @@ if __name__ == '__main__':
     if app is None:
         app = QtWidgets.QApplication(sys.argv)
     log = Logger(cmd, tmp=tmp, wLog=write)
+    log.update_log()
     log.show()
     app.exec()
