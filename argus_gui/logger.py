@@ -44,18 +44,18 @@ class Worker(QtCore.QRunnable):
 
     def run(self):
         startupinfo = None
-        if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-            # Set up the startupinfo to suppress the console window
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+        #     # Set up the startupinfo to suppress the console window
+        #     startupinfo = subprocess.STARTUPINFO()
+        #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         # Start the process
-        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True, startupinfo=startupinfo)
+        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True)#, startupinfo=startupinfo)
 
 
         while self.running:
             line = self.process.stdout.readline()
             if line == '' and self.process.poll() is not None:
-                self.process.kill()
+                # self.process.kill()
                 self.update_log('Process complete')
                 self.running = False
                 self.logfile.close()
@@ -63,6 +63,7 @@ class Worker(QtCore.QRunnable):
             if line:
                 self.update_log(line.strip())
                 # self.log_display.appendPlainText(line.strip())
+        
         self.signals.finished.emit()
 
     def update_log(self, text):
@@ -165,9 +166,6 @@ class Logger(QtWidgets.QDialog):
 
         if self.worker.process:
             self.worker.cancel()
-            self.worker.kill
+            self.worker.kill()
             self.worker_thread.wait()
         super().closeEvent(event)
-
-    def flush(self):
-        pass
