@@ -1,76 +1,101 @@
 import sys
 import subprocess
-from PySide6 import QtCore, QtWidgets, QtGui
+from PySide6 import QtCore, QtWidgets
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QPlainTextEdit, QCheckBox
 
-class Worker(QtCore.QObject):
-    output = QtCore.Signal(str)
-    finished = QtCore.Signal(int)
+# class Worker(QtCore.QRunnable):
+#     def __init__(self, command, log_display):
+#         super().__init__()
+#         self.command = command
+#         self.log_display = log_display
 
-    def __init__(self, cmd):
+#     def run(self):
+#         process = QtCore.QProcess()
+#         process.setProgram(sys.executable)
+#         process.setArguments(self.command)
+#         process.setReadChannel(QtCore.QProcess.StandardOutput)
+#         process.readyReadStandardOutput.connect(lambda: self.log_display.appendPlainText(process.readAllStandardOutput().data().decode().strip()))
+#         process.start()
+#         print('process started')
+#         process.waitForFinished()
+        
+class Worker(QtCore.QRunnable):
+    def __init__(self, command, log_display):
         super().__init__()
-        self.cmd = cmd
-        self.process = None
-
+        self.command = command
+        self.log_display = log_display
+    
     def run(self):
-        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-
+        process = subprocess.Popen(self.command, 
+                                   stdout=subprocess.PIPE, 
+                                   stderr=subprocess.STDOUT, 
+                                   shell=True, 
+                                    text=True)
         while True:
-            line = self.process.stdout.readline()
-            if not line:
+            output = process.stdout.readline()
+            if output == '' and process.poll() is not None:
+                process.kill()
+                print('killing process')
                 break
-            self.output.emit(line)
+            if output:
+                self.log_display.appendPlainText(output.strip())
 
-        self.process.wait()
-        self.finished.emit(self.process.returncode)
+class LogWindow(QWidget):
+    def __init__(self, parent=None):
+        super(LogWindow, self).__init__(parent)
+        self.layout = QVBoxLayout(self)
+        self.log_display = QPlainTextEdit()
+        self.log_display.setReadOnly(True)
+        self.layout.addWidget(self.log_display)
+        self.cancel_button = QPushButton('Cancel')
+        self.cancel_button.clicked.connect(self.cancel)
+        self.layout.addWidget(self.cancel_button)
+        self.process = None
+        self.show()
+        # self.log_thread = QtCore.QThread()
 
     def cancel(self):
         if self.process:
-            self.process.terminate()
-            self.process = None
+            self.process.kill()
+            self.cancel_button.setText('Done')
+            self.cancel_button.clicked.disconnect()
+            self.cancel_button.clicked.connect(self.close)
 
-class OutputWindow(QtWidgets.QWidget):
+    def closeEvent(self, event):
+        if self.process:
+            self.process.kill()
+        # self.log_thread.wait()
+        event.accept()
+
+    def update_log(self, command):
+        worker = Worker(command, self.log_display)
+        QtCore.QThreadPool.globalInstance().start(worker)
+        # worker.output_signal.connect(self.log_display.appendPlainText)
+        # worker.moveToThread(self.log_thread)
+        # self.log_thread.started.connect(worker.run)
+        # print('starting thread')
+        # self.log_thread.start()
+        # print('after the start')
+
+class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Argus output")
-        self.resize(600, 400)
+        layout = QVBoxLayout()
+        go_button = QPushButton('Go')
+        go_button.clicked.connect(self.go)
+        layout.addWidget(go_button)
+        self.wLog_checkbox = QCheckBox('wLog')
+        layout.addWidget(self.wLog_checkbox)
+        self.setLayout(layout)
+        self.log_window = None
 
-        self.output_text = QtWidgets.QPlainTextEdit()
-        self.output_text.setReadOnly(True)
-        font = self.output_text.font()
-        font.setFamily("Courier New")
-        self.output_text.setFont(font)
+    def go(self):
+        command = [sys.executable, 'external_function.py']
+        self.log_window = LogWindow()
+        self.log_window.update_log(command)
 
-        self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.cancel)
-
-        layout = QtWidgets.QVBoxLayout(self)
-        layout.addWidget(self.output_text)
-        layout.addWidget(self.cancel_button)
-
-        cmd = ["ping", "google.com"]
-        self.worker = Worker(cmd)
-        self.worker_thread = QtCore.QThread()
-        self.worker.moveToThread(self.worker_thread)
-        self.worker.output.connect(self.append_output)
-        self.worker.finished.connect(self.finished)
-        self.worker_thread.started.connect(self.worker.run)
-        self.worker_thread.start()
-
-    def append_output(self, text):
-        self.output_text.moveCursor(QtGui.QTextCursor.End)
-        self.output_text.insertPlainText(text)
-
-    def finished(self, returncode):
-        self.append_output(f"\nProcess finished with exit code {returncode}")
-        self.cancel_button.setText("Done")
-
-    def cancel(self):
-        if not self.worker_thread.isFinished():
-            self.worker.cancel()
-            self.cancel_button.setText("Done")
-
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    window = OutputWindow()
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = MainWindow()
     window.show()
     sys.exit(app.exec())
