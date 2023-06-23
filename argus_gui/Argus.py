@@ -1099,7 +1099,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if self.crop.isChecked():
             args = args + ['--crop']
         cmd = cmd + args
-        self.go(cmd, logBool)
+        self.go(cmd, self.sync_onam.text(), logBool)
 
 # Graph the wave files with matplotlib
     def sync_show(self):
@@ -1163,7 +1163,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         cmd = cmd + args
         print(cmd)
-        self.go(cmd, wlog=write_bool)
+        self.go(cmd, self.wand_onam.text(), wlog=write_bool)
 
     def pattern_go(self):
         # check and fix the output filename
@@ -1189,7 +1189,7 @@ class MainWindow(QtWidgets.QMainWindow):
             args = args + ['--display']
         cmd = cmd + args
 
-        self.go(cmd, writeBool)
+        self.go(cmd, self.patt_onam.text(),writeBool)
 
     # Calibrate
     def updateCalOptions(self):
@@ -1239,7 +1239,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         cmd = cmd + args
 
-        self.go(cmd, writeBool)
+        self.go(cmd, self.cal_onam.text(), writeBool)
 
     #Dwarp
     def disableEntries(self):
@@ -1382,16 +1382,16 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             logBool = False
 
-        self.go(cmd, logBool)
+        self.go(cmd, self.dwarp_onam.text(),logBool)
         
         
     # main command caller used by all but clicker
     @QtCore.Slot()
-    def go(self, cmd, wlog=False, mode='DEBUG'):
-        print(cmd)
-        log_window = Logger(cmd, wLog=wlog)
+    def go(self, cmd, opath, wlog=False, mode='DEBUG'):
+        print('Runnign the following commnad: ')
+        print(' '.join(cmd))
+        log_window = Logger(cmd, opath, wLog=wlog)
         log_window.show()
-        print(log_window)
         # app.exec_()
         # app = QtWidgets.QApplication.instance()
         # if app is None:

@@ -11,6 +11,7 @@ uses for proper cleanup.
 # from __future__ import print_function
 
 import sys
+import os
 import subprocess
 from PySide6.QtCore import QRunnable, QThreadPool, Signal, Slot
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QTextEdit
@@ -37,6 +38,8 @@ class LogWindowTask(QRunnable):
 
         while True:
             output = self.process.stdout.readline()
+            if self.logWindow.cancelnow:
+                break
             if output == '' and self.process.poll() is not None:
                 self.logWindow.onFinished()
                 break
@@ -44,16 +47,19 @@ class LogWindowTask(QRunnable):
                 self.logWindow.onOutput(output.strip())
 
 class Logger(QMainWindow):
-    def __init__(self, cmd, tmp='', wLog=True, doneButton=True, parent=None):
+    def __init__(self, cmd, opath, tmp='', wLog=True, doneButton=True, parent=None):
         super().__init__(parent)
         self.cmd = cmd
         self.tmp = tmp
         self.wLog = wLog
         if self.wLog:
-            self.fo = open("Log--" + time.strftime("%Y-%m-%d-%H-%M") + ".txt", "wb")
+            self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
+            self.fo = open(self.logpath, "wb")
         else:
             self.fo = None
+        self.cancelnow = False
         self.initUI()
+        self.onOutput(f'Running the following: \n{self.cmd}')
     
     def initUI(self):
         # Create a QPlainTextEdit to display the output
@@ -101,17 +107,16 @@ class Logger(QMainWindow):
             if self.fo:
                 text = "\n" + text
                 self.fo.write(text.encode('utf-8'))
-
-            # self.linecount += 1
-
-    # def guifinished(self, returncode):
-    #     self.append_output(f"\nProcess finished with exit code {returncode}")
-    #     self.cancel_button.setText("Done")
     
     @Slot()
     def onCancel(self):
+        self.cancelnow = True
         print('canceled')
         self.onOutput('Process cancelled by user')
+        if self.wLog:
+            self.onOutput(f"Log saved at {self.logpath}")
+            self.fo.close()
+            print(f"Log saved at {self.logpath}")
         QThreadPool.globalInstance().clear()
         QThreadPool.globalInstance().waitForDone()
         QApplication.processEvents()
@@ -121,15 +126,19 @@ class Logger(QMainWindow):
         
     @Slot()
     def onFinished(self):
-        print('finished')
         self.onOutput('Process completed!')
+        if self.wLog:
+            self.onOutput(f"Log saved at {self.logpath}")
+            self.fo.close()
+            print(f"Log saved at {self.logpath}")
         QApplication.processEvents()
         self.cancel_button.setText('Done')
         self.cancel_button.clicked.disconnect()
         self.cancel_button.clicked.connect(self.close)
-        if self.wLog:
-            self.fo.close()
         
+    def closeEvent(self, event):
+        QThreadPool.globalInstance().waitForDone()
+        event.accept()
     # def closeEvent(self, event):
     #     print('closing')
     #     if self.tmp != '':
