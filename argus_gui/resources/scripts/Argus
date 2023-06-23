@@ -9,6 +9,6 @@ from argus_gui import Argus
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication()
-    window = Argus.MainWindow()
+    window = Argus.MainWindow(app)
     window.show()
-    app.exec_()
+    app.exec()

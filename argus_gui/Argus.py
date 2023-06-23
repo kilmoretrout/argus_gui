@@ -12,15 +12,17 @@ import string
 import random
 import tempfile
 import psutil
+from argus_gui import Logger
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
+    def __init__(self, app):
         super().__init__()
         # Set the window title
         self.setWindowTitle("Argus")
 
+        self.app = app
         # Set the window icon
         self.setWindowIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
 
@@ -1337,7 +1339,7 @@ class MainWindow(QtWidgets.QMainWindow):
             ofs = of.split('.')
             if ofs[-1].lower() != 'mp4':
                 of = of + '.mp4'
-                self.dwarp_onam.set(of)
+                self.dwarp_onam.setText(of)
         
         tmpName = ''
         # Extra bools and a string for passing temp dir, write option and display option to the undistorter object
@@ -1384,23 +1386,37 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
     # main command caller used by all but clicker
+    @QtCore.Slot()
     def go(self, cmd, wlog=False, mode='DEBUG'):
-        cmd = [str(wlog), ''] + cmd
-        rcmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-log')]
+        print(cmd)
+        log_window = Logger(cmd, wLog=wlog)
+        log_window.show()
+        print(log_window)
+        # app.exec_()
+        # app = QtWidgets.QApplication.instance()
+        # if app is None:
+        #     print('app is None')
+        #     app = QtWidgets.QApplication(sys.argv)
+        # self.app.exec()
+        # log.startLog()
+        # log.loop.exec()
+        # log.show()
+        # cmd = [str(wlog), ''] + cmd
+        # rcmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-log')]
 
-        rcmd = rcmd + cmd
+        # rcmd = rcmd + cmd
 
-        startupinfo = None
-        # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-        #     startupinfo = subprocess.STARTUPINFO()
-        #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        # startupinfo = None
+        # # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+        # #     startupinfo = subprocess.STARTUPINFO()
+        # #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
 
-        print(type(rcmd), rcmd)
-        print(type(subprocess.PIPE))
-        print(type(startupinfo))
+        # print(type(rcmd), rcmd)
+        # print(type(subprocess.PIPE))
+        # print(type(startupinfo))
 
-        proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
-        self.pids.append(proc.pid)
+        # proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
+        # self.pids.append(proc.pid)
 
 # Makes a subprocess with Pyglet windows for all camera views
 class PygletDriver:
@@ -1456,6 +1472,6 @@ class ClickerProject:
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication()
-    window = MainWindow()
+    window = MainWindow(app)
     window.show()
-    app.exec_()
+    app.exec()

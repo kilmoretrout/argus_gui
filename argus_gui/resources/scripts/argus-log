@@ -7,7 +7,7 @@ from PySide6 import QtWidgets
 from argus_gui import Logger
 
 """
-log.py - Called by all Argus GUIs to display the progress and errors of any Argus operation.  Not intended for users directly.  If you want to take advantage of argus_gui's logging abilities,
+log.py - Called by Argus GUI to display the progress and errors of any Argus operation.  Not intended for users directly.  If you want to take advantage of argus_gui's logging abilities,
 use the class Logger directly.
 """
 
@@ -27,12 +27,16 @@ if __name__ == '__main__':
     cmd = cmd[2:]
 
     # start doing stuff
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication(sys.argv)
+    # app = QtWidgets.QApplication.instance()
+    # if app is None:
+    #     app = QtWidgets.QApplication(sys.argv)
     log = Logger(cmd, tmp=tmp, wLog=write)
+    print('log started')
     log.update_log()
+    print('log updated')
     log.loop.exec()
-    # log.show()
+    print('loop executed')
+    log.show()
+    print('log shown')
     # app.exec()
 

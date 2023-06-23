@@ -7,40 +7,24 @@ Has options for writing output to txt, and can be told of any temproary director
 uses for proper cleanup.
 """
 
-from __future__ import absolute_import
-from __future__ import print_function
+# from __future__ import absolute_import
+# from __future__ import print_function
 
-import os
-import platform
-import re
-import shutil
-import subprocess
 import sys
-import threading
+import subprocess
+from PySide6.QtCore import QRunnable, QThreadPool, Signal, Slot
+from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QTextEdit
 import time
-import traceback
-from PySide6 import QtGui, QtWidgets, QtCore
-# from six.moves.queue import Queue
-# from six.moves.tkinter import *
 
-# Takes a command and displays its stdout and stderr as its running.  Used by most of the Argus programs to display progress.
-
-class WorkerSignals(QtCore.QObject):
-    finished = QtCore.Signal()
-
-class Worker(QtCore.QRunnable):
+class LogWindowTask(QRunnable):
     """
     run a command in its own thread
     """
-
-    def __init__(self, cmd, log_display, logfile):
+    
+    def __init__(self, cmd, logWindow):
         super().__init__()
         self.cmd = cmd
-        self.cmd = cmd
-        self.log_display = log_display
-        self.logfile = logfile
-        self.running = True
-        self.signals = WorkerSignals()
+        self.logWindow = logWindow
 
     def run(self):
         startupinfo = None
@@ -49,21 +33,54 @@ class Worker(QtCore.QRunnable):
         #     startupinfo = subprocess.STARTUPINFO()
         #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         # Start the process
-        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, text=True)#, startupinfo=startupinfo)
-
+        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True, startupinfo=startupinfo)
 
         while True:
-            line = self.process.stdout.readline()
-            if line == '' and self.process.poll() is not None:
-                self.update_log('Process complete')
-                self.logfile.close()
+            output = self.process.stdout.readline()
+            if output == '' and self.process.poll() is not None:
+                self.logWindow.onFinished()
                 break
-            if line:
-                self.update_log(line.strip())
-        
-        self.signals.finished.emit()
+            if output:
+                self.logWindow.onOutput(output.strip())
 
-    def update_log(self, text):
+class Logger(QMainWindow):
+    def __init__(self, cmd, tmp='', wLog=True, doneButton=True, parent=None):
+        super().__init__(parent)
+        self.cmd = cmd
+        self.tmp = tmp
+        self.wLog = wLog
+        if self.wLog:
+            self.fo = open("Log--" + time.strftime("%Y-%m-%d-%H-%M") + ".txt", "wb")
+        else:
+            self.fo = None
+        self.initUI()
+    
+    def initUI(self):
+        # Create a QPlainTextEdit to display the output
+        self.logwindow = QTextEdit()
+        self.logwindow.setReadOnly(True)
+        font = self.logwindow.font()
+        font.setFamily("Courier New")
+        self.logwindow.setFont(font)
+        self.setCentralWidget(self.logwindow)
+        
+        # Create a "cancel/done" button
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.onCancel)
+        self.statusBar().addPermanentWidget(self.cancel_button)
+        self.id = None
+
+        # Set the window titleand size
+        self.setWindowTitle("Argus ouput")
+        self.resize(600, 600)
+
+        self.logTask = LogWindowTask(self.cmd, self)
+        # self.logTask.output.connect(self.onOutput)
+        # self.logTask.finished.connect(self.onFinished)
+        QThreadPool.globalInstance().start(self.logTask)
+        
+    @Slot()
+    def onOutput(self, text):
         bad_phrases = ['iters',
                         'it/s',
                         'InsecureRequestWarning',
@@ -79,101 +96,51 @@ class Worker(QtCore.QRunnable):
                         ]
          
         if not any(bad_phrase in text for bad_phrase in bad_phrases):
-            self.log_display.appendPlainText(text)
+            self.logwindow.append(text)
             
-            if self.logfile:
+            if self.fo:
                 text = "\n" + text
-                self.logfile.write(text.encode('utf-8'))
+                self.fo.write(text.encode('utf-8'))
 
             # self.linecount += 1
-            
-    # def cancel(self):
-    #     self.running = False
-    #     if self.process:
-    #         self.process.kill()
-    #         self.update_log("Canceled process")
-    #         self.logfile.close()
-    #         self.process = None
-
-class Logger(QtWidgets.QDialog):
-    def __init__(self, cmd, tmp='', wLog=True, doneButton=True, parent=None):
-        super().__init__(parent)
-        self.cmd = cmd
-        self.tmp = tmp
-        self.wLog = wLog
-        self.doneButton = doneButton
-
-        # Create a QPlainTextEdit to display the output
-        self.log = QtWidgets.QPlainTextEdit()
-        self.log.setReadOnly(True)
-        font = self.log.font()
-        font.setFamily("Courier New")
-        self.log.setFont(font)
-        
-        # Create a "Done" button
-        self.cancel_button = QtWidgets.QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.cancel)
-
-        self.id = None
-
-        # Create a layout and add the widgets to it
-        layout = QtWidgets.QVBoxLayout()
-        layout.addWidget(self.log)
-        layout.addWidget(self.cancel_button)
-        self.setLayout(layout)
-
-        # Set the window titleand size
-        self.setWindowTitle("Argus ouput")
-        self.resize(600, 600)
-
-        if wLog:
-            self.fo = open("Log--" + time.strftime("%Y-%m-%d-%H-%M") + ".txt", "wb")
-        else:
-            self.fo = None
-        self.linecount = 0
-        self.show()
-        self.loop = QtCore.QEventLoop()
-
-    @QtCore.Slot()
-    def update_log(self):
-        #start the thread
-        self.worker = Worker(self.cmd, self.log, self.fo)
-        self.worker.signals.finished.connect(self.task_finished)
-        QtCore.QThreadPool.globalInstance().start(self.worker)
 
     # def guifinished(self, returncode):
     #     self.append_output(f"\nProcess finished with exit code {returncode}")
     #     self.cancel_button.setText("Done")
-    @QtCore.Slot()
-    def cancel(self):
-        QtCore.QThreadPool.globalInstance().clear()
-        QtCore.QThreadPool.globalInstance().waitForDone()
-        QtWidgets.QApplication.processEvents()
-        self.cancel_button.setText('Done')
-        self.cancel_button.clicked.disconnect()
-        self.cancel_button.clicked.connect(self.done)
-        
-    @QtCore.Slot()
-    def task_finished(self):
-        QtWidgets.QApplication.processEvents()
-        self.cancel_button.setText('Done')
-        self.cancel_button.clicked.disconnect()
-        self.cancel_button.clicked.connect(self.done)
     
-    @QtCore.Slot()
-    def done(self):
-        self.loop.quit()
+    @Slot()
+    def onCancel(self):
+        print('canceled')
+        self.onOutput('Process cancelled by user')
+        QThreadPool.globalInstance().clear()
+        QThreadPool.globalInstance().waitForDone()
+        QApplication.processEvents()
+        self.cancel_button.setText('Done')
+        self.cancel_button.clicked.disconnect()
+        self.cancel_button.clicked.connect(self.close)
         
-    def closeEvent(self, event):
-        if self.tmp != '':
-            if os.path.isdir(self.tmp):
-                shutil.rmtree(self.tmp)
+    @Slot()
+    def onFinished(self):
+        print('finished')
+        self.onOutput('Process completed!')
+        QApplication.processEvents()
+        self.cancel_button.setText('Done')
+        self.cancel_button.clicked.disconnect()
+        self.cancel_button.clicked.connect(self.close)
         if self.wLog:
             self.fo.close()
+        
+    # def closeEvent(self, event):
+    #     print('closing')
+    #     if self.tmp != '':
+    #         if os.path.isdir(self.tmp):
+    #             shutil.rmtree(self.tmp)
+    #     if self.wLog:
+    #         self.fo.close()
 
-        if self.worker.process:
-            self.worker.cancel()
-            self.worker.kill()
-            self.worker_thread.wait()
+    #     if self.worker.process:
+    #         self.worker.cancel()
+    #         self.worker.kill()
+    #         self.worker_thread.wait()
             
         # super().closeEvent(event)
