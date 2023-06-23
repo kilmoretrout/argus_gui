@@ -12,7 +12,8 @@ import string
 import random
 import tempfile
 import psutil
-from argus_gui import Logger
+import time
+# from argus_gui import Logger
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
@@ -1386,12 +1387,19 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
     # main command caller used by all but clicker
-    @QtCore.Slot()
-    def go(self, cmd, opath, wlog=False, mode='DEBUG'):
-        print('Runnign the following commnad: ')
+    def go(self, cmd, opath=None, wlog=False, mode='DEBUG'):
+        print('Running the following command: ')
         print(' '.join(cmd))
-        log_window = Logger(cmd, opath, wLog=wlog)
-        log_window.show()
+        if opath is None:
+            wlog = False
+        worker = WorkerThread(cmd, opath, wlog)
+        worker.output.connect(self.on_output)
+        worker.complete.connect(self.on_complete)
+        worker.start()
+        self.dialog = CancelDialog(worker)
+        self.dialog.exec()
+        # log_window = Logger(cmd, opath, wLog=wlog)
+        # log_window.show()
         # app.exec_()
         # app = QtWidgets.QApplication.instance()
         # if app is None:
@@ -1417,6 +1425,67 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
         # self.pids.append(proc.pid)
+    def on_output(self, text):
+        print(text)
+        
+    def on_complete(self):
+        self.dialog.accept()
+
+class WorkerThread(QtCore.QThread):
+    output = QtCore.Signal(str)
+    complete = QtCore.Signal()
+    
+    def __init__(self, cmd, opath, wLog):
+        super().__init__()
+        self.cmd = cmd
+        self.process = None
+        self.wLog = wLog
+        if self.wLog:
+            self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
+            self.fo = open(self.logpath, "wb")
+        else:
+            self.fo = None
+        # self.complete = False
+
+    def run(self):
+        self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True)
+        while True:
+            line = self.process.stdout.readline()
+            if line == '' and self.process.poll() is not None:
+                print("Process completed")
+                if self.fo:
+                    self.fo.write("Process completed!".encode('utf-8'))
+                    self.fo.close()
+                self.complete.emit()
+                # self.complete = True
+                break
+            if line:
+                self.output.emit(line.strip())
+                if self.wLog:
+                    self.fo.write(line.encode('utf-8'))
+
+    def stop(self):
+        if self.process:
+            self.process.terminate()
+        print("Process canceled")
+        if self.wLog:
+            self.fo.write("Process canceled".encode('utf-8'))
+            self.fo.close()
+            self.fo = None
+
+class CancelDialog(QtWidgets.QDialog):
+    def __init__(self, worker):
+        super().__init__()
+        self.worker = worker
+        layout = QtWidgets.QVBoxLayout(self)
+        cancel_button = QtWidgets.QPushButton('Cancel')
+        cancel_button.clicked.connect(self.on_cancel)
+        layout.addWidget(cancel_button)
+
+    def on_cancel(self):
+        self.worker.stop()
+        self.accept()
+        
 
 # Makes a subprocess with Pyglet windows for all camera views
 class PygletDriver:
