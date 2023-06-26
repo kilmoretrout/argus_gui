@@ -21,7 +21,10 @@ import numpy as np
 import pkg_resources
 from moviepy.config import get_setting
 from moviepy.editor import *
-from six.moves.tkinter import *
+# from six.moves.tkinter import *
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import QThread, Signal
 
 from argus_gui import ArgusError
 
@@ -231,26 +234,31 @@ class Undistorter(object):
         if not self.coefficients is None:
             map1, map2 = self.get_mappings(crop)
 
+       
+        if write:
+            print('Beginning to undistort images and compile with FFMPEG...')
+            sys.stdout.flush()
+            print(cmd)
+            p = Popen(cmd, stdin=PIPE)
+        
         # if we're displaying, make a window to do so
-
-        print('Beginning to undistort images and compile with FFMPEG...')
-        sys.stdout.flush()
-        print(cmd)
-        p = Popen(cmd, stdin=PIPE)
-
         if display:
-            if 'linux' in sys.platform:
-                cv2.imshow("Undistorted", np.zeros((1080, 1920, 3)))
-            cv2.namedWindow("Undistorted")
+            # if 'linux' in sys.platform:
+            #     cv2.imshow("Undistorted", np.zeros((1080, 1920, 3)))
+            # cv2.namedWindow("Undistorted")
+            app = QApplication(sys.argv)
+            vidWindow = VideoWindow()
+            vidWindow.show()
+            
 
         if write:
             # Create a list of the frames (pngs)
             fileList = []
         k = 1
 
-        if display:
-            if not 'linux' in sys.platform:
-                cv2.startWindowThread()
+        # if display:
+            # if not 'linux' in sys.platform:
+            #     cv2.startWindowThread()
 
         for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
             retval, raw = self.movie.read()
@@ -272,8 +280,12 @@ class Undistorter(object):
                         undistorted = self.oCamUndistorter.undistort_frame(raw)
 
                 if display:
-                    cv2.imshow('Undistorted', cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
+                    # cv2.imshow('Undistorted', cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
+                    vidWindow.show_frame(cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
+                    QApplication.processEvents()
                     cv2.waitKey(1)
+                    
+                        
                 undistorted = cv2.cvtColor(undistorted, cv2.COLOR_BGR2RGB)
 
                 # im = Image.fromarray(undistorted, 'RGB')
@@ -286,24 +298,24 @@ class Undistorter(object):
                 # without that line video clip will save but won't be able to open and play clip
 
                 variable = False
-                self.root = Tk()
+                # self.root = Tk()
 
-                def __init__(self, master, title):
-                    top = self.top = Toplevel(master)
-                    top.resizable(width=FALSE, height=FALSE)
-                    top.bind('<Return>', self.cleanup)
-                    self.l = Label(top, text=title)
-                    self.l.pack(padx=10, pady=10)
-                    self.e = Entry(top)
-                    self.e.focus_set()
-                    self.e.pack(padx=10, pady=5)
-                    self.b = Button(top, text='Ok', padx=10, pady=10)
-                    self.b.bind('<Button-1>', self.cleanup)
-                    self.b.pack(padx=5, pady=5)
-                    self.crop = StringVar(self.root)
-                    self.copy = StringVar(self.root)
+                # def __init__(self, master, title):
+                #     top = self.top = Toplevel(master)
+                #     top.resizable(width=FALSE, height=FALSE)
+                #     top.bind('<Return>', self.cleanup)
+                #     self.l = Label(top, text=title)
+                #     self.l.pack(padx=10, pady=10)
+                #     self.e = Entry(top)
+                #     self.e.focus_set()
+                #     self.e.pack(padx=10, pady=5)
+                #     self.b = Button(top, text='Ok', padx=10, pady=10)
+                #     self.b.bind('<Button-1>', self.cleanup)
+                #     self.b.pack(padx=5, pady=5)
+                #     self.crop = StringVar(self.root)
+                #     self.copy = StringVar(self.root)
 
-                self.wrdispboth = IntVar(self.root)
+                # self.wrdispboth = IntVar(self.root)
 
                 if a % 5 == 0:
                     print('\n', end='')
@@ -322,7 +334,9 @@ class Undistorter(object):
                 else:
                     print("Could not read frame number: " + str(a))
                     sys.stdout.flush()
-
+        if display:
+            sys.exit(app.exec())
+        
         p.stdin.close()
         p.wait()
 
@@ -529,3 +543,39 @@ class DistortionProfile(object):
             return np.array([self.coefficients for k in range(ncams)])
         else:
             raise ArgusError('must specify distortion coefficients using get_coefficients or set_coefficients')
+
+# class VideoThread(QThread):
+#     frame_ready = Signal(np.ndarray)
+
+#     def __init__(self, movie):
+#         super().__init__()
+#         self.movie = movie
+
+#     def run(self):
+#         # cap = cv2.VideoCapture(self.video_path)
+#         while True:
+#             ret, frame = self.movie.read()
+#             if not ret:
+#                 break
+#             self.frame_ready.emit(frame)
+#             self.msleep(1)
+            
+# class that displays video as it is being dwarped using a pyside6 window to avoid segmentation faults
+class VideoWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        layout = QVBoxLayout()
+        self.label = QLabel()
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+
+    def show_frame(self, frame):
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, c = image.shape
+        qimage = QImage(image.data, w, h, c * w, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        self.label.setPixmap(pixmap)
+        
