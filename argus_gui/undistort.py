@@ -199,19 +199,39 @@ class Undistorter(object):
             audio = None
 
         if audio is not None:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', '-thread_queue_size', '32',\
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), \
-                   '-r', str(self.fps), '-i', '-', '-i', audio, \
-                   '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-profile:v', 'baseline', '-threads', \
-                   '0', '-pix_fmt', 'yuv420p', str(ofnam)]
+            cmd = [get_setting("FFMPEG_BINARY"), '-y',
+                   '-s', '{0}x{1}'.format(self.w, self.h), 
+                   '-pixel_format', 'bgr24',
+                   '-f', 'rawvideo', 
+                   '-r', str(self.fps),
+                   '-vcodec', 'rawvideo', 
+                   '-i', 'pipe:',
+                   '-i', audio, '-acodec', 'copy', 
+                   '-vcodec', 'libx264', 
+                   '-preset', 'medium', 
+                   '-crf', str(crf), 
+                   '-g', str(frameint), 
+                   '-profile:v', 'main', 
+                   '-threads', '0', 
+                   '-pix_fmt', 'yuv420p', 
+                   str(ofnam)]
         else:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', '-thread_queue_size', '32',\
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), \
-                   '-r', str(self.fps), '-i', '-', '-an', \
-                   '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-profile:v', 'baseline', '-threads', \
-                   '0', '-pix_fmt', 'yuv420p', str(ofnam)]
+            cmd = [get_setting("FFMPEG_BINARY"), '-y', 
+                    '-s', '{0}x{1}'.format(self.w, self.h), 
+                   '-pixel_format', 'bgr24',
+                   '-f', 'rawvideo', 
+                   '-r', str(self.fps),
+                   '-vcodec', 'rawvideo', 
+                   '-i', 'pipe:',
+                   '-an', '-acodec', 'copy',
+                   '-vcodec', 'libx264',
+                   '-preset', 'medium',
+                   '-crf', str(crf),
+                   '-g', str(frameint),
+                   '-profile:v', 'main',
+                   '-threads', '0', 
+                   '-pix_fmt', 'yuv420p', 
+                   str(ofnam)]
 
         if write:
             if ofnam == '':
@@ -286,7 +306,7 @@ class Undistorter(object):
                     cv2.waitKey(1)
                     
                         
-                undistorted = cv2.cvtColor(undistorted, cv2.COLOR_BGR2RGB)
+                # undistorted = cv2.cvtColor(undistorted, cv2.COLOR_BGR2RGB)
 
                 # im = Image.fromarray(undistorted, 'RGB')
                 # im.save(p.stdin, 'PNG')
@@ -334,8 +354,10 @@ class Undistorter(object):
                 else:
                     print("Could not read frame number: " + str(a))
                     sys.stdout.flush()
+        
         if display:
             sys.exit(app.exec())
+            vidWindow.close()
         
         p.stdin.close()
         p.wait()
