@@ -10,7 +10,8 @@ Hedrick Lab
 
 from __future__ import absolute_import
 from __future__ import print_function
-
+import sys
+import os
 import shutil
 import subprocess
 import tempfile
@@ -19,9 +20,8 @@ import argus.ocam
 import cv2
 import numpy as np
 import pkg_resources
-from moviepy.config import get_setting
-from moviepy.editor import *
-# from six.moves.tkinter import *
+# from moviepy.config import get_setting
+# from moviepy.editor import *
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QThread, Signal
@@ -130,7 +130,7 @@ class Undistorter(object):
         if copy:
             self.copy_tmp = tempfile.mkdtemp()
             cmd = [
-                get_setting("FFMPEG_BINARY"),
+                'FFMPEG',
                 '-loglevel', 'panic',
                 '-hide_banner',
                 '-i', fnam,
@@ -174,12 +174,14 @@ class Undistorter(object):
         else:
             tmp = tmp_dir
 
-        print(tmp)
-
+        # print(tmp)
+        if display:
+            self.preview()
+            
         print('Ripping audio... \n')
         sys.stdout.flush()
         cmd = [
-            get_setting("FFMPEG_BINARY"),
+            'FFMPEG',
             '-loglevel', 'panic',
             '-hide_banner',
             '-i', self.infilename,
@@ -199,7 +201,7 @@ class Undistorter(object):
             audio = None
 
         if audio is not None:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y',
+            cmd = ['FFMPEG', '-y',
                    '-s', '{0}x{1}'.format(self.w, self.h), 
                    '-pixel_format', 'bgr24',
                    '-f', 'rawvideo', 
@@ -216,7 +218,7 @@ class Undistorter(object):
                    '-pix_fmt', 'yuv420p', 
                    str(ofnam)]
         else:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y', 
+            cmd = ['FFMPEG', '-y', 
                     '-s', '{0}x{1}'.format(self.w, self.h), 
                    '-pixel_format', 'bgr24',
                    '-f', 'rawvideo', 
@@ -262,27 +264,26 @@ class Undistorter(object):
             p = Popen(cmd, stdin=PIPE)
         
         # if we're displaying, make a window to do so
+        vidWindow = None
         if display:
             # if 'linux' in sys.platform:
             #     cv2.imshow("Undistorted", np.zeros((1080, 1920, 3)))
             # cv2.namedWindow("Undistorted")
-            app = QApplication(sys.argv)
+            
+            # app = QApplication(sys.argv)
             vidWindow = VideoWindow()
             vidWindow.show()
-            
+            # self.window = QWidget()
+            # self.layout = QVBoxLayout()
+            # self.label = QLabel()
+            # self.layout.addWidget(self.label)
+            # self.window.setLayout(self.layout)
+            # self.window.show()
 
-        if write:
-            # Create a list of the frames (pngs)
-            fileList = []
-        k = 1
-
-        # if display:
-            # if not 'linux' in sys.platform:
-            #     cv2.startWindowThread()
-
-        for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
+        a = 0
+        # for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
+        while self.movie.isOpened():
             retval, raw = self.movie.read()
-
             if retval:
                 previous = raw
                 if crop:
@@ -300,42 +301,18 @@ class Undistorter(object):
                         undistorted = self.oCamUndistorter.undistort_frame(raw)
 
                 if display:
-                    # cv2.imshow('Undistorted', cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
                     vidWindow.show_frame(cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
                     QApplication.processEvents()
-                    cv2.waitKey(1)
-                    
-                        
-                # undistorted = cv2.cvtColor(undistorted, cv2.COLOR_BGR2RGB)
-
-                # im = Image.fromarray(undistorted, 'RGB')
-                # im.save(p.stdin, 'PNG')
+                    # cv2.waitKey(1)
+                    # image = cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5)
+                    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    # h, w, c = image.shape
+                    # qimage = QImage(image.data, w, h, c * w, QImage.Format_RGB888)
+                    # pixmap = QPixmap.fromImage(qimage)
+                    # self.label.setPixmap(pixmap)
 
                 if write:
                     p.stdin.write(undistorted.tostring())
-
-                # line of code above allows you to open video clip after it is saved
-                # without that line video clip will save but won't be able to open and play clip
-
-                variable = False
-                # self.root = Tk()
-
-                # def __init__(self, master, title):
-                #     top = self.top = Toplevel(master)
-                #     top.resizable(width=FALSE, height=FALSE)
-                #     top.bind('<Return>', self.cleanup)
-                #     self.l = Label(top, text=title)
-                #     self.l.pack(padx=10, pady=10)
-                #     self.e = Entry(top)
-                #     self.e.focus_set()
-                #     self.e.pack(padx=10, pady=5)
-                #     self.b = Button(top, text='Ok', padx=10, pady=10)
-                #     self.b.bind('<Button-1>', self.cleanup)
-                #     self.b.pack(padx=5, pady=5)
-                #     self.crop = StringVar(self.root)
-                #     self.copy = StringVar(self.root)
-
-                # self.wrdispboth = IntVar(self.root)
 
                 if a % 5 == 0:
                     print('\n', end='')
@@ -354,24 +331,43 @@ class Undistorter(object):
                 else:
                     print("Could not read frame number: " + str(a))
                     sys.stdout.flush()
-        
-        if display:
-            sys.exit(app.exec())
+                    
+            a += 1
+            
+            if a == int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT)):
+            #     print("last frame")
+            #     sys.stdout.flush()
+            #     p.stdin.close()
+            #     p.stderr.close()
+            #     p.wait()
+            #     vidWindow.close()
+                break
+            
+        if write:
+            p.stdin.close()
+            # p.stderr.close()
+            p.wait()
+            
+        # if display:
+        #     sys.exit(app.exec())
+            
+        # if self.window is not None:
+        #     self.window.close()
+        if vidWindow is not None:
+            print("closing preview")
+            sys.stdout.flush()
             vidWindow.close()
-        
-        p.stdin.close()
-        p.wait()
-
+                    
         print('Undistortion finished')
         if write:
             print('Wrote mp4 to {0}'.format(ofnam))
         sys.stdout.flush()
         # Destroy movie object and the window if it was even created
         movie = None
-        if display:
-            cv2.waitKey(1)
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
+        # if display:
+        #     cv2.waitKey(1)
+        #     cv2.destroyAllWindows()
+        #     cv2.waitKey(1)
         if write:
             # clip = ImageSequenceClip(fileList, fps=self.fps, with_mask = False, load_images = False)
 
@@ -390,6 +386,8 @@ class Undistorter(object):
             shutil.rmtree(tmp)
             if self.copy_tmp is not None:
                 shutil.rmtree(self.copy_tmp)
+            if display:
+                self.app.exec()
 
     def undistort_frame(self, frame, ofile=None, crop=False):
         if self.movie is None:
@@ -452,6 +450,13 @@ class Undistorter(object):
         if not ofile is None:
             cv2.imwrite(ofile, undistorted)
         return undistorted
+    
+    def preview(self):
+        self.app = QApplication.instance()
+        if self.app is None:
+        #     print('app is None')
+            self.app = QApplication(sys.argv)
+        
 
 
 class DistortionProfile(object):
@@ -600,4 +605,3 @@ class VideoWindow(QWidget):
         qimage = QImage(image.data, w, h, c * w, QImage.Format_RGB888)
         pixmap = QPixmap.fromImage(qimage)
         self.label.setPixmap(pixmap)
-        

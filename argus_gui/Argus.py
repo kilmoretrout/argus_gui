@@ -1401,7 +1401,7 @@ class MainWindow(QtWidgets.QMainWindow):
         # log_window = Logger(cmd, opath, wLog=wlog)
         # log_window.show()
         # app.exec_()
-        # app = QtWidgets.QApplication.instance()
+        #  =app QtWidgets.QApplication.instance()
         # if app is None:
         #     print('app is None')
         #     app = QtWidgets.QApplication(sys.argv)
