@@ -504,7 +504,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.cal_file_button, 1, 0)
         layout.addWidget(self.cal_file, 1, 1, 1, 3)
-        layout.addWidget(self.cal_inv, 2, 0)
+        layout.addWidget(self.cal_inv, 2, 0, 1, 2)
         layout.addWidget(options_box, 3, 0, 3, 4)
         layout.addWidget(self.cal_onam_label, 6, 0, 1, 2)
         layout.addWidget(self.cal_onam_button, 7, 0)
