@@ -96,14 +96,14 @@ class Syncer:
         signals, sig0 = None, None
         # Use texttable module to display results
         table = Texttable()
-        table.header(['Number', 'Offset in seconds', 'Offset in video frames', 'Max correlation'])
+        table.header(['Camera', 'Offset (sec.)', 'Offset (frames)', 'Max correlation'])
         for k in range(len(offsets)):
             r = [str(k + 1), str(offsets[k][0]), str(offsets[k][1]), str(offsets[k][3])]
             table.add_row(r)
         print(table.draw())
         if self.oname != '':
             fo = open(self.oname, 'w')
-            fo.write("Filename,second_offset,frame_offset,max_correlation\n")
+            fo.write("Filename,seconds_offset,frames_offset,max_correlation\n")
             fo.write(self.files[0].split('/')[-1] + ',' + '0.0,0.0,1.0\n')
             for k in range(1, len(files)):
                 fo.write(self.files[k].split('/')[-1] + ',' + str(offsets[k - 1][0]) + ',' + str(
