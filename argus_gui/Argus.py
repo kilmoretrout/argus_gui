@@ -20,20 +20,48 @@ RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resou
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, app):
         super().__init__()
+        
         # Set the window title
         self.setWindowTitle("Argus")
 
         self.app = app
+        
         # Set the window icon
         self.setWindowIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
 
         # Set the initial directory to the user's home directory
         self.current_directory = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
 
-        # Set up the user interface
+        #Create central widget
+        self.central_widget = QtWidgets.QWidget()
+        self.setCentralWidget(self.central_widget)
+        
+        # Create left tabbed panel
         self.tab_widget = QtWidgets.QTabWidget()
-        self.setCentralWidget(self.tab_widget)
-
+        
+        # Create right panel
+        self.right_panel = QtWidgets.QWidget()
+        self.right_layout = QtWidgets.QGridLayout()
+        self.logwindow = QtWidgets.QTextEdit()
+        self.logwindow.setReadOnly(True)
+        font = self.logwindow.font()
+        font.setFamily("Courier New")
+        self.logwindow.setFont(font)
+        self.cancel_button = QtWidgets.QPushButton('Cancel running process')
+        self.cancel_button.setEnabled(False)
+        self.cancel_button.clicked.connect(self.on_cancel)
+        self.about_button = QtWidgets.QPushButton('About this software')
+        self.about_button.setToolTip('Show information about this software')
+        self.about_button.clicked.connect(self.about)
+        self.quit_button = QtWidgets.QPushButton('Quit Argus')
+        self.quit_button.setToolTip('Quit Argus')
+        self.quit_button.clicked.connect(self.quit_all)
+        self.right_layout.addWidget(self.logwindow, 0, 0, 6, 3)
+        self.right_layout.addWidget(self.cancel_button, 7, 0)
+        self.right_layout.addWidget(self.about_button, 7, 1)
+        self.right_layout.addWidget(self.quit_button, 7, 2)
+        self.right_panel.setLayout(self.right_layout)
+        
         # Set up some variables
         # general
         self.tmps = []
@@ -54,6 +82,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.add_patterns_tab()
         self.add_calibrate_tab()
         self.add_dwarp_tab()
+        
+        # Create main layout
+        self.main_layout = QtWidgets.QHBoxLayout()
+        self.main_layout.addWidget(self.tab_widget)
+        self.main_layout.addWidget(self.right_panel)
+        self.central_widget.setLayout(self.main_layout)
 
     def add_clicker_tab(self):
         # Create the Clicker tab
@@ -76,10 +110,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.resolution_label = QtWidgets.QLabel('Diplay Resolution: ')
         self.resolution_var = QtWidgets.QComboBox()
         self.resolution_var.addItems(['Half', 'Full'])
-        # Create about button
-        self.about_button = QtWidgets.QPushButton('About')
-        self.about_button.setToolTip('Show information about this software')
-        self.about_button.clicked.connect(self.about)
         # Create load config button
         self.load_button = QtWidgets.QPushButton('Load Config')
         self.load_button.setToolTip('Load Clicker configuration from a file')
@@ -88,10 +118,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.go_button = QtWidgets.QPushButton('Go')
         self.go_button.setToolTip('Start digitizing through the movies')
         self.go_button.clicked.connect(self.clicker_go)
-        # Create quit button
-        self.quit_button = QtWidgets.QPushButton('Quit')
-        self.quit_button.setToolTip('Quit Argus')
-        self.quit_button.clicked.connect(self.quit_all)
         # Layout
         layout = QtWidgets.QGridLayout()
         layout.addWidget(self.file_list, 0, 0, 3, 2)
@@ -101,9 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.resolution_label, 3, 0)
         layout.addWidget(self.resolution_var, 3, 1)
         layout.addWidget(self.load_button, 5, 0)
-        layout.addWidget(self.go_button, 4, 0)
-        layout.addWidget(self.about_button, 6, 2)
-        layout.addWidget(self.quit_button, 6, 0)
+        layout.addWidget(self.go_button, 5, 2)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -131,15 +155,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.sync_go_button = QtWidgets.QPushButton('Go')
         self.sync_go_button.setToolTip('Synchronize the videos')
         self.sync_go_button.clicked.connect(self.sync_go)
-        # Create quit button
-        self.sync_quit_button = QtWidgets.QPushButton('Quit')
-        self.sync_quit_button.setToolTip('Quit Argus')
-        self.sync_quit_button.clicked.connect(self.quit_all)
-        # Create about button
-        self.sync_about_button = QtWidgets.QPushButton('About')
-        self.sync_about_button.setToolTip('Show information about this software')
-        self.sync_about_button.clicked.connect(self.about)
-        # creat log check box
+        # create log check box
         self.sync_log = QtWidgets.QCheckBox("Write Log")
 
 
@@ -183,9 +199,7 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.sync_onam_label, 9, 0)
         layout.addWidget(self.sync_onam_button, 10, 0)
         layout.addWidget(self.sync_onam, 10, 1, 1, 2)
-        layout.addWidget(self.sync_go_button, 11, 0)
-        layout.addWidget(self.sync_about_button, 12, 2)
-        layout.addWidget(self.sync_quit_button, 12, 0)
+        layout.addWidget(self.sync_go_button, 11, 3)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
@@ -217,14 +231,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wand_go_button = QtWidgets.QPushButton('Go')
         self.wand_go_button.setToolTip('Calculate the DLT calibration')
         self.wand_go_button.clicked.connect(self.wand_go)
-        # Create quit button
-        self.wand_quit_button = QtWidgets.QPushButton('Quit')
-        self.wand_quit_button.setToolTip('Quit Argus')
-        self.wand_quit_button.clicked.connect(self.quit_all)
-        # Create about button
-        self.wand_about_button = QtWidgets.QPushButton('About')
-        self.wand_about_button.setToolTip('Show information about this software')
-        self.wand_about_button.clicked.connect(self.about)
 
         ops_label = QtWidgets.QLabel("Options")
 
@@ -296,30 +302,28 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.wand_refs, 3, 1, 1, 3)
         layout.addWidget(self.wand_cams_button, 4, 0)
         layout.addWidget(self.wand_cams, 4, 1, 1, 3)
-        layout.addWidget(self.wand_reftype_label, 3, 4)
-        layout.addWidget(self.wand_reftype, 3, 5)
-        layout.addWidget(self.wand_freq_label, 3, 6)
-        layout.addWidget(self.wand_freq, 3, 7)
-        layout.addWidget(self.wand_scale_label, 1, 4)
-        layout.addWidget(self.wand_scale, 1, 5)
-        layout.addWidget(ops_label, 6, 1)
-        layout.addWidget(self.wand_instrics_label, 7, 0)
-        layout.addWidget(self.wand_intrinsics, 7, 1)
-        layout.addWidget(self.wand_dist_label, 8, 0)
-        layout.addWidget(self.wand_dist, 8, 1)
-        layout.addWidget(self.wand_outliers, 9, 0)
-        layout.addWidget(self.wand_chooseRef, 9, 1)
-        layout.addWidget(self.wand_outputProf, 9, 2)
-        layout.addWidget(self.wand_display, 9, 3)
-        layout.addWidget(self.wand_onam_label, 10, 0)
-        layout.addWidget(self.wand_onam_button, 11, 0)
-        layout.addWidget(self.wand_onam, 11, 1, 1, 3)
-        layout.addWidget(self.wand_log, 12, 0)
-        layout.addWidget(self.wand_go_button, 13, 0)
-        layout.addWidget(self.wand_quit_button, 14, 0)
-        layout.addWidget(self.wand_about_button, 14, 6)
+        layout.addWidget(self.wand_reftype_label, 5, 2)
+        layout.addWidget(self.wand_reftype, 5, 3)
+        layout.addWidget(self.wand_freq_label, 6, 2)
+        layout.addWidget(self.wand_freq, 6, 3)
+        layout.addWidget(self.wand_scale_label, 5, 0)
+        layout.addWidget(self.wand_scale, 5, 1)
+        layout.addWidget(ops_label, 7, 0)
+        layout.addWidget(self.wand_instrics_label, 8, 0)
+        layout.addWidget(self.wand_intrinsics, 8, 1)
+        layout.addWidget(self.wand_dist_label, 9, 0)
+        layout.addWidget(self.wand_dist, 9, 1)
+        layout.addWidget(self.wand_outliers, 10, 0)
+        layout.addWidget(self.wand_chooseRef, 10, 1)
+        layout.addWidget(self.wand_outputProf, 10, 2)
+        layout.addWidget(self.wand_display, 10, 3)
+        layout.addWidget(self.wand_onam_label, 11, 0)
+        layout.addWidget(self.wand_onam_button, 12, 0)
+        layout.addWidget(self.wand_onam, 12, 1, 1, 3)
+        layout.addWidget(self.wand_log, 13, 0)
+        layout.addWidget(self.wand_go_button, 14, 3)
         
-        layout.setColumnMinimumWidth(1, 400)
+        # layout.setColumnMinimumWidth(1, 400)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -333,13 +337,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.patt_go_button.setToolTip('Detect patterns in video')
         self.patt_go_button.clicked.connect(self.pattern_go)
         # Create quit button
-        self.patt_quit_button = QtWidgets.QPushButton('Quit')
-        self.patt_quit_button.setToolTip('Quit Argus')
-        self.patt_quit_button.clicked.connect(self.quit_all)
+        # self.patt_quit_button = QtWidgets.QPushButton('Quit')
+        # self.patt_quit_button.setToolTip('Quit Argus')
+        # self.patt_quit_button.clicked.connect(self.quit_all)
         # Create about button
-        self.patt_about_button = QtWidgets.QPushButton('About')
-        self.patt_about_button.setToolTip('Show information about this software')
-        self.patt_about_button.clicked.connect(self.about)
+        # self.patt_about_button = QtWidgets.QPushButton('About')
+        # self.patt_about_button.setToolTip('Show information about this software')
+        # self.patt_about_button.clicked.connect(self.about)
 
         self.patt_file_button = QtWidgets.QPushButton('Select video of a pattern')
         self.patt_file_button.clicked.connect(self.add)
@@ -426,8 +430,8 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.patt_onam, 6, 1, 1, 3)
         layout.addWidget(self.patt_log, 7, 0)
         layout.addWidget(self.patt_go_button, 8, 0)
-        layout.addWidget(self.patt_quit_button, 9, 0)
-        layout.addWidget(self.patt_about_button, 9, 6)
+        # layout.addWidget(self.patt_quit_button, 9, 0)
+        # layout.addWidget(self.patt_about_button, 9, 6)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
 
@@ -437,9 +441,9 @@ class MainWindow(QtWidgets.QMainWindow):
         # Create the Calibrate tab 
         self.cal_log = QtWidgets.QCheckBox("Write log")
         # Create about button
-        self.cal_about_button = QtWidgets.QPushButton('About')
-        self.cal_about_button.setToolTip('Show information about this software')
-        self.cal_about_button.clicked.connect(self.about)
+        # self.cal_about_button = QtWidgets.QPushButton('About')
+        # self.cal_about_button.setToolTip('Show information about this software')
+        # self.cal_about_button.clicked.connect(self.about)
         self.cal_onam_label = QtWidgets.QLabel("Output file prefix and location")
         self.cal_onam_button = QtWidgets.QPushButton("Specify")
         self.cal_onam_button.clicked.connect(self.save_loc)
@@ -449,9 +453,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cal_go_button.setToolTip('Calculate camera calibration')
         self.cal_go_button.clicked.connect(self.calibrate_go)
         # Create quit button
-        self.cal_quit_button = QtWidgets.QPushButton('Quit')
-        self.cal_quit_button.setToolTip('Quit Argus')
-        self.cal_quit_button.clicked.connect(self.quit_all)
+        # self.cal_quit_button = QtWidgets.QPushButton('Quit')
+        # self.cal_quit_button.setToolTip('Quit Argus')
+        # self.cal_quit_button.clicked.connect(self.quit_all)
 
         self.cal_file_button = QtWidgets.QPushButton('Select patterns file')
         self.cal_file_button.clicked.connect(self.add)
@@ -502,8 +506,8 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.cal_onam, 5, 1, 1, 3)
         layout.addWidget(self.cal_log, 6, 0)
         layout.addWidget(self.cal_go_button, 7, 0)
-        layout.addWidget(self.cal_quit_button, 8, 0)
-        layout.addWidget(self.cal_about_button, 9, 5)
+        # layout.addWidget(self.cal_quit_button, 8, 0)
+        # layout.addWidget(self.cal_about_button, 9, 5)
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
         self.tab_widget.addTab(tab, QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/calculator-8x.gif')), "Calibrate")
@@ -514,9 +518,9 @@ class MainWindow(QtWidgets.QMainWindow):
         #common elements
         self.dwarp_log = QtWidgets.QCheckBox("Write log")
         # Create about button
-        self.dwarp_about_button = QtWidgets.QPushButton('About')
-        self.dwarp_about_button.setToolTip('Show information about this software')
-        self.dwarp_about_button.clicked.connect(self.about)
+        # self.dwarp_about_button = QtWidgets.QPushButton('About')
+        # self.dwarp_about_button.setToolTip('Show information about this software')
+        # self.dwarp_about_button.clicked.connect(self.about)
         self.dwarp_onam_label = QtWidgets.QLabel("Output file prefix and location")
         self.dwarp_onam_button = QtWidgets.QPushButton("Specify")
         self.dwarp_onam_button.clicked.connect(self.save_loc)
@@ -526,9 +530,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.dwarp_go_button.setToolTip('Calculate camera calibration')
         self.dwarp_go_button.clicked.connect(self.dwarp_go)
         # Create quit button
-        self.dwarp_quit_button = QtWidgets.QPushButton('Quit')
-        self.dwarp_quit_button.setToolTip('Quit the program')
-        self.dwarp_quit_button.clicked.connect(self.quit_all)
+        # self.dwarp_quit_button = QtWidgets.QPushButton('Quit')
+        # self.dwarp_quit_button.setToolTip('Quit the program')
+        # self.dwarp_quit_button.clicked.connect(self.quit_all)
 
         self.dwarp_file_button = QtWidgets.QPushButton('Select movie file')
         self.dwarp_file_button.clicked.connect(self.add)
@@ -558,9 +562,6 @@ class MainWindow(QtWidgets.QMainWindow):
                 if mode != '':
                     self.models[mod][mode] = vals
             
-            # modesdf = pd.read_csv(ifile, index_col=0)
-            # for mode in modesdf.index:
-            #     self.models[mod][mode] = modesdf.loc[mode, :].tolist()
         dwarp_model_label = QtWidgets.QLabel("Camera model:")
         self.dwarp_models = QtWidgets.QComboBox()
         self.dwarp_models.addItems(list(self.models.keys()))
@@ -675,8 +676,8 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.dwarp_onam, 8, 1, 1, 3)
         layout.addWidget(self.dwarp_log, 9, 0)
         layout.addWidget(self.dwarp_go_button, 10, 0)
-        layout.addWidget(self.dwarp_quit_button, 11, 0)
-        layout.addWidget(self.dwarp_about_button, 11, 5)
+        # layout.addWidget(self.dwarp_quit_button, 11, 0)
+        # layout.addWidget(self.dwarp_about_button, 11, 5)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -825,7 +826,7 @@ class MainWindow(QtWidgets.QMainWindow):
         file_dialog.setNameFilter(filter)
 
         # Show the file dialog and get the selected file path
-        if file_dialog.exec_():
+        if file_dialog.exec():
             file_name = file_dialog.selectedFiles()[0]
 
         if file_name:
@@ -1392,12 +1393,20 @@ class MainWindow(QtWidgets.QMainWindow):
         print(' '.join(cmd))
         if opath is None:
             wlog = False
-        worker = WorkerThread(cmd, opath, wlog)
-        worker.output.connect(self.on_output)
-        worker.complete.connect(self.on_complete)
-        worker.start()
-        self.dialog = CancelDialog(worker)
-        self.dialog.exec()
+        self.wLog = wlog
+        if self.wLog:
+            self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
+            self.fo = open(self.logpath, "wb")
+        else:
+            self.fo = None
+            
+        self.cancel_button.setEnabled(True)
+        self.worker = WorkerThread(cmd, self, opath, wlog)
+        self.worker.output.connect(self.on_output)
+        self.worker.complete.connect(self.on_complete)
+        self.worker.start()
+        # self.dialog = CancelDialog(worker)
+        # self.dialog.exec()
         # log_window = Logger(cmd, opath, wLog=wlog)
         # log_window.show()
         # app.exec_()
@@ -1426,65 +1435,99 @@ class MainWindow(QtWidgets.QMainWindow):
         # proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
         # self.pids.append(proc.pid)
     def on_output(self, text):
-        print(text)
+        bad_phrases = ['iters',
+                        'it/s',
+                        'InsecureRequestWarning',
+                        'axes3d.py',
+                        'Python',
+                        '_createMenuRef',
+                        '0x',
+                        'ApplePersistenceIgnoreState',
+                        'self._edgecolors',
+                        'objc',
+                        'warnings.warn',
+                        'UserWarning',
+                        ]
+         
+        if not any(bad_phrase in text for bad_phrase in bad_phrases):
+            self.logwindow.append(text)
+            
+            if self.fo:
+                text = "\n" + text
+                self.fo.write(text.encode('utf-8'))
+        # print(text)
         
     def on_complete(self):
-        self.dialog.accept()
+        # self.dialog.accept()
+        self.on_output('Process complete!')
+        self.cancel_button.setEnabled(False)
+        if self.fo:
+            self.fo.close()
+        
+    def on_cancel(self):
+        self.worker.stop()
+        self.on_output('Process cancelled!')
+        if self.fo:
+            self.fo.close()
 
 class WorkerThread(QtCore.QThread):
     output = QtCore.Signal(str)
     complete = QtCore.Signal()
     
-    def __init__(self, cmd, opath, wLog):
+    def __init__(self, cmd, logWindow, opath, wLog):
         super().__init__()
         self.cmd = cmd
+        self.logWindow = logWindow
         self.process = None
-        self.wLog = wLog
-        if self.wLog:
-            self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
-            self.fo = open(self.logpath, "wb")
-        else:
-            self.fo = None
+        # self.wLog = wLog
+        # if self.wLog:
+        #     self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
+        #     self.fo = open(self.logpath, "wb")
+        # else:
+        #     self.fo = None
         # self.complete = False
 
-    def run(self):
+    def start(self):
         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True)
         while True:
             line = self.process.stdout.readline()
             if line == '' and self.process.poll() is not None:
-                print("Process completed")
-                if self.fo:
-                    self.fo.write("Process completed!".encode('utf-8'))
-                    self.fo.close()
+                # print("Process completed")
+                # self.output.emit("Process Completed")
+                # if self.fo:
+                #     self.fo.write("Process completed!".encode('utf-8'))
+                #     self.fo.close()
                 self.complete.emit()
                 # self.complete = True
                 break
             if line:
                 self.output.emit(line.strip())
-                if self.wLog:
-                    self.fo.write(line.encode('utf-8'))
+                # if self.wLog:
+                #     self.fo.write(line.encode('utf-8'))
+            QtWidgets.QApplication.processEvents()
 
     def stop(self):
         if self.process:
+            # self.output.emit("Process canceled")
             self.process.terminate()
-        print("Process canceled")
-        if self.wLog:
-            self.fo.write("Process canceled".encode('utf-8'))
-            self.fo.close()
-            self.fo = None
+        # print("Process canceled")
+        # if self.wLog:
+        #     self.fo.write("Process canceled".encode('utf-8'))
+        #     self.fo.close()
+        #     self.fo = None
 
-class CancelDialog(QtWidgets.QDialog):
-    def __init__(self, worker):
-        super().__init__()
-        self.worker = worker
-        layout = QtWidgets.QVBoxLayout(self)
-        cancel_button = QtWidgets.QPushButton('Cancel')
-        cancel_button.clicked.connect(self.on_cancel)
-        layout.addWidget(cancel_button)
+# class CancelDialog(QtWidgets.QDialog):
+#     def __init__(self, worker):
+#         super().__init__()
+#         self.worker = worker
+#         layout = QtWidgets.QVBoxLayout(self)
+#         cancel_button = QtWidgets.QPushButton('Cancel')
+#         cancel_button.clicked.connect(self.on_cancel)
+#         layout.addWidget(cancel_button)
 
-    def on_cancel(self):
-        self.worker.stop()
-        self.accept()
+#     def on_cancel(self):
+#         self.worker.stop()
+#         self.accept()
         
 
 # Makes a subprocess with Pyglet windows for all camera views
@@ -1539,6 +1582,35 @@ class ClickerProject:
         with open(f"{proj_path}-config.yaml", "w") as f:
             f.write(yaml.dump(project))
 
+# class LogWindowTask(QtCore.QRunnable):
+#     """
+#     run a command in its own thread
+#     """
+    
+#     def __init__(self, cmd, logWindow):
+#         super().__init__()
+#         self.cmd = cmd
+#         self.logWindow = logWindow
+
+#     def run(self):
+#         startupinfo = None
+#         # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
+#         #     # Set up the startupinfo to suppress the console window
+#         #     startupinfo = subprocess.STARTUPINFO()
+#         #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+#         # Start the process
+#         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True, startupinfo=startupinfo)
+
+#         while True:
+#             output = self.process.stdout.readline()
+#             if self.logWindow.cancelnow:
+#                 break
+#             if output == '' and self.process.poll() is not None:
+#                 self.logWindow.onFinished()
+#                 break
+#             if output:
+#                 self.logWindow.onOutput(output.strip())
+                
 if __name__ == "__main__":
     app = QtWidgets.QApplication()
     window = MainWindow(app)

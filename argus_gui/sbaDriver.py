@@ -448,7 +448,7 @@ class sbaArgusDriver():
         self.fix()
     
     def exitLoop(self):
-        if self.display and self.outwindow.isVisible():
+        if self.outwindow.isVisible():
             self.outwindow.close()
 
 class OutlierWindow(QtWidgets.QWidget):
