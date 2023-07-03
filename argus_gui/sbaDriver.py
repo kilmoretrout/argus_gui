@@ -354,6 +354,7 @@ class sbaArgusDriver():
                            fmt='%-1.5g')
 
         if self.report:
+            QtWidgets.QApplication.processEvents()
             if len(self.outliers) == 0:
                 QtWidgets.QMessageBox.warning(None,
                     "No outliers",
@@ -367,7 +368,7 @@ class sbaArgusDriver():
                 if app is None:
                     self.running = False
                     app = QtWidgets.QApplication(sys.argv)
-                self.outwindow = OutlierWindow(self, self.outliers) 
+                self.outwindow = OutlierWindow(self, self.outliers, grapher.dlterrors, grapher.wandscore) 
 
                 if self.display:
                     if not self.outwindow.isVisible():
@@ -452,7 +453,7 @@ class sbaArgusDriver():
             self.outwindow.close()
 
 class OutlierWindow(QtWidgets.QWidget):
-    def __init__(self, my_app, outliers):
+    def __init__(self, my_app, outliers, errors, wandscore):
         super().__init__()
         self.my_app = my_app
         self.outliers = outliers
@@ -460,15 +461,18 @@ class OutlierWindow(QtWidgets.QWidget):
         self.setWindowTitle("Argus - Outlier Report")
         self.resize(500, 500)
         layout = QtWidgets.QVBoxLayout(self)
-
-        # Create a table widget and add it to the layout
+        errslabel = QtWidgets.QLabel(f"DLT errors: {errors}")
+        wslabel = QtWidgets.QLabel(f"Wand score: {wandscore}")
+        # Create a table widget
         self.table = QtWidgets.QTableWidget(1, 4)
         # Set the column headers
         self.table.setHorizontalHeaderLabels(['Frame', 'Undistorted Pixel Coordinate', 'Point Type', 'Error'])
+        layout.addWidget(errslabel)
+        layout.addWidget(wslabel)
         layout.addWidget(self.table)
         # Create a label and add it to the layout
         self.label = QtWidgets.QLabel("")
-        self.label.setStyleSheet("font-weight: bold;")
+        # self.label.setStyleSheet("font-weight: bold;")
         layout.addWidget(self.label)
 
         # Create two buttons and add them to the layout
@@ -493,7 +497,7 @@ class OutlierWindow(QtWidgets.QWidget):
 
             for column, item in enumerate(items):
                 self.table.setItem(row, column, item)
-        self.label.setText(f"Found {len(self.outliers)} possible outliers")
+        self.label.setText(f"Found {len(self.outliers)} possible outliers.\n Removing them may improve the DLT errors and wand score.")
 
     def exitLoop(self):
         self.close()

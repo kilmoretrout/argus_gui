@@ -511,13 +511,6 @@ class wandGrapher():
         xyzs = np.loadtxt(self.temp + '/' + self.key + '_np.txt')
         cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # ax.set_aspect('equal') # doesn't look good for 3D
-        # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
-        # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
-
-
         qT = cam[:, -7:]
         quats = qT[:, :4]
         trans = qT[:, 4:]
@@ -586,7 +579,25 @@ class wandGrapher():
 
         dlts = np.asarray(dlts)
         errs = np.asarray(errs)
-
+        self.dlterrors = errs
+        #print errors and wand score to the log
+        self.outputDLT(dlts, errs)
+        sys.stdout.flush()
+        
+        if self.nppts != 0:
+            self.wandscore = 100. * (std / dist)
+            print('\nWand score: ' + str(self.wandscore))
+            sys.stdout.flush()
+        else:
+            print('\nWand score: not applicable')
+        sys.stdout.flush()
+        
+        # start making the graph
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # ax.set_aspect('equal') # doesn't look good for 3D
+        # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
+        # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
         # trim off the reference points as we don't want to graph them with the other xyz
         xyzs = xyzs[self.nRef:, :]
 
@@ -633,16 +644,6 @@ class wandGrapher():
         # add the legend, auto-generated from label='' values for each plot entry
         if self.display:
             ax.legend()
-
-        self.outputDLT(dlts, errs)
-
-        if self.nppts != 0:
-            print('\nWand score: ' + str(100. * (std / dist)))
-            sys.stdout.flush()
-        else:
-            print('\nWand score: not applicable')
-
-        sys.stdout.flush()
 
         outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], up,
                                   self.indices['unpaired'], self.nupframes)
