@@ -1430,14 +1430,11 @@ class MainWindow(QtWidgets.QMainWindow):
          
         if not any(bad_phrase in text for bad_phrase in bad_phrases):
             self.logwindow.append(text)
-            
             if self.fo:
                 text = "\n" + text
                 self.fo.write(text.encode('utf-8'))
-        # print(text)
         
     def on_complete(self):
-        # self.dialog.accept()
         self.on_output('Process complete!')
         self.cancel_button.setEnabled(False)
         if self.fo:
