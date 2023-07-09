@@ -326,33 +326,14 @@ class Undistorter(object):
         print('Undistortion finished')
         if write:
             print('Wrote mp4 to {0}'.format(ofnam))
-        sys.stdout.flush()
-        # Destroy movie object and the window if it was even created
-        movie = None
-        # if display:
-        #     cv2.waitKey(1)
-        #     cv2.destroyAllWindows()
-        #     cv2.waitKey(1)
-        if write:
-            # clip = ImageSequenceClip(fileList, fps=self.fps, with_mask = False, load_images = False)
-
-            # Write the mp4 file
-            """
-            if os.path.exists(tmp + '/' + 'temp.m4a'):
-                clip.write_videofile(ofnam, fps=self.fps, audio = tmp + '/' + 'temp.m4a', audio_fps = 48000, codec='libx264', threads=0, ffmpeg_params = ['-crf', str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile' ,'baseline'])
-            else:
-                print('No audio stream found, writing without...')
-                clip.write_videofile(ofnam, fps=self.fps, audio_fps = 48000, codec='libx264', threads=0, ffmpeg_params = ['-crf', str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile' ,'baseline'])
-            """
-            sys.stdout.flush()
-            clip = None
-
             # Destroy the temporary directory
             shutil.rmtree(tmp)
             if self.copy_tmp is not None:
                 shutil.rmtree(self.copy_tmp)
-            if display:
-                self.app.exec()
+        sys.stdout.flush()
+
+        if display:
+            self.app.exec()
 
     def undistort_frame(self, frame, ofile=None, crop=False):
         if self.movie is None:
