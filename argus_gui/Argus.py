@@ -1436,6 +1436,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
     def on_complete(self):
         self.on_output('Process complete!')
+        self.kill_pids()
         self.cancel_button.setEnabled(False)
         if self.fo:
             self.fo.close()
@@ -1458,6 +1459,8 @@ class WorkerThread(QtCore.QThread):
 
     def start(self):
         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True)
+        self.logWindow.pids.append(self.process.pid)
+        
         while True:
             line = self.process.stdout.readline()
             if line == '' and self.process.poll() is not None:

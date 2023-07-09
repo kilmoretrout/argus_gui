@@ -266,19 +266,8 @@ class Undistorter(object):
         # if we're displaying, make a window to do so
         vidWindow = None
         if display:
-            # if 'linux' in sys.platform:
-            #     cv2.imshow("Undistorted", np.zeros((1080, 1920, 3)))
-            # cv2.namedWindow("Undistorted")
-            
-            # app = QApplication(sys.argv)
             vidWindow = VideoWindow()
             vidWindow.show()
-            # self.window = QWidget()
-            # self.layout = QVBoxLayout()
-            # self.label = QLabel()
-            # self.layout.addWidget(self.label)
-            # self.window.setLayout(self.layout)
-            # self.window.show()
 
         a = 0
         # for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
@@ -303,13 +292,6 @@ class Undistorter(object):
                 if display:
                     vidWindow.show_frame(cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
                     QApplication.processEvents()
-                    # cv2.waitKey(1)
-                    # image = cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5)
-                    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-                    # h, w, c = image.shape
-                    # qimage = QImage(image.data, w, h, c * w, QImage.Format_RGB888)
-                    # pixmap = QPixmap.fromImage(qimage)
-                    # self.label.setPixmap(pixmap)
 
                 if write:
                     p.stdin.write(undistorted.tostring())
@@ -317,12 +299,6 @@ class Undistorter(object):
                 if a % 5 == 0:
                     print('\n', end='')
                     sys.stdout.flush()
-                """
-                # Write the individual frame as a png to the temporary directory
-                if write:
-                    cv2.imwrite(tmp + '/' + str(a) + '.png', undistorted)
-                    fileList.append(tmp + '/' + str(a) + '.png')
-                """
             else:
                 if write:
                     print("Could not read frame number: " + str(a) + "\n writing blank frame")
@@ -335,24 +311,13 @@ class Undistorter(object):
             a += 1
             
             if a == int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT)):
-            #     print("last frame")
-            #     sys.stdout.flush()
-            #     p.stdin.close()
-            #     p.stderr.close()
-            #     p.wait()
-            #     vidWindow.close()
+                # last frame
                 break
             
         if write:
             p.stdin.close()
-            # p.stderr.close()
             p.wait()
             
-        # if display:
-        #     sys.exit(app.exec())
-            
-        # if self.window is not None:
-        #     self.window.close()
         if vidWindow is not None:
             print("closing preview")
             sys.stdout.flush()
@@ -570,22 +535,6 @@ class DistortionProfile(object):
             return np.array([self.coefficients for k in range(ncams)])
         else:
             raise ArgusError('must specify distortion coefficients using get_coefficients or set_coefficients')
-
-# class VideoThread(QThread):
-#     frame_ready = Signal(np.ndarray)
-
-#     def __init__(self, movie):
-#         super().__init__()
-#         self.movie = movie
-
-#     def run(self):
-#         # cap = cv2.VideoCapture(self.video_path)
-#         while True:
-#             ret, frame = self.movie.read()
-#             if not ret:
-#                 break
-#             self.frame_ready.emit(frame)
-#             self.msleep(1)
             
 # class that displays video as it is being dwarped using a pyside6 window to avoid segmentation faults
 class VideoWindow(QWidget):
