@@ -1410,32 +1410,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.worker.output.connect(self.on_output)
         self.worker.complete.connect(self.on_complete)
         self.worker.start()
-        # self.dialog = CancelDialog(worker)
-        # self.dialog.exec()
-        # log_window = Logger(cmd, opath, wLog=wlog)
-        # log_window.show()
-        # app.exec_()
-        #  =app QtWidgets.QApplication.instance()
-        # if app is None:
-        #     print('app is None')
-        #     app = QtWidgets.QApplication(sys.argv)
-        # self.app.exec()
-        # log.startLog()
-        # log.loop.exec()
-        # log.show()
-        # cmd = [str(wlog), ''] + cmd
-        # rcmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-log')]
-
-        # rcmd = rcmd + cmd
-
-        # startupinfo = None
-        # # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-        # #     startupinfo = subprocess.STARTUPINFO()
-        # #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-        # print(type(rcmd), rcmd)
-        # print(type(subprocess.PIPE))
-        # print(type(startupinfo))
 
         # proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=True, startupinfo=startupinfo)
         # self.pids.append(proc.pid)
@@ -1484,13 +1458,6 @@ class WorkerThread(QtCore.QThread):
         self.cmd = cmd
         self.logWindow = logWindow
         self.process = None
-        # self.wLog = wLog
-        # if self.wLog:
-        #     self.logpath = os.path.join(os.path.dirname(opath), f'Log--{time.strftime("%Y-%m-%d-%H-%M")}.txt')
-        #     self.fo = open(self.logpath, "wb")
-        # else:
-        #     self.fo = None
-        # self.complete = False
 
     def start(self):
         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True)
@@ -1498,42 +1465,16 @@ class WorkerThread(QtCore.QThread):
             line = self.process.stdout.readline()
             if line == '' and self.process.poll() is not None:
                 # print("Process completed")
-                # self.output.emit("Process Completed")
-                # if self.fo:
-                #     self.fo.write("Process completed!".encode('utf-8'))
-                #     self.fo.close()
                 self.complete.emit()
-                # self.complete = True
                 break
             if line:
                 self.output.emit(line.strip())
-                # if self.wLog:
-                #     self.fo.write(line.encode('utf-8'))
+                
             QtWidgets.QApplication.processEvents()
 
     def stop(self):
         if self.process:
-            # self.output.emit("Process canceled")
-            self.process.terminate()
-        # print("Process canceled")
-        # if self.wLog:
-        #     self.fo.write("Process canceled".encode('utf-8'))
-        #     self.fo.close()
-        #     self.fo = None
-
-# class CancelDialog(QtWidgets.QDialog):
-#     def __init__(self, worker):
-#         super().__init__()
-#         self.worker = worker
-#         layout = QtWidgets.QVBoxLayout(self)
-#         cancel_button = QtWidgets.QPushButton('Cancel')
-#         cancel_button.clicked.connect(self.on_cancel)
-#         layout.addWidget(cancel_button)
-
-#     def on_cancel(self):
-#         self.worker.stop()
-#         self.accept()
-        
+            self.process.terminate()        
 
 # Makes a subprocess with Pyglet windows for all camera views
 class PygletDriver:
@@ -1586,35 +1527,6 @@ class ClickerProject:
                    {"camera_profile": camera_profile}, {"settings": settings}]
         with open(f"{proj_path}-config.yaml", "w") as f:
             f.write(yaml.dump(project))
-
-# class LogWindowTask(QtCore.QRunnable):
-#     """
-#     run a command in its own thread
-#     """
-    
-#     def __init__(self, cmd, logWindow):
-#         super().__init__()
-#         self.cmd = cmd
-#         self.logWindow = logWindow
-
-#     def run(self):
-#         startupinfo = None
-#         # if sys.platform == "win32" or sys.platform == "win64":  # Make it so subprocess brings up no console window
-#         #     # Set up the startupinfo to suppress the console window
-#         #     startupinfo = subprocess.STARTUPINFO()
-#         #     startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-#         # Start the process
-#         self.process = subprocess.Popen(self.cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False, text=True, startupinfo=startupinfo)
-
-#         while True:
-#             output = self.process.stdout.readline()
-#             if self.logWindow.cancelnow:
-#                 break
-#             if output == '' and self.process.poll() is not None:
-#                 self.logWindow.onFinished()
-#                 break
-#             if output:
-#                 self.logWindow.onOutput(output.strip())
                 
 if __name__ == "__main__":
     app = QtWidgets.QApplication()
