@@ -1463,8 +1463,9 @@ class WorkerThread(QtCore.QThread):
         
         while True:
             line = self.process.stdout.readline()
-            if line == '' and self.process.poll() is not None:
-                # print("Process completed")
+            if self.process.poll() is not None:
+                self.output.emit("last frame?")
+                QtWidgets.QApplication.processEvents()
                 self.complete.emit()
                 break
             if line:

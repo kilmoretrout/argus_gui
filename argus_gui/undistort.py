@@ -317,20 +317,29 @@ class Undistorter(object):
         if write:
             p.stdin.close()
             p.wait()
+            print('Wrote mp4 to {0}'.format(ofnam))
+            sys.stdout.flush()
+            # Destroy the temporary directory
+            shutil.rmtree(tmp)
+            if self.copy_tmp is not None:
+                shutil.rmtree(self.copy_tmp)
             
         if vidWindow is not None:
             print("closing preview")
             sys.stdout.flush()
             vidWindow.close()
+            QApplication.processEvents()
                     
         print('Undistortion finished')
-        if write:
-            print('Wrote mp4 to {0}'.format(ofnam))
-            # Destroy the temporary directory
-            shutil.rmtree(tmp)
-            if self.copy_tmp is not None:
-                shutil.rmtree(self.copy_tmp)
         sys.stdout.flush()
+        # if write:
+        #     print('Wrote mp4 to {0}'.format(ofnam))
+        #     sys.stdout.flush()
+        #     # Destroy the temporary directory
+        #     shutil.rmtree(tmp)
+        #     if self.copy_tmp is not None:
+        #         shutil.rmtree(self.copy_tmp)
+        
 
         if display:
             self.app.exec()
