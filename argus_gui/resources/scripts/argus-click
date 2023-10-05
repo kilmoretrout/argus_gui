@@ -49,6 +49,7 @@ class GoToPopupWindow(QtWidgets.QDialog):
         layout = QtWidgets.QVBoxLayout(self)
         self.go_to_frame = QtWidgets.QSpinBox()
         self.go_to_frame.setValue(current_frame)
+        self.go_to_frame.setMaximum(number_of_frames)
         layout.addWidget(self.go_to_frame)
         self.label = QtWidgets.QLabel(f'out of {number_of_frames}')
         layout.addWidget(self.label)
@@ -1691,9 +1692,9 @@ class ClickerWindow(pyglet.window.Window):
             if app is None:
                 app = QtWidgets.QApplication([])
             w = GoToPopupWindow(self.end)
-            if w.exec_() == QtWidgets.QDialog.Accepted:
+            if w.exec() == QtWidgets.QDialog.Accepted:
                 try:
-                    int(w.go_to_frame)
+                    int(w.go_to_frame.value())
                 except:
                     QtWidgets.QMessageBox.warning(None,
                         "Error",
@@ -1701,8 +1702,8 @@ class ClickerWindow(pyglet.window.Window):
                     )
                     return
 
-            if 1 <= int(w.go_to_frame) <= self.end:
-                self.current_point_index = int(w.go_to_frame)
+            if 1 <= int(w.go_to_frame.value()) <= self.end:
+                self.current_point_index = int(w.go_to_frame.value())
                 current_frame = self.current_point_index
                 self.changed = True
                 self.change_marker()
