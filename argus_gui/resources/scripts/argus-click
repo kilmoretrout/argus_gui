@@ -372,7 +372,6 @@ def draw_circle(coordinates, radius, color=(255, 255, 255), batch=None, strip=Fa
     :return:
     """
     global thickness
-
     (x, y) = coordinates
     # radius = radius
 
@@ -597,7 +596,7 @@ class ClickerWindow(pyglet.window.Window):
     def draw_tracks(self):
         self.update_tracks()
         track = current_track_global
-
+        
         positions = self.points[track].A
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
@@ -996,8 +995,8 @@ class ClickerWindow(pyglet.window.Window):
             # sys.stdout.flush()
             current_track_index = track_list_global.index(track)
             self.points[track] = load_data_global[:,
-                                 2 * current_track_index * no_cameras_global + 4 * self.original_index:
-                                 2 * current_track_index * no_cameras_global + 4 * self.original_index + 4]
+                                 2 * current_track_index * no_cameras_global + 2 * self.original_index:
+                                 2 * current_track_index * no_cameras_global + 2 * self.original_index + 2]
 
             if self.points[track].shape[0] > self.end:
                 matching = False
@@ -2024,6 +2023,9 @@ def parse_csv(csv: str) -> lil_matrix:
 def check_if_file(path):
     if path is None: return
     if not os.path.isfile(path):
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            app = QtWidgets.QApplication([])
         QtWidgets.QMessageBox.warning(None,
             "Error",
             f"Unable to locate {path}"
