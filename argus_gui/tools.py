@@ -196,7 +196,7 @@ def normalize(pts, prof):
         if pts.shape[1] != 2:
             raise ArgusError('pts must be an Nx2 array')
     else:
-        raise ArgusErro('pts must be a numpy array')
+        raise ArgusError('pts must be a numpy array')
     for k in range(len(pts)):
         pts[k][0] = (pts[k][0] - prof[1]) / prof[0]
         pts[k][1] = (pts[k][1] - prof[2]) / prof[0]
@@ -291,10 +291,18 @@ Returns:
 """
 
 
-def uv_to_xyz(pts, profs, dlt):
-    if (int(pts.shape[1] / 2) != len(profs)) or (int(pts.shape[1] / 2) != len(dlt)):
-        raise ArgusError(
-            'the length of the profile list and DLT coefficients should match the number of cameras present')
+#def uv_to_xyz(pts, profs, dlt):
+def uv_to_xyz(pts, dlt, profs=None):
+    if profs is not None:
+        if (int(pts.shape[1] / 2) != len(profs)) or (int(pts.shape[1] / 2) != len(dlt)):
+            raise ArgusError(
+                'the length of the profile list and DLT coefficients should match the number of cameras present')
+    else:
+        print("No camera profile loaded, proceding with potentially distorted reconstruction")
+        if (int(pts.shape[1] / 2) != len(dlt)):
+            raise ArgusError(
+                'the length of the DLT coefficients should match the number of cameras present')
+
     # pts = pts.toarray()
 
     xyzs = np.zeros((len(pts), 3))
@@ -306,27 +314,30 @@ def uv_to_xyz(pts, profs, dlt):
             # do we have a NaN pair?
             if not True in np.isnan(pts[i, 2 * j:2 * (j + 1)]):
                 # if not append the undistorted point and its camera number to the list
-                uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
+                if profs is None:
+                    uvs.append([pts[i, 2 * j:2 * (j + 1)], j])
+                else:
+                    uvs.append([undistort_pts(pts[i, 2 * j:2 * (j + 1)], profs[j])[0], j])
 
         if len(uvs) > 1:
             # if we have at least 2 uv coordinates, setup the linear system
             A = np.zeros((2 * len(uvs), 3))
 
             for k in range(len(uvs)):
-                A[k] = np.asarray([uvs[k][0][0] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0],
+                A[2*k] = np.asarray([uvs[k][0][0] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][0],
                                    uvs[k][0][0] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][1],
                                    uvs[k][0][0] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][2]])
-                A[k + 1] = np.asarray([uvs[k][0][1] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4],
+                A[2*k + 1] = np.asarray([uvs[k][0][1] * dlt[uvs[k][1]][8] - dlt[uvs[k][1]][4],
                                        uvs[k][0][1] * dlt[uvs[k][1]][9] - dlt[uvs[k][1]][5],
                                        uvs[k][0][1] * dlt[uvs[k][1]][10] - dlt[uvs[k][1]][6]])
 
             B = np.zeros((2 * len(uvs), 1))
             for k in range(len(uvs)):
-                B[k] = dlt[uvs[k][1]][3] - uvs[k][0][0]
-                B[k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
+                B[2*k] = dlt[uvs[k][1]][3] - uvs[k][0][0]
+                B[2*k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
 
             # solve it
-            xyz = np.linalg.lstsq(A, B)[0]
+            xyz = np.linalg.lstsq(A, B, rcond=None)[0]
             # place in the proper frame
             xyzs[i] = xyz[:, 0]
 
@@ -357,8 +368,12 @@ Returns:
 
 def get_repo_errors(xyzs, pts, prof, dlt):
     # error catching non-sensical inputs
-    if ((not hasattr(prof, '__iter__')) or (not hasattr(dlt, '__iter__'))):
-        raise ArgusError('camera profile and dlt coefficients must be iterables')
+    if prof is not None:
+        if ((not hasattr(prof, '__iter__')) or (not hasattr(dlt, '__iter__'))):
+            raise ArgusError('camera profile and dlt coefficients must be iterables')
+    else:
+        if (not hasattr(dlt, '__iter__')):
+            raise ArgusError('dlt coefficients must be iterables')
 
     if type(xyzs) != np.ndarray:
         raise ArgusError('xyz values must be an N*(3*k) array, where k is the number of tracks')
@@ -373,7 +388,7 @@ def get_repo_errors(xyzs, pts, prof, dlt):
     # how many tracks, for each track
     for k in range(int(xyzs.shape[1] / 3)):
         xyz = xyzs[:, 3 * k:3 * (k + 1)]
-        uv = pts[:, k * (2 * len(prof)):(k + 1) * (2 * len(prof))]
+        uv = pts[:, k * (2 * len(dlt)):(k + 1) * (2 * len(dlt))]
         errors = np.zeros(xyz.shape[0])
 
         twos = list()
@@ -385,7 +400,10 @@ def get_repo_errors(xyzs, pts, prof, dlt):
                 toSum = list()
                 for i in range(int(uv.shape[1] / 2)):
                     if not np.isnan(uv[j, i * 2]):
-                        ob = undistort_pts(np.array([uv[j, i * 2:(i + 1) * 2]]), prof[i])[0]
+                        if prof is not None:
+                            ob = undistort_pts(np.array([uv[j, i * 2:(i + 1) * 2]]), prof[i])[0]
+                        else:
+                            ob = np.array([uv[j, i * 2:(i + 1) * 2]])[0]
                         re = reconstruct_uv(dlt[i], xyz[j])
                         toSum.append(((ob[0] - re[0]) ** 2 + (ob[1] - re[1]) ** 2))
                 epsilon = sum(toSum)
@@ -429,24 +447,24 @@ Returns:
 
 def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, subframeinterp=True):
     #do subframe interpolation of xypoint data based on cam1; overwrite pts input
-    camlist = list(range(len(prof)))
-    numcams = len(prof)
-    numpts = int(pts.shape[1] / (2 * len(prof)))
+    camlist = list(range(len(dlt)))
+    numcams = len(dlt)
+    numpts = int(pts.shape[1] / (2 * len(dlt)))
     if subframeinterp and len(camlist)>2:
         print('Checking subframe interpolation')
         redormse=False
         xs = np.arange(len(pts))
         step = list(np.linspace(-1, 1, 21))
         # for each camera after the first
-        for c in range(1,len(prof)):
+        for c in range(1,len(dlt)):
             steprmses = np.zeros((21, numpts))*np.nan
             # for each point
             for k in range(numpts):
-                c1pts = pts[:, k * 2 * len(prof):(k * 2 * len(prof))+2]
-                cpts_clean = pts[:, k * 2 * len(prof) + c*2 : k * 2 * len(prof) + c*2 + 2]
+                c1pts = pts[:, k * 2 * len(dlt):(k * 2 * len(dlt))+2]
+                cpts_clean = pts[:, k * 2 * len(dlt) + c*2 : k * 2 * len(dlt) + c*2 + 2]
                 #need other cam (ocam) pts to make erros work well, always use cam2, except when cam2 is being tested, then use cam 3
                 ocam = 1 if c > 1 else 2
-                ocpts = pts[:, k * 2 * len(prof) + ocam*2 : k * 2 * len(prof) + ocam*2 + 2]
+                ocpts = pts[:, k * 2 * len(dlt) + ocam*2 : k * 2 * len(dlt) + ocam*2 + 2]
                 fin = np.where(np.isfinite(cpts_clean[:,0]))[0]
                 if not np.any(fin):
                     continue
@@ -464,7 +482,7 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
                     else:
                         sprof = np.vstack([prof[0], prof[ocam], prof[c]])
                     sdlt = np.vstack([dlt[0], dlt[ocam], dlt[c]])
-                    sxyzs = uv_to_xyz(spts, sprof, sdlt)
+                    sxyzs = uv_to_xyz(spts, sdlt, sprof)
                     srms = get_repo_errors(sxyzs, spts, sprof, sdlt)
                     # capture rmse
                     steprmses[id,k]= np.nanmedian(srms)
@@ -474,20 +492,20 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
                 redormse=True
                 print('partial offset of {} frames found for cam {}, remaking pts'.format(poff, c+1))
                 # reconstruct the new values, and overwrite in pts and rmse
-                for k in range(int(pts.shape[1] / (2 * len(prof)))):
-                    cpts = pts[:, k * 2 * len(prof) + c * 2: k * 2 * len(prof) + c * 2 + 2]
+                for k in range(int(pts.shape[1] / (2 * len(dlt)))):
+                    cpts = pts[:, k * 2 * len(dlt) + c * 2: k * 2 * len(dlt) + c * 2 + 2]
                     fin = np.where(np.isfinite(cpts_clean[:,0]))[0]
                     cpts[fin] = interpolate.interp1d(fin, cpts[fin], axis=0, kind='linear', fill_value='extrapolate')(fin + poff)
-                    pts[:, k * 2 * len(prof) + c * 2: k * 2 * len(prof) + c * 2 + 2] = cpts
+                    pts[:, k * 2 * len(dlt) + c * 2: k * 2 * len(dlt) + c * 2 + 2] = cpts
         #get new rmses since partial offsets were found
         if redormse:
-            xyzs = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(prof))))) * np.nan
-            for k in range(int(pts.shape[1] / (2 * len(prof)))):
-                track = pts[:, k * 2 * len(prof):(k + 1) * 2 * len(prof)]
-                txyzs = uv_to_xyz(track, prof, dlt)
+            xyzs = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(dlt))))) * np.nan
+            for k in range(int(pts.shape[1] / (2 * len(dlt)))):
+                track = pts[:, k * 2 * len(dlt):(k + 1) * 2 * len(dlt)]
+                txyzs = uv_to_xyz(track, dlt, prof)
                 xyzs[:,k*3:(k+1)*3]=txyzs
             rmses = get_repo_errors(xyzs, pts, prof, dlt).T
-    ret = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(prof)))))
+    ret = np.zeros((pts.shape[0], int(3 * pts.shape[1] / (2 * len(dlt)))))
 
     # for each track
     for k in range(numpts):
@@ -499,7 +517,7 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
         xyzSD = np.zeros((pts.shape[0], 3))
         xyzSD[xyzSD == 0] = np.nan
         # track (k+1)
-        track = pts[:, k * 2 * len(prof):(k + 1) * 2 * len(prof)]
+        track = pts[:, k * 2 * len(dlt):(k + 1) * 2 * len(dlt)]
         # find the number of cameras with digitized points at eah row of pts
         camSum = np.nansum(np.isfinite(track), axis=1)/2
         # for each bootstrap
@@ -507,12 +525,12 @@ def bootstrapXYZs(pts, rmses, prof, dlt, bsIter=250, display_progress=False, sub
             for j in range(bsIter):
                 ran = np.random.randn(track.shape[0], track.shape[1])
                 per = ran * np.tile((rmses[:,k]*2**0.5/camSum).reshape((-1,1)), (1, 2*numcams)) + track
-                xyzBS[:, :, j] = uv_to_xyz(per, prof, dlt)
+                xyzBS[:, :, j] = uv_to_xyz(per, dlt, prof)
         else:
             for j in tqdm(list(range(bsIter))):
                 ran = np.random.randn(track.shape[0], track.shape[1])
                 per = ran * np.tile((rmses[:, k] * 2 ** 0.5 / camSum).reshape((-1, 1)), (1, 2 * numcams)) + track
-                xyzBS[:, :, j] = uv_to_xyz(per, prof, dlt)
+                xyzBS[:, :, j] = uv_to_xyz(per, dlt, prof)
         xyzSD = np.nanstd(xyzBS, axis=2, ddof=1)
         xyzSD[xyzSD==0] = np.nan
         ret[:, k * 3:(k + 1) * 3] = xyzSD
