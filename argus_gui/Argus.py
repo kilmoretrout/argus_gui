@@ -13,6 +13,7 @@ import random
 import tempfile
 import psutil
 import time
+from PySide6.QtCore import QStandardPaths
 # from argus_gui import Logger
 
 RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
@@ -23,18 +24,18 @@ class MainWindow(QtWidgets.QMainWindow):
         
         # Set the window title
         self.setWindowTitle("Argus")
-
         self.app = app
-        
+
         # Set the window icon
         self.setWindowIcon(QtGui.QIcon(os.path.join(RESOURCE_PATH,'icons/eye-8x.gif')))
 
         # Set the initial directory to the user's home directory
-        self.current_directory = QtCore.QStandardPaths.writableLocation(QtCore.QStandardPaths.HomeLocation)
+        self.current_directory = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.HomeLocation)
 
         #Create central widget
         self.central_widget = QtWidgets.QWidget()
         self.setCentralWidget(self.central_widget)
+
         
         # Create left tabbed panel
         self.tab_widget = QtWidgets.QTabWidget()
@@ -751,18 +752,18 @@ class MainWindow(QtWidgets.QMainWindow):
     #     proc = subprocess.Popen(rcmd, stdout=subprocess.PIPE, shell=False, startupinfo=startupinfo)
     #     self.pids.append(proc.pid)
 
-    def set_in_filename(self, var, filetypes=None):
-        # Define the set_in_filename function
-        options = QtWidgets.QFileDialog.Options()
-        filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select File', '', filetypes, options=options)
-        if filename:
-            var.set(filename)
+    # def set_in_filename(self, var, filetypes=''):
+    #     # Define the set_in_filename function
+    #     options = QtWidgets.QFileDialog.Options()
+    #     filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select File', '', filetypes, options=options)
+    #     if filename:
+    #         var.set(filename)
 
-    def set_out_filename(self, var, filetypes=None):
-        options = QtWidgets.QFileDialog.Options()
-        filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select File', '', filetypes, options=options)
-        if filename:
-            var.set(filename)
+    # def set_out_filename(self, var, filetypes=''):
+    #     options = QtWidgets.QFileDialog.Options()
+    #     filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, 'Select File', '', filetypes, options=options)
+    #     if filename:
+    #         var.set(filename)
 
     
     # Function for bringing up file dialogs; adds selected file to listbox
@@ -827,7 +828,7 @@ class MainWindow(QtWidgets.QMainWindow):
             onam = self.dwarp_onam
         # Create a file dialog with the specified title and filter
         file_dialog = QtWidgets.QFileDialog(self, title, self.current_directory)
-        file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile)
+        file_dialog.setFileMode(QtWidgets.QFileDialog.ExistingFile) # type: ignore
         file_dialog.setNameFilter(filter)
 
         # Show the file dialog and get the selected file path
@@ -839,7 +840,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.current_directory = QtCore.QFileInfo(file_name).absolutePath()
             # Clicker
             if current_tab_name == "Clicker":
-                if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly): # type: ignore
                     print(f'adding {file_name}')
                     self.file_list.addItem(file_name)
                     
@@ -851,53 +852,53 @@ class MainWindow(QtWidgets.QMainWindow):
                     try:
                         self.offsets.append(int(offset))
                     except ValueError:
-                        QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer')
+                        QtWidgets.QMessageBox.warning(None, 'Error', 'Frame offset must be an integer') # type: ignore
                         return
                 else:
                 # if file_name in set(self.file_list):
-                    QtWidgets.QMessageBox.warning(None,
+                    QtWidgets.QMessageBox.warning(None, # type: ignore
                         "Error",
                         "You cannot click through two of the same movies"
                     )
         
             # Sync
             if current_tab_name == "Sync":
-                if not self.sync_file_list.findItems(file_name, QtCore.Qt.MatchExactly):
+                if not self.sync_file_list.findItems(file_name, QtCore.Qt.MatchExactly): # type: ignore
                     print(f'adding {file_name}')
                     self.sync_file_list.addItem(file_name)
                     self.cached[file_name] = self.id_generator() + '-' + file_name.split('/')[-1].split('.')[0] + '.wav'
-                    onam.setText(target.item(0).text().split('.')[0] + "_offsets.csv")
+                    onam.setText(target.item(0).text().split('.')[0] + "_offsets.csv") # type: ignore
                 else:
-                    QtWidgets.QMessageBox.warning(None,
+                    QtWidgets.QMessageBox.warning(None, # type: ignore
                         "Error",
                         "You cannot click through two of the same movies"
                     )
 
             # Wand
             if current_tab_name == "Wand":
-                target.setText(file_name)
+                target.setText(file_name) # type: ignore
                 if button == self.ppts_button and onam.text() == '':
                     onam.setText(self.ppts.text().split('.')[0] + '_cal')
 
             if current_tab_name == "Calibrate":
-                target.setText(file_name)
+                target.setText(file_name) # type: ignore
                 onam.setText(file_name.split('.')[0] + ".csv")
 
             if current_tab_name == "Dwarp":
-                target.setText(file_name)
+                target.setText(file_name) # type: ignore
                 onam.setText(file_name.split('.')[0] + "_dwarped." + file_name.split('.')[1])
 
             # Pattern
             if current_tab_name == "Patterns":
-                target.setText(file_name)
+                target.setText(file_name) # type: ignore
                 try:
-                    mov = cv2.VideoCapture(file_name)
-                    dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))
+                    mov = cv2.VideoCapture(file_name)  # type: ignore
+                    dur = float(mov.get(cv2.CAP_PROP_FRAME_COUNT)) / float(mov.get(cv2.CAP_PROP_FPS))  # type: ignore
                     self.patt_start.setText('0.0')
                     self.patt_end.setText(str(dur))
                     self.patt_onam.setText(file_name.split('.')[0] + "_patterns.pkl")
                 except:
-                    QtWidgets.QMessageBox.warning(None,
+                    QtWidgets.QMessageBox.warning(None,  # type: ignore
                         "Error",
                         "Cannot read selected video"
                     )
@@ -941,7 +942,7 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 # If no item is selected, delete the last item in the list
                 if self.sync_file_list.count() > 0:
-                    item = self.sync_file_list[self.sync_file_list.count()-1]
+                    item = self.sync_file_list[self.sync_file_list.count()-1] # type: ignore
                     if os.path.isfile(self.tmps[0] + '/' + self.cached[item]):
                         os.remove(self.tmps[0] + '/' + self.cached[item])
                     del self.cached[item]
@@ -988,7 +989,7 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Loads config file on clicker window
         """
-        options = QtWidgets.QFileDialog.Options()
+        options = QtWidgets.QFileDialog.Options() # type: ignore
         filename, _ = QtWidgets.QFileDialog.getOpenFileName(self, 'Select an Argus clicker config file', '', 'Argus clicker config files (*.yaml)', options=options)
         if filename:
             cmd = [sys.executable, os.path.join(RESOURCE_PATH, 'scripts/argus-click')]
@@ -1013,7 +1014,7 @@ class MainWindow(QtWidgets.QMainWindow):
             driver.run()
             self.drivers.append(driver)
         else:
-            QtWidgets.QMessageBox.warning(None,
+            QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "No movies to click through!"
             )
@@ -1033,7 +1034,7 @@ class MainWindow(QtWidgets.QMainWindow):
         cropArg = ''
         files = [str(self.sync_file_list.item(x).text()) for x in range(self.sync_file_list.count())]
         if len(files) <= 1:
-            QtWidgets.QMessageBox.warning(None,
+            QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "Need at least two videos to sync"
             )
@@ -1042,7 +1043,7 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 open(files[k])
             except:
-                QtWidgets.QMessageBox.warning(None,
+                QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "Could not find one or more of the specified videos"
                 )
@@ -1052,24 +1053,24 @@ class MainWindow(QtWidgets.QMainWindow):
                 float(self.start_crop.text())
                 float(self.end_crop.text())
             except:
-                QtWidgets.QMessageBox.warning(None,
+                QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "Start and end time must be floats"
                 )
                 return
             for k in range(len(files)):
-                    cap = cv2.VideoCapture(files[k])
-                    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    dur = length * float(cap.get(cv2.CAP_PROP_FPS))
+                    cap = cv2.VideoCapture(files[k]) # type: ignore
+                    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) # type: ignore
+                    dur = length * float(cap.get(cv2.CAP_PROP_FPS)) # type: ignore
                     # dur = VideoFileClip(files[k]).duration
                     if self.getSec(self.start_crop.text()) >= dur or self.getSec(self.end_crop.text()) > dur:
-                        QtWidgets.QMessageBox.warning(None,
+                        QtWidgets.QMessageBox.warning(None, # type: ignore
                             "Error",
                             "Time range does not exist for one or more of the specified videos"
                         )
                         return
                     elif self.getSec(self.start_crop.text()) >= self.getSec(self.end_crop.text()):
-                        QtWidgets.QMessageBox.warning(None,
+                        QtWidgets.QMessageBox.warning(None, # type: ignore
                             "Error",
                             "Start time is further along than end time"
                         )
@@ -1207,7 +1208,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def calibrate_go(self):
         if self.cal_file.text().split('.')[-1].lower() != 'pkl':
-            QtWidgets.QMessageBox.warning(None,
+            QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "Input file must be a Pickle"
             )
@@ -1216,7 +1217,7 @@ class MainWindow(QtWidgets.QMainWindow):
             int(self.cal_replicates.text())
             int(self.cal_patterns.text())
         except:
-            QtWidgets.QMessageBox.warning(None,
+            QtWidgets.QMessageBox.warning(None, # type: ignore
                 "Error",
                 "Number of samples and replicates must both be integers"
             )
@@ -1333,7 +1334,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 ret = ','.join(co)
                 return ret
         except:
-            QtWidgets.QMessageBox.warning(None, 'Error', 'Undistortion coefficients must all be floats')
+            QtWidgets.QMessageBox.warning(None, 'Error', 'Undistortion coefficients must all be floats') # type: ignore
             return
         
     def omniParse(self):
@@ -1393,7 +1394,7 @@ class MainWindow(QtWidgets.QMainWindow):
         
         
     # main command caller used by all but clicker
-    def go(self, cmd, opath=None, wlog=False, mode='DEBUG'):
+    def go(self, cmd, opath='', wlog=False, mode='DEBUG'):
         print('Running the following command: ')
         print(' '.join(cmd))
         if opath is None:
@@ -1462,7 +1463,7 @@ class WorkerThread(QtCore.QThread):
         self.logWindow.pids.append(self.process.pid)
         
         while True:
-            line = self.process.stdout.readline()
+            line = self.process.stdout.readline()  # type: ignore
             if self.process.poll() is not None:
                 self.output.emit("last frame?")
                 QtWidgets.QApplication.processEvents()
@@ -1487,7 +1488,7 @@ class PygletDriver:
         for k in range(len(offsets)):
             starts.append(np.max(offsets) - offsets[k])
         self.processes = []
-        self.end = int(cv2.VideoCapture(movies[0]).get(cv2.CAP_PROP_FRAME_COUNT))
+        self.end = int(cv2.VideoCapture(movies[0]).get(cv2.CAP_PROP_FRAME_COUNT))  # type: ignore
 
     def run(self):
         movie_string = ''
