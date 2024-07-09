@@ -36,7 +36,8 @@ setup(
         "pykalman",
         "future >= 0.16.0",
         "PyYAML >= 5.0",
-        "pyside6 >= 6.4"	
+        "pyside6 >= 6.4",
+        "pyqtgraph >= 0.13.7"	
         ],
     dependency_links=[
         #'http://opencv.org/downloads.html',

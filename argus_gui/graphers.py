@@ -6,9 +6,16 @@ from __future__ import print_function
 
 # import matplotlib
 # matplotlib.use('Qt5Agg')
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.patches import FancyArrowPatch
-from mpl_toolkits.mplot3d import proj3d
+
+# commented for pyqtgraph
+# from mpl_toolkits.mplot3d import Axes3D
+# from matplotlib.patches import FancyArrowPatch
+# from mpl_toolkits.mplot3d import proj3d
+from PySide6.QtWidgets import QApplication
+import pyqtgraph as pg
+from pyqtgraph.Qt import QtGui
+from moviepy.config import get_setting
+
 # import wandOutputter
 from .output import *
 import pandas
@@ -81,25 +88,54 @@ class Shower():
                 t.append(signals_[k][a])
                 a += 100
             signals.append(np.asarray(t))
+            
+        app = QApplication([])
+        win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
+        win.resize(1000, 600)
+        win.setWindowTitle('Audio Streams')
+        win.setBackground('w')
+        
+        plot = win.addPlot()
+        plot.showGrid(x=True, y=True)
+        plot.setLabel('bottom', 'Minutes')
+        plot.getAxis('left').setTicks([])
+        plot.getAxis('left').setLabel('')
+
+        legend = plot.addLegend(offset=(70, 30))
+        
         a = 0
-        patches = list()
-        width = 35
-        height = 3 * len(signals)
-        plt.figure(figsize=(width, height))
-        frame1 = plt.gca()
-        frame1.axes.get_yaxis().set_visible(False)
-        # Make a plot with colors chosen by circularly pulling from the colors vector
         for k in range(len(signals)):
             color = colors[k % len(colors)]
-            patches.append(mpatches.Patch(color=color, label=self.files[k].split('/')[-1]))
+            #convert tuple of [0,1] to tuple of [0,255] for pyqtgraph
+            color = tuple(int(c * 255) for c in color)
+            print(f"Plotting signal {k} with color {color}")  # Debugging statement
+            sys.stdout.flush()
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
-            plt.plot(t, signals[k] + float(a), color=color)
+            curve = plot.plot(t, signals[k] - float(a), pen=pg.mkPen(color=color, width=2))
+            legend.addItem(curve, self.files[k].split('/')[-1])
             a += np.nanmax(signals[k]) * 2
-        plt.legend(handles=patches)
-        plt.title('Audio Streams')
-        plt.xlabel('Minutes')
+
+        app.exec_()
         signals_ = None
-        plt.show()
+        # a = 0
+        # patches = list()
+        # width = 35
+        # height = 3 * len(signals)
+        # plt.figure(figsize=(width, height))
+        # frame1 = plt.gca()
+        # frame1.axes.get_yaxis().set_visible(False)
+        # # Make a plot with colors chosen by circularly pulling from the colors vector
+        # for k in range(len(signals)):
+        #     color = colors[k % len(colors)]
+        #     patches.append(mpatches.Patch(color=color, label=self.files[k].split('/')[-1]))
+        #     t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+        #     plt.plot(t, signals[k] + float(a), color=color)
+        #     a += np.nanmax(signals[k]) * 2
+        # plt.legend(handles=patches)
+        # plt.title('Audio Streams')
+        # plt.xlabel('Minutes')
+        # signals_ = None
+        # plt.show()
 
 
 # rigid_transform_3D
