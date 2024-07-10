@@ -11,9 +11,12 @@ from __future__ import print_function
 # from mpl_toolkits.mplot3d import Axes3D
 # from matplotlib.patches import FancyArrowPatch
 # from mpl_toolkits.mplot3d import proj3d
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtGui import QFont
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui
+import pyqtgraph.opengl as gl
+from pyqtgraph.opengl.items.GLTextItem import GLTextItem
+# from pyqtgraph import GraphicsLayoutWidget, LabelItem, PlotWidget
 from moviepy.config import get_setting
 
 # import wandOutputter
@@ -28,9 +31,9 @@ import scipy.spatial
 import scipy
 import sys
 import os.path
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from moviepy.config import get_setting
-import matplotlib.patches as mpatches
+# import matplotlib.patches as mpatches
 import random
 from .colors import *
 import subprocess
@@ -629,73 +632,153 @@ class wandGrapher():
         sys.stdout.flush()
         
         # start making the graph
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # ax.set_aspect('equal') # doesn't look good for 3D
-        # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
-        # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
-        # trim off the reference points as we don't want to graph them with the other xyz
+        app = QApplication([])
+        # Create a main widget
+        main_widget = QWidget()
+        main_layout = QVBoxLayout()
+        main_widget.setLayout(main_layout)
+        
+        # Create a GL View widget for displaying 3D data
+        view = gl.GLViewWidget()
+        view.show()
+        view.setWindowTitle('3D Graph')
+        view.setCameraPosition(distance=20)
+
+        # Create grid items for better visualization
+        grid = gl.GLGridItem()
+        grid.scale(2, 2, 1)
+        view.addItem(grid)
+
+        # Add x, y, z axes lines
+        axis_length = 10
+        x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        view.addItem(x_axis)
+        view.addItem(y_axis)
+        view.addItem(z_axis)
+
+        # Add labels for x, y, z axes - not working
+        # font = QFont()
+        # font.setPointSize(20)
+        # x_label = GLTextItem(text='X', color=(1, 0, 0, 1), pos=(axis_length, 0, 0), font=font)
+        # y_label = GLTextItem(text='Y', color=(0, 1, 0, 1), pos=(0, axis_length, 0), font=font)
+        # z_label = GLTextItem(text='Z', color=(0, 0, 1, 1), pos=(0, 0, axis_length), font=font)
+        # view.addItem(x_label)
+        # view.addItem(y_label)
+        # view.addItem(z_label)
+        
+        # Trim off the reference points as we don't want to graph them with the other xyz
         xyzs = xyzs[self.nRef:, :]
 
-        # vP = vP
-        # x = vP[:,:3][:,0]
-        # y = vP[:,:3][:,1]
-        # z = vP[:,:3][:,2]
-
-        # plot unpaired points
-        # ax.scatter(x,y,z)
+        # Plot unpaired points
         if self.nuppts != 0:
             up = xyzs[self.nppts:, :]
             if self.display:
                 x = up[:, 0]
                 y = up[:, 1]
                 z = up[:, 2]
-                ax.scatter(x, y, z,c='c',label='Unpaired points')
-        else:
-            up = None
+                scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter.setGLOptions('translucent')
+                view.addItem(scatter)
 
-        # plot the paired points if there are any. draw a line between each paired set.
+        # Plot paired points and draw lines between each paired set
         if self.nppts != 0 and self.display:
-            ax.set_xlabel('X (Meters)')
-            ax.set_ylabel('Y (Meters)')
-            ax.set_zlabel('Z (Meters)')
             for k in range(len(pairedSet1)):
-                _ = np.vstack((pairedSet1[k], pairedSet2[k]))
-                x = _[:, 0]
-                y = _[:, 1]
-                z = _[:, 2]
-                if k == 0:
-                    ax.plot(x, y, z,c='m',label='Paired points')
-                else:
-                    ax.plot(x, y, z,c='m')
-                
-        # plot the reference points if there are any
-        if self.nRef != 0 and self.display:
-            ax.scatter(ref[:,0],ref[:,1],ref[:,2], c='r', label='Reference points')
-            
-        # get the camera locations as expressed in the DLT coefficients
-        camXYZ = DLTtoCamXYZ(dlts)
-        ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
-            
-        # add the legend, auto-generated from label='' values for each plot entry
-        if self.display:
-            ax.legend()
+                points = np.vstack((pairedSet1[k], pairedSet2[k]))
+                x = points[:, 0]
+                y = points[:, 1]
+                z = points[:, 2]
+                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
+                view.addItem(line)
 
-        outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], up,
-                                  self.indices['unpaired'], self.nupframes)
+        # Plot reference points
+        if self.nRef != 0 and self.display:
+            scatter = gl.GLScatterPlotItem(pos=ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
+            scatter.setGLOptions('translucent')
+            view.addItem(scatter)
+
+        # Get the camera locations as expressed in the DLT coefficients
+        camXYZ = DLTtoCamXYZ(dlts)
+        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
+        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
+        scatter.setGLOptions('translucent')
+        view.addItem(scatter)
+
+        outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], up, self.indices['unpaired'], self.nupframes)
         outputter.output()
 
         if self.display:
-            try:
-                if sys.platform == 'linux2':
-                    # have to block on Linux, looking for fix...
-                    plt.show()
-                else:
-                    if self.report:
-                        plt.show(block=False)
-                    else:
-                        plt.show()
-            except Exception as e:
-                print('Could not graph!\n' + e)
+            app.exec_()
+            
+        
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # # ax.set_aspect('equal') # doesn't look good for 3D
+        # # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
+        # # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
+        # # trim off the reference points as we don't want to graph them with the other xyz
+        # xyzs = xyzs[self.nRef:, :]
+
+        # # vP = vP
+        # # x = vP[:,:3][:,0]
+        # # y = vP[:,:3][:,1]
+        # # z = vP[:,:3][:,2]
+
+        # # plot unpaired points
+        # # ax.scatter(x,y,z)
+        # if self.nuppts != 0:
+        #     up = xyzs[self.nppts:, :]
+        #     if self.display:
+        #         x = up[:, 0]
+        #         y = up[:, 1]
+        #         z = up[:, 2]
+        #         ax.scatter(x, y, z,c='c',label='Unpaired points')
+        # else:
+        #     up = None
+
+        # # plot the paired points if there are any. draw a line between each paired set.
+        # if self.nppts != 0 and self.display:
+        #     ax.set_xlabel('X (Meters)')
+        #     ax.set_ylabel('Y (Meters)')
+        #     ax.set_zlabel('Z (Meters)')
+        #     for k in range(len(pairedSet1)):
+        #         _ = np.vstack((pairedSet1[k], pairedSet2[k]))
+        #         x = _[:, 0]
+        #         y = _[:, 1]
+        #         z = _[:, 2]
+        #         if k == 0:
+        #             ax.plot(x, y, z,c='m',label='Paired points')
+        #         else:
+        #             ax.plot(x, y, z,c='m')
+                
+        # # plot the reference points if there are any
+        # if self.nRef != 0 and self.display:
+        #     ax.scatter(ref[:,0],ref[:,1],ref[:,2], c='r', label='Reference points')
+            
+        # # get the camera locations as expressed in the DLT coefficients
+        # camXYZ = DLTtoCamXYZ(dlts)
+        # ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
+            
+        # # add the legend, auto-generated from label='' values for each plot entry
+        # if self.display:
+        #     ax.legend()
+
+        # outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], up,
+        #                           self.indices['unpaired'], self.nupframes)
+        # outputter.output()
+
+        # if self.display:
+        #     try:
+        #         if sys.platform == 'linux2':
+        #             # have to block on Linux, looking for fix...
+        #             plt.show()
+        #         else:
+        #             if self.report:
+        #                 plt.show(block=False)
+        #             else:
+        #                 plt.show()
+        #     except Exception as e:
+        #         print('Could not graph!\n' + e)
 
         return outliers, ptsi
