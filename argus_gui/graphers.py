@@ -212,9 +212,30 @@ def DLTtoCamXYZ(dlts):
     return camXYZa
 
 # takes unpaired and paired points along with other information about the scene, and manipulates the data for outputting and graphing in 3D
-class wandGrapher():
-    def __init__(self, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
+class wandGrapher(QWidget):
+    def __init__(self, my_app, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
                  display=True, uvs=None, nRef=0, order=None, report=True, cams=None, reference_type='Axis points', recording_frequency=100):
+        super().__init__()
+        self.my_app = my_app
+        layout = QVBoxLayout(self)
+        # Create a GL View widget for displaying 3D data with grid and axes (data will come later)
+        self.view = gl.GLViewWidget()
+        self.view.setWindowTitle('3D Graph')
+        self.view.setCameraPosition(distance=20)
+        # Create grid items for better visualization
+        grid = gl.GLGridItem()
+        grid.scale(2, 2, 1)
+        self.view.addItem(grid)
+        
+        # Add x, y, z axes lines
+        axis_length = 10
+        x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        self.view.addItem(x_axis)
+        self.view.addItem(y_axis)
+        self.view.addItem(z_axis)
+                
         self.nppts = nppts
         self.nuppts = nuppts
         self.scale = scale
@@ -632,31 +653,31 @@ class wandGrapher():
         sys.stdout.flush()
         
         # start making the graph
-        app = QApplication([])
+        # app = QApplication([])
         # Create a main widget
-        main_widget = QWidget()
-        main_layout = QVBoxLayout()
-        main_widget.setLayout(main_layout)
+
+        # main_layout = QVBoxLayout()
+        # main_widget.setLayout(main_layout)
         
         # Create a GL View widget for displaying 3D data
-        view = gl.GLViewWidget()
-        view.show()
-        view.setWindowTitle('3D Graph')
-        view.setCameraPosition(distance=20)
+        # view = gl.GLViewWidget()
+        # view.show()
+        # view.setWindowTitle('3D Graph')
+        # view.setCameraPosition(distance=20)
 
-        # Create grid items for better visualization
-        grid = gl.GLGridItem()
-        grid.scale(2, 2, 1)
-        view.addItem(grid)
+        # # Create grid items for better visualization
+        # grid = gl.GLGridItem()
+        # grid.scale(2, 2, 1)
+        # view.addItem(grid)
 
-        # Add x, y, z axes lines
-        axis_length = 10
-        x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
-        y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
-        z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
-        view.addItem(x_axis)
-        view.addItem(y_axis)
-        view.addItem(z_axis)
+        # # Add x, y, z axes lines
+        # axis_length = 10
+        # x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        # y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        # z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        # view.addItem(x_axis)
+        # view.addItem(y_axis)
+        # view.addItem(z_axis)
 
         # Add labels for x, y, z axes - not working
         # font = QFont()
@@ -680,7 +701,7 @@ class wandGrapher():
                 z = up[:, 2]
                 scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
                 scatter.setGLOptions('translucent')
-                view.addItem(scatter)
+                self.view.addItem(scatter)
 
         # Plot paired points and draw lines between each paired set
         if self.nppts != 0 and self.display:
@@ -690,26 +711,26 @@ class wandGrapher():
                 y = points[:, 1]
                 z = points[:, 2]
                 line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
-                view.addItem(line)
+                self.view.addItem(line)
 
         # Plot reference points
         if self.nRef != 0 and self.display:
             scatter = gl.GLScatterPlotItem(pos=ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
             scatter.setGLOptions('translucent')
-            view.addItem(scatter)
+            self.view.addItem(scatter)
 
         # Get the camera locations as expressed in the DLT coefficients
         camXYZ = DLTtoCamXYZ(dlts)
         plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
         scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
         scatter.setGLOptions('translucent')
-        view.addItem(scatter)
+        self.view.addItem(scatter)
 
         outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], up, self.indices['unpaired'], self.nupframes)
         outputter.output()
 
-        if self.display:
-            app.exec_()
+        # if self.display:
+        #     app.exec_()
             
         
         # fig = plt.figure()
