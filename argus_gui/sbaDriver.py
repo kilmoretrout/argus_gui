@@ -56,7 +56,6 @@ class sbaArgusDriver():
         self.reorder = reorder
         self.reference_type = reference_type
         self.recording_frequency = recording_frequency
-
         print('Parsing points...')
         sys.stdout.flush()
 
@@ -471,7 +470,7 @@ class sbaArgusDriver():
             self.grapher.close()
 
 class OutlierWindow(QtWidgets.QWidget):
-    def __init__(self, my_app, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
+    def __init__(self, my_app, key, nppts, nuppts, scale, refBool, indices, ncams, npframes, nupframes=None, name=None, temp=None,
                  display=True, uvs=None, nRef=0, order=None, report=True, cams=[], reference_type='Axis points', recording_frequency=100):#,outliers=None, errors=None, wandscore=None):
         super().__init__()
         
@@ -480,7 +479,7 @@ class OutlierWindow(QtWidgets.QWidget):
         self.nppts = nppts
         self.nuppts = nuppts
         self.scale = scale
-        self.ref = ref
+        self.refBool = refBool
         self.indices = indices
         self.ncams = ncams
         self.npframes = npframes
@@ -517,39 +516,37 @@ class OutlierWindow(QtWidgets.QWidget):
         left_pane.setLayout(left_layout)
         
         # Create a GL View widget for displaying 3D data with grid and axes (data will come later)
-        self.view = gl.GLViewWidget()
-        self.view.setWindowTitle('3D Graph')
-        self.view.setCameraPosition(distance=20)
+        view = gl.GLViewWidget()
+        view.setWindowTitle('3D Graph')
+        view.setCameraPosition(distance=20)
         # Create grid items for better visualization
         grid = gl.GLGridItem()
         grid.scale(2, 2, 1)
-        self.view.addItem(grid)
+        view.addItem(grid)
         
         # Add x, y, z axes lines
         axis_length = 10
         x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
         y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
         z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
-        self.view.addItem(x_axis)
-        self.view.addItem(y_axis)
-        self.view.addItem(z_axis)
+        view.addItem(x_axis)
+        view.addItem(y_axis)
+        view.addItem(z_axis)
         
-        left_layout.addWidget(self.view)
-        splitter.addWidget(left_pane)
+        left_layout.addWidget(view)
         
-        # Trim off the reference points as we don't want to graph them with the other xyz
-        # xyzs = self.xyzs[self.nRef:, :]
-
         # Plot unpaired points
         if self.nuppts != 0:
             # up = xyzs[self.nppts:, :]
             if self.display:
-                x = self.up[:, 0]
-                y = self.up[:, 1]
-                z = self.up[:, 2]
-                scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                # x = self.up[:, 0]
+                # y = self.up[:, 1]
+                # z = self.up[:, 2]
+                plotup = np.array(self.up).reshape(-1, 3)  # Ensure a 2D array of shape (n_points, 3)
+                # scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter = gl.GLScatterPlotItem(pos = plotup, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
                 scatter.setGLOptions('translucent')
-                self.view.addItem(scatter)
+                view.addItem(scatter)
 
         # Plot paired points and draw lines between each paired set
         if self.nppts != 0 and self.display:
@@ -559,20 +556,23 @@ class OutlierWindow(QtWidgets.QWidget):
                 y = points[:, 1]
                 z = points[:, 2]
                 line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
-                self.view.addItem(line)
+                view.addItem(line)
 
         # Plot reference points
         if self.nRef != 0 and self.display:
+            # plotref = np.array(self.ref).reshape(-1, 3)  # Ensure ref is a 2D array of shape (n_points, 3)
+            print(f"ref: ")
+            print(self.ref)
             scatter = gl.GLScatterPlotItem(pos=self.ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
             scatter.setGLOptions('translucent')
-            self.view.addItem(scatter)
+            view.addItem(scatter)
 
         # Get the camera locations as expressed in the DLT coefficients
         camXYZ = DLTtoCamXYZ(self.dlts)
         plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
         scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
         scatter.setGLOptions('translucent')
-        self.view.addItem(scatter)
+        view.addItem(scatter)
         
         # Create right pane (for other content, e.g., labels)
         right_pane = QtWidgets.QFrame()
@@ -605,10 +605,15 @@ class OutlierWindow(QtWidgets.QWidget):
         im_happy_button.clicked.connect(self.exitLoop)
         right_layout.addWidget(im_happy_button)
         
+        #build the splitter view
+        splitter.addWidget(left_pane)
         splitter.addWidget(right_pane)
-
+        splitter.setSizes([int(self.width() * .7), int(self.width() * .3)])
+        
         # Add the splitter to the main layout
         main_layout.addWidget(splitter)
+        self.resize(1000, 600)
+        
         # get the data for the Table
         self.updateTable()
        
@@ -651,10 +656,10 @@ class OutlierWindow(QtWidgets.QWidget):
 
         xyzs = xyzs*factor # apply scale factor to all xyz points
         
-        if self.ref:
+        if self.refBool:
             print('Using reference points')
             xyzs = self.transform(xyzs, xyzs[:self.nRef, :])
-            ref = xyzs[:self.nRef, :] # transformed reference points
+            self.ref = xyzs[:self.nRef, :] # transformed reference points
 
         else:
             print('No reference points available - centering the calibration on the mean point location.')
