@@ -31,7 +31,7 @@ import copy
 from scipy.sparse import lil_matrix
 import string
 import random
-from .tools import undistort_pts
+from .tools import undistort_pts, redistort_pts
 import sys
 
 
@@ -340,6 +340,7 @@ class sbaArgusDriver():
             print('Graphing and writing output files...')
             sys.stdout.flush()
         QtWidgets.QApplication.processEvents()
+        
         app = QtWidgets.QApplication.instance()
         self.running = True
         if app is None:
@@ -347,22 +348,22 @@ class sbaArgusDriver():
             app = QtWidgets.QApplication(sys.argv)
         # if self.report:
             # root = Tk()
-        grapher = OutlierWindow(self, key, self.nppts, self.nuppts, self.scale, refBool, self.indices, self.ncams, npframes,
+        self.grapher = OutlierWindow(self, key, self.nppts, self.nuppts, self.scale, refBool, self.indices, self.ncams, npframes,
                               nupframes, self.name, self.temp, self.display, uvs, nRef, self.order, self.report,
                               self.cams, self.reference_type, self.recording_frequency)
         
+        self.outliers = self.grapher.outliers
         # self.outliers, self.index = grapher.show_3d_graph()
         sys.stdout.flush()
         # outliers = sorted(outliers)
 
         if self.display:
-            
             # if not grapher.view.isVisible():
-            grapher.view.show()
+            self.grapher.show()
             if not self.running:
-                app.exec()           
+                app.exec_()           
+        
         nps = np.loadtxt(self.name + '-sba-profile.txt')
-
         if self.outputCameraProfiles:
             for k in range(len(nps)):
                 l = nps[k]
@@ -371,57 +372,54 @@ class sbaArgusDriver():
                 np.savetxt(self.name + '-camera-' + str(self.order[k] + 1) + '-profile.txt', np.asarray([l]),
                            fmt='%-1.5g')
 
-        if self.report:
-            QtWidgets.QApplication.processEvents()
-            if len(self.outliers) == 0:
-                QtWidgets.QMessageBox.warning(None,
-                    "No outliers",
-                    "No outliers were found! Exiting..."
-                )
-                if self.outwindow.isVisible():
-                    self.outwindow.close()
-            else:
-                app = QtWidgets.QApplication.instance()
-                self.running = True
-                if app is None:
-                    self.running = False
-                    app = QtWidgets.QApplication(sys.argv)
-                self.outwindow = OutlierWindow(self, key, nppts, nuppts, scale, ref, inidcies, ncams, npframes, self.outliers, grapher.dlterrors, grapher.wandscore) 
+        # if self.report:
+        #     QtWidgets.QApplication.processEvents()
+        #     if len(self.outliers) == 0:
+        #         QtWidgets.QMessageBox.warning(None,
+        #             "No outliers",
+        #             "No outliers were found! Exiting..."
+        #         )
+        #         if self.outwindow.isVisible():
+        #             self.outwindow.close()
+        #     else:
+        #         app = QtWidgets.QApplication.instance()
+        #         self.running = True
+        #         if app is None:
+        #             self.running = False
+        #             app = QtWidgets.QApplication(sys.argv)
+        #         self.outwindow = OutlierWindow(self, key, nppts, nuppts, scale, ref, inidcies, ncams, npframes, self.outliers, grapher.dlterrors, grapher.wandscore) 
                 
-                if self.display:
-                    if not self.outwindow.isVisible():
-                        # Show the window
-                        self.outwindow.show()
-                        print(self.outwindow.isVisible())
-                        print(self.running)
-                        #says its visible here, but it isn't
-                        if not self.running:
-                            app.exec()      
-                    else:
-                        self.outwindow.outliers = self.outliers
-                        self.outwindow.updateTable()
-                    # log.insert(END, table.draw())
-                    # root.mainloop()
+        #         if self.display:
+        #             if not self.outwindow.isVisible():
+        #                 # Show the window
+        #                 self.outwindow.show()
+        #                 print(self.outwindow.isVisible())
+        #                 print(self.running)
+        #                 #says its visible here, but it isn't
+        #                 if not self.running:
+        #                     app.exec()      
+        #             else:
+        #                 self.outwindow.outliers = self.outliers
+        #                 self.outwindow.updateTable()
+        #             # log.insert(END, table.draw())
+        #             # root.mainloop()
+        
+        #if called with CLI, and display isn't called, allow outlier processing
+        if not self.display:
+            if self.report:
+                print('Found ' + str(len(self.outliers)) + ' possible outliers:')
+                # print(table.draw())
+                go_again = input('Try again without these outliers? (Y/n): ')
+                if go_again == 'y' or go_again == 'Y':
+                    self.redo()
                 else:
-                    print('Found ' + str(len(self.outliers)) + ' possible outliers:')
-                    # print(table.draw())
-                    go_again = input('Try again without these outliers? (Y/n): ')
-                    if go_again == 'y' or go_again == 'Y':
-                        self.redo()
-                    else:
-                        self.exitLoop()
+                    self.exitLoop()
         else:
             self.exitLoop()
 
     def redo(self):
         sys.stdout.flush()
-        # if self.display and self.report:
-        #     # Clear the contents of the window
-        #     for widget in outwindow.findChildren(QtWidgets.QWidget):
-        #         widget.deleteLater()
-        #     outwindow.close()
-            # root.destroy()
-        self.pts = np.delete(self.pts, self.index, axis=0)
+        self.pts = np.delete(self.pts, self.grapher.index, axis=0)
 
         # print 'Index length: {0}'.format(len(index))
 
@@ -469,8 +467,8 @@ class sbaArgusDriver():
         self.fix()
     
     def exitLoop(self):
-        if self.outwindow.isVisible():
-            self.outwindow.close()
+        if self.grapher.isVisible():
+            self.grapher.close()
 
 class OutlierWindow(QtWidgets.QWidget):
     def __init__(self, my_app, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
@@ -501,7 +499,10 @@ class OutlierWindow(QtWidgets.QWidget):
         self.cams = []
         for c in cams:
             self.cams.append([c[u] for u in [0, 1, 2, 5, 6, 7, 8, 9]])
-            
+        
+        # make run the graph which also finds outliers, errors, wandscore
+        self.outliers, self.index = self.buildData()
+        
         self.init_UI()
         
     def init_UI(self):
@@ -535,9 +536,43 @@ class OutlierWindow(QtWidgets.QWidget):
         
         left_layout.addWidget(self.view)
         splitter.addWidget(left_pane)
+        
+        # Trim off the reference points as we don't want to graph them with the other xyz
+        # xyzs = self.xyzs[self.nRef:, :]
 
-        # make run the graph which also finds outliers, errors, wandscore
-        self.outliers, self.index = self.show_3d_graph()
+        # Plot unpaired points
+        if self.nuppts != 0:
+            # up = xyzs[self.nppts:, :]
+            if self.display:
+                x = self.up[:, 0]
+                y = self.up[:, 1]
+                z = self.up[:, 2]
+                scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter.setGLOptions('translucent')
+                self.view.addItem(scatter)
+
+        # Plot paired points and draw lines between each paired set
+        if self.nppts != 0 and self.display:
+            for k in range(len(self.pairedSet1)):
+                points = np.vstack((self.pairedSet1[k], self.pairedSet2[k]))
+                x = points[:, 0]
+                y = points[:, 1]
+                z = points[:, 2]
+                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
+                self.view.addItem(line)
+
+        # Plot reference points
+        if self.nRef != 0 and self.display:
+            scatter = gl.GLScatterPlotItem(pos=self.ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
+            scatter.setGLOptions('translucent')
+            self.view.addItem(scatter)
+
+        # Get the camera locations as expressed in the DLT coefficients
+        camXYZ = DLTtoCamXYZ(self.dlts)
+        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
+        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
+        scatter.setGLOptions('translucent')
+        self.view.addItem(scatter)
         
         # Create right pane (for other content, e.g., labels)
         right_pane = QtWidgets.QFrame()
@@ -577,7 +612,7 @@ class OutlierWindow(QtWidgets.QWidget):
         # get the data for the Table
         self.updateTable()
        
-    def show_3d_graph(self): #, xyzs, pairedSet1, pairedSet2, ref, dlts):
+    def buildData(self): #, xyzs, pairedSet1, pairedSet2, ref, dlts):
         # Load the points and camera profile from SBA
         xyzs = np.loadtxt(self.temp + '/' + self.key + '_np.txt')
         cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')
@@ -631,7 +666,16 @@ class OutlierWindow(QtWidgets.QWidget):
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
-
+        # get unpaired points
+        if self.nuppts != 0:
+            self.up = xyzs[self.nRef + self.nppts:, :]
+            
+        # save to class variables for use in graph
+        self.xyzs = xyzs
+        self.paired = paired
+        self.pairedSet1 = pairedSet1
+        self.pairedSet2 = pairedSet2
+        
         # get DLT coefficients
         camn = 0
         errs = list()
@@ -648,11 +692,11 @@ class OutlierWindow(QtWidgets.QWidget):
             dlts.append(cos)
             errs.append(error)
 
-        dlts = np.asarray(dlts)
+        self.dlts = np.asarray(dlts)
         errs = np.asarray(errs)
         self.dlterrors = errs
         #print errors and wand score to the log
-        self.outputDLT(dlts, errs)
+        self.outputDLT(self.dlts, errs)
         sys.stdout.flush()
         
         if self.nppts != 0:
@@ -662,44 +706,8 @@ class OutlierWindow(QtWidgets.QWidget):
         else:
             print('\nWand score: not applicable')
         sys.stdout.flush()
-        # Trim off the reference points as we don't want to graph them with the other xyz
-        xyzs = xyzs[self.nRef:, :]
-
-        # Plot unpaired points
-        if self.nuppts != 0:
-            up = xyzs[self.nppts:, :]
-            if self.display:
-                x = up[:, 0]
-                y = up[:, 1]
-                z = up[:, 2]
-                scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
-                scatter.setGLOptions('translucent')
-                self.view.addItem(scatter)
-
-        # Plot paired points and draw lines between each paired set
-        if self.nppts != 0 and self.display:
-            for k in range(len(pairedSet1)):
-                points = np.vstack((pairedSet1[k], pairedSet2[k]))
-                x = points[:, 0]
-                y = points[:, 1]
-                z = points[:, 2]
-                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
-                self.view.addItem(line)
-
-        # Plot reference points
-        if self.nRef != 0 and self.display:
-            scatter = gl.GLScatterPlotItem(pos=ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
-            scatter.setGLOptions('translucent')
-            self.view.addItem(scatter)
-
-        # Get the camera locations as expressed in the DLT coefficients
-        camXYZ = DLTtoCamXYZ(dlts)
-        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
-        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
-        scatter.setGLOptions('translucent')
-        self.view.addItem(scatter)
-
-        outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], up, self.indices['unpaired'], self.nupframes)
+        
+        outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], self.up, self.indices['unpaired'], self.nupframes)
         outputter.output()
         return outliers, ptsi
 
