@@ -78,7 +78,7 @@ def perform_wand_calibration(args, unpaired_points, paired_points, ref, cams):
     driver = argus_gui.sbaArgusDriver(paired_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
                                       oCPs, args.choose_reference, args.reference_type, args.recording_frequency)
     driver.fix()
-
+    driver.showGraph()
     shutil.rmtree(tmp)
 
 

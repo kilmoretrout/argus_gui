@@ -338,29 +338,24 @@ class sbaArgusDriver():
         if self.display:
             print('Graphing and writing output files...')
             sys.stdout.flush()
+        
         QtWidgets.QApplication.processEvents()
         
-        app = QtWidgets.QApplication.instance()
+        self.app = QtWidgets.QApplication.instance()
         self.running = True
-        if app is None:
+        if self.app is None:
             self.running = False
-            app = QtWidgets.QApplication(sys.argv)
-        # if self.report:
-            # root = Tk()
+            # necessary for regraphing after removing outliers using openGL
+            QtWidgets.QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+            self.app = QtWidgets.QApplication(sys.argv)
+                 
         self.grapher = OutlierWindow(self, key, self.nppts, self.nuppts, self.scale, refBool, self.indices, self.ncams, npframes,
                               nupframes, self.name, self.temp, self.display, uvs, nRef, self.order, self.report,
                               self.cams, self.reference_type, self.recording_frequency)
         
         self.outliers = self.grapher.outliers
-        # self.outliers, self.index = grapher.show_3d_graph()
-        sys.stdout.flush()
-        # outliers = sorted(outliers)
-
-        if self.display:
-            # if not grapher.view.isVisible():
-            self.grapher.show()
-            if not self.running:
-                app.exec_()           
+            
+        sys.stdout.flush()   
         
         nps = np.loadtxt(self.name + '-sba-profile.txt')
         if self.outputCameraProfiles:
@@ -370,39 +365,10 @@ class sbaArgusDriver():
                 l = np.delete(l, [5] + list(np.arange(11, 18)), axis=0)
                 np.savetxt(self.name + '-camera-' + str(self.order[k] + 1) + '-profile.txt', np.asarray([l]),
                            fmt='%-1.5g')
-
-        # if self.report:
-        #     QtWidgets.QApplication.processEvents()
-        #     if len(self.outliers) == 0:
-        #         QtWidgets.QMessageBox.warning(None,
-        #             "No outliers",
-        #             "No outliers were found! Exiting..."
-        #         )
-        #         if self.outwindow.isVisible():
-        #             self.outwindow.close()
-        #     else:
-        #         app = QtWidgets.QApplication.instance()
-        #         self.running = True
-        #         if app is None:
-        #             self.running = False
-        #             app = QtWidgets.QApplication(sys.argv)
-        #         self.outwindow = OutlierWindow(self, key, nppts, nuppts, scale, ref, inidcies, ncams, npframes, self.outliers, grapher.dlterrors, grapher.wandscore) 
-                
-        #         if self.display:
-        #             if not self.outwindow.isVisible():
-        #                 # Show the window
-        #                 self.outwindow.show()
-        #                 print(self.outwindow.isVisible())
-        #                 print(self.running)
-        #                 #says its visible here, but it isn't
-        #                 if not self.running:
-        #                     app.exec()      
-        #             else:
-        #                 self.outwindow.outliers = self.outliers
-        #                 self.outwindow.updateTable()
-        #             # log.insert(END, table.draw())
-        #             # root.mainloop()
         
+        # if self.display:
+        #     self.showGraph()
+            
         #if called with CLI, and display isn't called, allow outlier processing
         if not self.display:
             if self.report:
@@ -415,7 +381,15 @@ class sbaArgusDriver():
                     self.exitLoop()
         else:
             self.exitLoop()
-
+            
+    def showGraph(self):
+        if self.display:
+            if not self.grapher.isVisible():
+                self.grapher.init_UI()
+                self.grapher.show()
+                if not self.running:
+                    self.app.exec() 
+                    
     def redo(self):
         sys.stdout.flush()
         self.pts = np.delete(self.pts, self.grapher.index, axis=0)
@@ -464,6 +438,7 @@ class sbaArgusDriver():
         print('\nRunning again with outliers removed...')
         sys.stdout.flush()
         self.fix()
+        self.showGraph()
     
     def exitLoop(self):
         if self.grapher.isVisible():
@@ -471,11 +446,10 @@ class sbaArgusDriver():
 
 class OutlierWindow(QtWidgets.QWidget):
     def __init__(self, my_app, key, nppts, nuppts, scale, refBool, indices, ncams, npframes, nupframes=None, name=None, temp=None,
-                 display=True, uvs=None, nRef=0, order=None, report=True, cams=[], reference_type='Axis points', recording_frequency=100):#,outliers=None, errors=None, wandscore=None):
+                 display=True, uvs=None, nRef=0, order=None, report=True, cams=[], reference_type='Axis points', recording_frequency=100):
         super().__init__()
         
-        self.my_app = my_app
-        # self.outliers = outliers                
+        self.my_app = my_app                
         self.nppts = nppts
         self.nuppts = nuppts
         self.scale = scale
@@ -502,7 +476,7 @@ class OutlierWindow(QtWidgets.QWidget):
         # make run the graph which also finds outliers, errors, wandscore
         self.outliers, self.index = self.buildData()
         
-        self.init_UI()
+        # self.init_UI()
         
     def init_UI(self):
         # Create a double panewindow
@@ -516,83 +490,43 @@ class OutlierWindow(QtWidgets.QWidget):
         left_pane.setLayout(left_layout)
         
         # Create a GL View widget for displaying 3D data with grid and axes (data will come later)
-        view = gl.GLViewWidget()
-        view.setWindowTitle('3D Graph')
-        view.setCameraPosition(distance=20)
+        self.view = gl.GLViewWidget()
+        self.view.setWindowTitle('3D Graph')
+        self.view.setCameraPosition(distance=20)
         # Create grid items for better visualization
-        grid = gl.GLGridItem()
-        grid.scale(2, 2, 1)
-        view.addItem(grid)
+        self.grid = gl.GLGridItem()
+        self.grid.scale(2, 2, 1)
+        self.view.addItem(self.grid)
         
         # Add x, y, z axes lines
         axis_length = 10
-        x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
-        y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
-        z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
-        view.addItem(x_axis)
-        view.addItem(y_axis)
-        view.addItem(z_axis)
+        self.x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        self.y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        self.z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        self.view.addItem(self.x_axis)
+        self.view.addItem(self.y_axis)
+        self.view.addItem(self.z_axis)
         
-        left_layout.addWidget(view)
-        
-        # Plot unpaired points
-        if self.nuppts != 0:
-            # up = xyzs[self.nppts:, :]
-            if self.display:
-                # x = self.up[:, 0]
-                # y = self.up[:, 1]
-                # z = self.up[:, 2]
-                plotup = np.array(self.up).reshape(-1, 3)  # Ensure a 2D array of shape (n_points, 3)
-                # scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
-                scatter = gl.GLScatterPlotItem(pos = plotup, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
-                scatter.setGLOptions('translucent')
-                view.addItem(scatter)
-
-        # Plot paired points and draw lines between each paired set
-        if self.nppts != 0 and self.display:
-            for k in range(len(self.pairedSet1)):
-                points = np.vstack((self.pairedSet1[k], self.pairedSet2[k]))
-                x = points[:, 0]
-                y = points[:, 1]
-                z = points[:, 2]
-                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
-                view.addItem(line)
-
-        # Plot reference points
-        if self.nRef != 0 and self.display:
-            # plotref = np.array(self.ref).reshape(-1, 3)  # Ensure ref is a 2D array of shape (n_points, 3)
-            print(f"ref: ")
-            print(self.ref)
-            scatter = gl.GLScatterPlotItem(pos=self.ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
-            scatter.setGLOptions('translucent')
-            view.addItem(scatter)
-
-        # Get the camera locations as expressed in the DLT coefficients
-        camXYZ = DLTtoCamXYZ(self.dlts)
-        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
-        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
-        scatter.setGLOptions('translucent')
-        view.addItem(scatter)
+        left_layout.addWidget(self.view)
         
         # Create right pane (for other content, e.g., labels)
         right_pane = QtWidgets.QFrame()
         right_layout = QtWidgets.QVBoxLayout()
         right_pane.setLayout(right_layout)
 
-        # Add outlier table to right pane
-        label = QtWidgets.QLabel("Outliers")
-        right_layout.addWidget(label)
-
+        # Add right pane
         errslabel = QtWidgets.QLabel(f"DLT errors: {self.dlterrors}")
         wslabel = QtWidgets.QLabel(f"Wand score: {self.wandscore}")
+        label = QtWidgets.QLabel("Outliers")
         # Create a table widget
         self.table = QtWidgets.QTableWidget(1, 4)
         # Set the column headers
         self.table.setHorizontalHeaderLabels(['Frame', 'Undistorted Pixel Coordinate', 'Point Type', 'Error'])
         right_layout.addWidget(errslabel)
         right_layout.addWidget(wslabel)
+        right_layout.addWidget(label)
         right_layout.addWidget(self.table)
-        # Create a label and add it to the layout as a spacer
+        # Create a label and add it to the layout - will contain text on number of outliers found
         self.label = QtWidgets.QLabel("")
         right_layout.addWidget(self.label)
 
@@ -614,10 +548,63 @@ class OutlierWindow(QtWidgets.QWidget):
         main_layout.addWidget(splitter)
         self.resize(1000, 600)
         
+        # build the rest of the graph
+        self.updateGraph()
         # get the data for the Table
         self.updateTable()
+        
+        
+    def updateGraph(self):
+        # Clear existing items
+        self.view.clear()
+
+        # Re-add grid and axes
+        self.view.addItem(self.grid)
+        self.view.addItem(self.x_axis)
+        self.view.addItem(self.y_axis)
+        self.view.addItem(self.z_axis)
+        
+        # Plot unpaired points
+        if self.nuppts != 0:
+            # up = xyzs[self.nppts:, :]
+            if self.display:
+                # x = self.up[:, 0]
+                # y = self.up[:, 1]
+                # z = self.up[:, 2]
+                plotup = np.array(self.up).reshape(-1, 3)  # Ensure a 2D array of shape (n_points, 3)
+                # print(f"uppts: {plotup.shape}")
+                scatter = gl.GLScatterPlotItem(pos = plotup, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter.setGLOptions('translucent')
+                self.view.addItem(scatter)
+
+        # Plot paired points and draw lines between each paired set
+        if self.nppts != 0 and self.display:
+            for k in range(len(self.pairedSet1)):
+                points = np.vstack((self.pairedSet1[k], self.pairedSet2[k]))
+                x = points[:, 0]
+                y = points[:, 1]
+                z = points[:, 2]
+                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
+                self.view.addItem(line)
+
+        # Plot reference points
+        if self.nRef != 0 and self.display:
+            plotref = np.array(self.ref).reshape(-1, 3)  # Ensure ref is a 2D array of shape (n_points, 3)
+            # print(f"ref: {plotref.shape}")
+            scatter = gl.GLScatterPlotItem(pos=plotref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
+            scatter.setGLOptions('translucent')
+            self.view.addItem(scatter)
+
+        # Get the camera locations as expressed in the DLT coefficients
+        camXYZ = DLTtoCamXYZ(self.dlts)
+        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
+        # print(f"cams: {plotcamXYZ.shape}")
+        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
+        scatter.setGLOptions('translucent')
+        self.view.addItem(scatter)
        
-    def buildData(self): #, xyzs, pairedSet1, pairedSet2, ref, dlts):
+    
+    def buildData(self): 
         # Load the points and camera profile from SBA
         xyzs = np.loadtxt(self.temp + '/' + self.key + '_np.txt')
         cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')
@@ -668,6 +655,7 @@ class OutlierWindow(QtWidgets.QWidget):
             for k in range(xyzs.shape[0]):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
         # now that we've applied the scale and alignment, re-extract the paired points for proper display
+        # print(self.nRef, self.nppts, self.nuppts)
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
@@ -711,8 +699,7 @@ class OutlierWindow(QtWidgets.QWidget):
         else:
             print('\nWand score: not applicable')
         sys.stdout.flush()
-        
-        outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], self.up, self.indices['unpaired'], self.nupframes)
+        outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], self.up, self.indices['unpaired'], self.nupframes)
         outputter.output()
         return outliers, ptsi
 
@@ -818,7 +805,7 @@ class OutlierWindow(QtWidgets.QWidget):
             rfreq=float(self.recording_frequency)
             t=np.arange(ref.shape[0]) # integer timebase
             
-            print(ref) # debug
+            # print(ref) # debug
             
             # perform a least-squares fit of a 2nd order polynomial to each
             # of x,y,z components of the reference, evaluate the polynomial
