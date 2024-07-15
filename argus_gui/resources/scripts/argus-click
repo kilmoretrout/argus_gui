@@ -2033,6 +2033,9 @@ class TrackPlotter(pyglet.window.Window):
         self.mouse_x = 0
         self.mouse_y = 0
         
+        # Zoom state
+        self.zoom = -40
+        
     def calculate_xyzs(self):
         xyzss = []
         for j in range(int(self.pts.shape[1] / (2 * len(self.camera_profile)))):
@@ -2058,26 +2061,50 @@ class TrackPlotter(pyglet.window.Window):
             glVertex3f(grid_size, i, 0)
         glEnd()
         
+    def plot_axes(self):
+        axis_length = 10
+        glLineWidth(2.0)  # Set line width for axes
+        glBegin(GL_LINES)
+
+        # X axis (Red)
+        glColor3f(1.0, 0.0, 0.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(axis_length, 0, 0)
+
+        # Y axis (Green)
+        glColor3f(0.0, 1.0, 0.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, axis_length, 0)
+
+        # Z axis (Blue)
+        glColor3f(0.0, 0.0, 1.0)
+        glVertex3f(0, 0, 0)
+        glVertex3f(0, 0, axis_length)
+        
+        glEnd()
+        glLineWidth(1.0)
+        
     def plot_tracks(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
 
         # Apply rotations
-        glTranslatef(0, 0, -40)
+        glTranslatef(0, 0, self.zoom)
         glRotatef(self.rot_x, 1, 0, 0)
         glRotatef(self.rot_y, 0, 1, 0)
 
         # Plot grid on XY plane
         self.plot_grid()
 
+        # Plot axes 
+        self.plot_axes()
+        
         # Plot each track
         for k in range(len(self.track_indices)):
             xyz = self.xyzss[self.track_indices[k]]
-            xyz = xyz[~np.isnan(xyz).any(axis=1)]
-            if xyz.size == 0:  # Skip if xyz is empty after filtering
-                continue
-            # xyzs = xyzs[~np.isnan(xyzs).any(axis=1)]
-            print(k, xyz[~np.isnan(xyz).any(axis=1)])
+            # xyz = xyz[~np.isnan(xyz).any(axis=1)]
+            # if xyz.size == 0:  # Skip if xyz is empty after filtering
+            #     continue
             x = xyz[:, 0]
             y = xyz[:, 1]
             z = xyz[:, 2]
@@ -2087,10 +2114,22 @@ class TrackPlotter(pyglet.window.Window):
             for i in range(len(x)):
                 glVertex3f(x[i], y[i], z[i])
             glEnd()
-
+            self.plot_spheres(x, y, z, color)
+            
+    def plot_spheres(self, x, y, z, color):
+        quadric = gluNewQuadric()
+        glColor3f(color[0], color[1], color[2])
+        for i in range(len(x)):
+            glPushMatrix()
+            glTranslatef(x[i], y[i], z[i])
+            gluSphere(quadric, 0.2, 2, 2)  # Radius of 0.2, 2 slices, 2 stacks
+            glPopMatrix()
+        gluDeleteQuadric(quadric)
+        
     def on_draw(self):
         self.setup_projection()
         self.plot_tracks()
+        self.draw_labels()
         
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         self.rot_x += dy * 0.5
@@ -2104,6 +2143,27 @@ class TrackPlotter(pyglet.window.Window):
         self.mouse_x = 0
         self.mouse_y = 0
         
+    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
+        self.zoom += scroll_y * 2  # Adjust zoom speed
+        
+    def draw_labels(self):
+        # Draw axis labels
+        self.draw_text("X", 1.0, 0.0, 0.0, (1.0, 0.0, 0.0, 1.0))
+        self.draw_text("Y", 0.0, 1.0, 0.0, (0.0, 1.0, 0.0, 1.0))
+        self.draw_text("Z", 0.0, 0.0, 1.0, (0.0, 0.0, 1.0, 1.0))
+
+    def draw_text(self, text, x, y, z, color):
+        label = pyglet.text.Label(text,
+                                  font_name='Times New Roman',
+                                  font_size=24,
+                                  color=(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)),
+                                  x=0, y=0,
+                                  anchor_x='center', anchor_y='center')
+        glPushMatrix()
+        glTranslatef(x, y, z)
+        glScalef(0.02, 0.02, 0.02)  # Scale the text to fit the 3D plot
+        label.draw()
+        glPopMatrix()
 # function scheduled everytime autotracking is turned on
 # to create a loop. it is unscheduled when autotracking is turned off
 def up(dt):
