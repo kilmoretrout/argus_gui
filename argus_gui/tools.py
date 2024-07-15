@@ -328,7 +328,7 @@ def uv_to_xyz(pts, profs, dlt):
                 B[k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
 
             # solve it
-            xyz = np.linalg.lstsq(A, B)[0]
+            xyz = np.linalg.lstsq(A, B, rcond=None)[0]
             # place in the proper frame
             xyzs[i] = xyz[:, 0]
 

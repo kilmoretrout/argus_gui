@@ -9,6 +9,7 @@ import sys
 
 from pyglet.window import key, mouse
 from pyglet.graphics import *
+from pyglet.gl import *
 #from pygarrayimage.arrayimage import ArrayInterfaceImage
 
 from argus_gui import ArgusColors, FrameFinder, ClickerProject
@@ -23,7 +24,8 @@ import argus.ocam
 # matplotlib.use('Qt5Agg')
 # import matplotlib.pyplot as plt
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
-from PySide6.QtDataVisualization import QtDataVisualization as QDV
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
@@ -510,6 +512,7 @@ def load_tsv(tsv):
 
 
 # TODO: Implement abstract classes
+
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
@@ -907,13 +910,15 @@ class ClickerWindow(pyglet.window.Window):
         tmp = []
         dlt_coeff_2 = DLTCoefficients[self.original_index]
 
-        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            if self is not window:
-                try:
-                    coordinates.append([window.actual_camera_number,
-                                        window.points[current_track_global][self.current_point_index - 1].toarray()[0]])
-                except Exception as e:
-                    print(e)
+        # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+        for window in pyglet.app.windows:
+            if isinstance(window, ClickerWindow):
+                if self is not window:
+                    try:
+                        coordinates.append([window.actual_camera_number,
+                                            window.points[current_track_global][self.current_point_index - 1].toarray()[0]])
+                    except Exception as e:
+                        print(e)
         coordinates = sorted(coordinates)
         for coordinate in coordinates:
             if True not in (coordinate[1] == 0):
@@ -1158,14 +1163,16 @@ class ClickerWindow(pyglet.window.Window):
 
     # called to make sure everybody gets the changes made by one window
     def update_all_windows(self):
-        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            if self is not window:
-                window.switch_to()
-                window.update_tracks()
-                window.dispatch_events()
-                window.dispatch_event('on_draw')
-                window.change_marker()
-                window.flip()
+        # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+        for window in pyglet.app.windows:
+            if isinstance(window, ClickerWindow):
+                if self is not window:
+                    window.switch_to()
+                    window.update_tracks()
+                    window.dispatch_events()
+                    window.dispatch_event('on_draw')
+                    window.change_marker()
+                    window.flip()
 
     def dense_to_sparse(self, arr):
         # create a sparse data file with rows and columns indexed by the natural numbers
@@ -1205,13 +1212,17 @@ class ClickerWindow(pyglet.window.Window):
             return
         if filename != '' and type(filename) == str:
             global_filename = filename
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.fill_common_dictionary()
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
 
             offsets_out = list()
 
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                offsets_out.append(window.offsets_output)
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    offsets_out.append(window.offsets_output)
 
             offsets_out = np.array(offsets_out).T
 
@@ -1307,8 +1318,10 @@ class ClickerWindow(pyglet.window.Window):
             return
         if filename != '' and type(filename) == str:
             global_filename = filename
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.fill_common_dictionary()
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
 
             # get the header
             cols = sorted(common.keys())
@@ -1323,8 +1336,10 @@ class ClickerWindow(pyglet.window.Window):
 
             offsets_out = list()
 
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                offsets_out.append(window.offsets_output)
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    offsets_out.append(window.offsets_output)
 
             offsets_out = np.array(offsets_out).T
 
@@ -1448,9 +1463,15 @@ class ClickerWindow(pyglet.window.Window):
         self.update_all_windows()
         self.updateSelf()
 
-    def plotTracks(self, track_indices=np.arange(len(track_list_global))):
-        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            window.fill_common_dictionary()
+    # def plotTracks(self):
+    #     for window in [u for u in pyglet.app.windows]:
+    #         print(type(window))
+    #         print(type(window) == 'ClickerWindow')
+    def plotTracks(self): #, track_indices=np.arange(len(track_list_global))):
+        # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+        for window in pyglet.app.windows:
+            if isinstance(window, ClickerWindow):
+                window.fill_common_dictionary()
         cols = sorted(common.keys())
         _ = common[cols[0]]
         _ = np.reshape(_, (_.shape[0], 1))
@@ -1458,25 +1479,28 @@ class ClickerWindow(pyglet.window.Window):
             _ = np.hstack((_, np.reshape(common[cols[k]], (_.shape[0], 1))))
         pts = _
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # make a data frame for the xyz coordinates for all tracks and all frames
-        xyzss = list()
-        for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
-            xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)], camera_profile,
-                             DLTCoefficients)
-            xyzss.append(xyzs)
+        track_indices = np.arange(len(track_list_global))
+        plotter = TrackPlotter(pts, track_indices, camera_profile, DLTCoefficients, ArgusColors)
+        # pyglet.app.run()
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # # make a data frame for the xyz coordinates for all tracks and all frames
+        # xyzss = list()
+        # for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
+        #     xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)], camera_profile,
+        #                      DLTCoefficients)
+        #     xyzss.append(xyzs)
 
-        colors = ArgusColors().getMatplotlibColors()
+        # colors = ArgusColors().getMatplotlibColors()
 
-        for k in range(len(track_indices)):
-            xyz = xyzss[track_indices[k]]
-            x = xyz[:, 0]
-            y = xyz[:, 1]
-            z = xyz[:, 2]
-            ax.plot(x, y, z, color=colors[k % len(colors)])
+        # for k in range(len(track_indices)):
+        #     xyz = xyzss[track_indices[k]]
+        #     x = xyz[:, 0]
+        #     y = xyz[:, 1]
+        #     z = xyz[:, 2]
+        #     ax.plot(x, y, z, color=colors[k % len(colors)])
 
-        plt.show(block=False)
+        # plt.show(block=False)
         # plt.close()
 
     def deleteTrack(self, track):
@@ -1521,7 +1545,7 @@ class ClickerWindow(pyglet.window.Window):
         if app is None:
             app = QtWidgets.QApplication([])
         w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb, radius, thickness)
-        if w.exec_() == QtWidgets.QDialog.Accepted:
+        if w.exec() == QtWidgets.QDialog.Accepted:
             auto_advance = w.auto.isChecked()
             sync = w.sync.isChecked()
             new_disp = w.disp.isChecked()
@@ -1533,50 +1557,66 @@ class ClickerWindow(pyglet.window.Window):
 
             track_list_global = w.track_list
 
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.update_tracks()
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.update_tracks()
 
             # if the current track changed and the displaying of the rest of the tracks did not
             if current_track_global != w.tracks.currentText() and new_disp == displaying_all_tracks:
                 old_track = current_track_global
                 current_track_global = w.tracks.currentText()
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.change_track(old_track)
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.change_track(old_track)
 
             # if the current track changed and the displaying of other tracks was turned on
             elif current_track_global != w.tracks.currentText() and new_disp:
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.draw_all_tracks()
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.draw_all_tracks()
                 old_track = current_track_global
                 current_track_global = w.tracks.currentText()
                 displaying_all_tracks = new_disp
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.change_track(old_track)
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.change_track(old_track)
 
             # if the current track changed and the displaying of other tracks was turned off
             elif current_track_global != w.tracks.currentText():
                 old_track = current_track_global
                 current_track_global = w.tracks.currentText()
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.change_track(old_track)
-                    window.delete_all_tracks()
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.change_track(old_track)
+                        window.delete_all_tracks()
 
             # if the track did not change but we turned on displaying the rest
             elif new_disp != displaying_all_tracks and new_disp:
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.draw_all_tracks()
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.draw_all_tracks()
 
             # if the track did not change but we turned off the displaying of the rest of tracks
             elif new_disp != displaying_all_tracks and not new_disp:
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.delete_all_tracks()
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.delete_all_tracks()
 
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.frameFinder.rgb = rgb
-                im = window.frameFinder.getFrame(window.current_point_index)
-                if im is not None:
-                    window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
-                    window.img.scale = float(self.scale_factor)
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.frameFinder.rgb = rgb
+                    im = window.frameFinder.getFrame(window.current_point_index)
+                    if im is not None:
+                        window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
+                        window.img.scale = float(self.scale_factor)
 
             current_track_global = w.tracks.currentText()
             displaying_all_tracks = new_disp
@@ -1724,8 +1764,10 @@ class ClickerWindow(pyglet.window.Window):
                 current_track_global = track_list_global[track_list_global.index(current_track_global) + 1]
             else:
                 current_track_global = track_list_global[0]
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.change_track(old_track)
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.change_track(old_track)
             self.update_all_windows()
 
         # changes track to the previous one in the list
@@ -1735,8 +1777,10 @@ class ClickerWindow(pyglet.window.Window):
                 current_track_global = track_list_global[track_list_global.index(current_track_global) - 1]
             else:
                 current_track_global = track_list_global[-1]
-            for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                window.change_track(old_track)
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.change_track(old_track)
             self.update_all_windows()
         # toggle the display of frame number in the current window
         elif symbol == key.F and modifiers & key.MOD_CTRL:
@@ -1851,9 +1895,11 @@ class ClickerWindow(pyglet.window.Window):
                         track_list_global.remove(current_track_global)
                         if len(track_list_global) != 0:
                             current_track_global = track_list_global[0]
-                        for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                            window.change_track(old_track)
-                            window.deleteTrack(old_track)
+                        # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                        for window in pyglet.app.windows:
+                            if isinstance(window, ClickerWindow):
+                                window.change_track(old_track)
+                                window.deleteTrack(old_track)
                         self.update_all_windows()
             else:
                 QtWidgets.QMessageBox.warning(None,
@@ -1881,11 +1927,13 @@ class ClickerWindow(pyglet.window.Window):
 
             if load_data_global is not None:
                 offsetMatches = list()
-                for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-                    window.points = dict()
-                    window.update_tracks()
-                    offsetMatches.append(window.load_points())
-                    window.updateSelf()
+                # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.points = dict()
+                        window.update_tracks()
+                        offsetMatches.append(window.load_points())
+                        window.updateSelf()
                 if False in offsetMatches:
                     QtWidgets.QMessageBox.warning(None,
                         "Warning",
@@ -1907,7 +1955,8 @@ class ClickerWindow(pyglet.window.Window):
             # if we have DLT coefficients and intrinsic camera information,
             # triangulate and write the 3D coordinates frame-by-frame
             if DLTCoefficients is not None and camera_profile is not None:
-                self.plotTracks(track_indices=np.arange(len(track_list_global)))
+                self.plotTracks()
+                # self.plotTracks(track_indices=np.arange(len(track_list_global)))
             else:
                 QtWidgets.QMessageBox.warning(None,
                     "Error",
@@ -1964,11 +2013,104 @@ class ClickerWindow(pyglet.window.Window):
         self.y = self.frameFinder.oh - (float(y) / self.height * self.zoomed_height + self.bottom)
 
 
+class TrackPlotter(pyglet.window.Window):
+    def __init__(self, pts, track_indices, camera_profile, DLTCoefficients, ArgusColors):
+        super(TrackPlotter, self).__init__(width=800, height=600, caption="Track Plotter", resizable=True)
+        self.pts = pts
+        self.track_indices = track_indices
+        self.camera_profile = camera_profile
+        self.DLTCoefficients = DLTCoefficients
+        self.colors = ArgusColors().getMatplotlibColors()
+        self.xyzss = self.calculate_xyzs()
+        
+        # Set up OpenGL context
+        glEnable(GL_DEPTH_TEST)
+        glClearColor(0.0, 0.0, 0.0, 1.0)
+        
+        # Rotation state
+        self.rot_x = 0
+        self.rot_y = 0
+        self.mouse_x = 0
+        self.mouse_y = 0
+        
+    def calculate_xyzs(self):
+        xyzss = []
+        for j in range(int(self.pts.shape[1] / (2 * len(self.camera_profile)))):
+            xyzs = uv_to_xyz(self.pts[:, j * 2 * len(self.camera_profile):(j + 1) * 2 * len(self.camera_profile)], self.camera_profile, self.DLTCoefficients)
+            xyzss.append(xyzs)
+        return xyzss
+
+    def setup_projection(self):
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        gluPerspective(45.0, self.width / self.height, 0.1, 100.0)
+        glMatrixMode(GL_MODELVIEW)
+        glLoadIdentity()
+        
+    def plot_grid(self):
+        glColor3f(0.5, 0.5, 0.5)  # Gray color for grid
+        glBegin(GL_LINES)
+        grid_size = 10
+        for i in range(-grid_size, grid_size + 1):
+            glVertex3f(i, -grid_size, 0)
+            glVertex3f(i, grid_size, 0)
+            glVertex3f(-grid_size, i, 0)
+            glVertex3f(grid_size, i, 0)
+        glEnd()
+        
+    def plot_tracks(self):
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glLoadIdentity()
+
+        # Apply rotations
+        glTranslatef(0, 0, -40)
+        glRotatef(self.rot_x, 1, 0, 0)
+        glRotatef(self.rot_y, 0, 1, 0)
+
+        # Plot grid on XY plane
+        self.plot_grid()
+
+        # Plot each track
+        for k in range(len(self.track_indices)):
+            xyz = self.xyzss[self.track_indices[k]]
+            xyz = xyz[~np.isnan(xyz).any(axis=1)]
+            if xyz.size == 0:  # Skip if xyz is empty after filtering
+                continue
+            # xyzs = xyzs[~np.isnan(xyzs).any(axis=1)]
+            print(k, xyz[~np.isnan(xyz).any(axis=1)])
+            x = xyz[:, 0]
+            y = xyz[:, 1]
+            z = xyz[:, 2]
+            color = self.colors[k % len(self.colors)]
+            glColor3f(color[0], color[1], color[2])
+            glBegin(GL_LINE_STRIP)
+            for i in range(len(x)):
+                glVertex3f(x[i], y[i], z[i])
+            glEnd()
+
+    def on_draw(self):
+        self.setup_projection()
+        self.plot_tracks()
+        
+    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
+        self.rot_x += dy * 0.5
+        self.rot_y += dx * 0.5
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        self.mouse_x = x
+        self.mouse_y = y
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        self.mouse_x = 0
+        self.mouse_y = 0
+        
 # function scheduled everytime autotracking is turned on
 # to create a loop. it is unscheduled when autotracking is turned off
 def up(dt):
-    for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-        window.tick()
+    # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+    for window in pyglet.app.windows:
+        if isinstance(window, ClickerWindow):
+            window.tick()
     # time.sleep(0.1)
 
 
