@@ -11,7 +11,6 @@ cwd = os.getcwd()
 os.chdir(pkg_resources.resource_filename('argus_gui.resources', ''))
 
 import sba
-# import wandOutputter
 from .output import *
 
 os.chdir(cwd)
@@ -20,14 +19,9 @@ from PySide6.QtCore import Qt
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from .triangulate import *
-# from .graphers import *
 import pandas
 from texttable import *
-# import six.moves.tkinter_messagebox
-# from six.moves.tkinter import *
 import copy
-# import six.moves.tkinter_filedialog
-# import matplotlib.backends.backend_tkagg as tkagg
 from scipy.sparse import lil_matrix
 import string
 import random

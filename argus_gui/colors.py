@@ -1,5 +1,5 @@
 # Argus color palette object
-# Contains palettes for use with Matplotlib and Pyglet including color-blind safe palettes for
+# Contains palettes for use with plotting and Pyglet including color-blind safe palettes for
 
 from __future__ import absolute_import
 

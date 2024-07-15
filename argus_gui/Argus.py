@@ -1211,7 +1211,7 @@ class MainWindow(QtWidgets.QMainWindow):
         cmd = cmd + args
         self.go(cmd, self.sync_onam.text(), logBool)
 
-    # Graph the wave files with matplotlib
+    # Graph the wave files
     def sync_show(self):
         files = [
             str(self.sync_file_list.item(x).text())

@@ -19,10 +19,11 @@ import itertools
 import math
 import pandas
 import argus.ocam
-import matplotlib
-matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
-
+# import matplotlib
+# matplotlib.use('Qt5Agg')
+# import matplotlib.pyplot as plt
+from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PySide6.QtDataVisualization import QtDataVisualization as QDV
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np

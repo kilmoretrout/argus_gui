@@ -109,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument("output_name", help="Output filename for points and optimized camera profile")
 
     parser.add_argument("-g", "--graph", action="store_true",
-                        help="Graph points and camera positions with Matplotlib. Must have X11 running.")
+                        help="Graph points and camera positions with pyopengl.")
     parser.add_argument("--outliers", action="store_true",
                         help="Report on outliers and ask to re-calibrate without them")
     parser.add_argument("--tmp", default="None",
