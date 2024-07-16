@@ -18,7 +18,7 @@ dependencies:
     - imageio
     - imageio-ffmpeg
     - opencv-contrib-python
-    - pyglet<2
+    - pyglet
     - pyside6
     - git+https://github.com/backyardbiomech/python-sba.git@python310
     - git+https://github.com/backyardbiomech/argus.git@python310
