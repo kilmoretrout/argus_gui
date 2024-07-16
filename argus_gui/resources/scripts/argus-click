@@ -2020,7 +2020,7 @@ class TrackPlotter(pyglet.window.Window):
         self.track_indices = track_indices
         self.camera_profile = camera_profile
         self.DLTCoefficients = DLTCoefficients
-        self.colors = ArgusColors().getMatplotlibColors()
+        self.colors = ArgusColors().getPygletColors()
         self.xyzss = self.calculate_xyzs()
         
         # Set up OpenGL context
@@ -2109,7 +2109,7 @@ class TrackPlotter(pyglet.window.Window):
             y = xyz[:, 1]
             z = xyz[:, 2]
             color = self.colors[k % len(self.colors)]
-            glColor3f(color[0], color[1], color[2])
+            glColor3f(color[0]/255.0, color[1]/255.0, color[2]/255.0)
             glBegin(GL_LINE_STRIP)
             for i in range(len(x)):
                 glVertex3f(x[i], y[i], z[i])
@@ -2118,11 +2118,11 @@ class TrackPlotter(pyglet.window.Window):
             
     def plot_spheres(self, x, y, z, color):
         quadric = gluNewQuadric()
-        glColor3f(color[0], color[1], color[2])
+        glColor3f(color[0]/255.0, color[1]/255.0, color[2]/255.0)
         for i in range(len(x)):
             glPushMatrix()
             glTranslatef(x[i], y[i], z[i])
-            gluSphere(quadric, 0.2, 2, 2)  # Radius of 0.2, 2 slices, 2 stacks
+            gluSphere(quadric, 0.2, 4, 4)  # Radius of 0.2, 4 slices, 4 stacks
             glPopMatrix()
         gluDeleteQuadric(quadric)
         
