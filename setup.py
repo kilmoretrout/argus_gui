@@ -5,7 +5,7 @@ import sys
 
 setup(
     name='argus_gui',
-    version='2.1.5',
+    version='2.2',
     packages=['argus_gui', 'argus_gui.resources'],
     scripts=[
         'argus_gui/resources/scripts/argus-dwarp', 
@@ -37,7 +37,8 @@ setup(
         "future >= 0.16.0",
         "PyYAML >= 5.0",
         "pyside6 >= 6.4",
-        "pyqtgraph >= 0.13.7"	
+        "pyqtgraph >= 0.13.7",
+        "pyopengl"	
         ],
     dependency_links=[
         #'http://opencv.org/downloads.html',
