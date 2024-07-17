@@ -7,9 +7,13 @@ import yaml
 import os
 import sys
 
+import pyglet
+from pyglet import gl
+from pyglet.gl import Config
+from pyglet import shapes
 from pyglet.window import key, mouse
 from pyglet.graphics import *
-from pyglet.gl import *
+from pyglet.math import Mat4
 #from pygarrayimage.arrayimage import ArrayInterfaceImage
 
 from argus_gui import ArgusColors, FrameFinder, ClickerProject
@@ -21,11 +25,10 @@ import math
 import pandas
 import argus.ocam
 # import matplotlib
-# matplotlib.use('Qt5Agg')
-# import matplotlib.pyplot as plt
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 import pyqtgraph as pg
-import pyqtgraph.opengl as gl
+import pyqtgraph.opengl as pyqt_gl
+import ctypes
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
@@ -377,23 +380,24 @@ def draw_circle(coordinates, radius, color=(255, 255, 255), batch=None, strip=Fa
     global thickness
     (x, y) = coordinates
     # radius = radius
+    return{'x': x, 'y': y, 'radius': radius}
+    # vertices = [float(x), float(y)]
 
-    vertices = [float(x), float(y)]
+    # for deg in range(0, 361, 2):
+    #     angle = (deg * math.pi) / 180
+    #     vertices.extend((x + math.sin(angle) * radius, y + math.cos(angle) * radius))
 
-    for deg in range(0, 361, 2):
-        angle = (deg * math.pi) / 180
-        vertices.extend((x + math.sin(angle) * radius, y + math.cos(angle) * radius))
+    # pn = int(len(vertices) / 2)
 
-    pn = int(len(vertices) / 2)
+    # # Set the point size
+    # glPointSize(thickness) 
+    # list_of_vertices = batch.add(pn, GL_POINTS, None,
+    #                              ('v2f/static', vertices),
+    #                              ('c4B/static', color * pn)
+    #                              )
 
-    # Set the point size
-    glPointSize(thickness) 
-    list_of_vertices = batch.add(pn, GL_POINTS, None,
-                                 ('v2f/static', vertices),
-                                 ('c4B/static', color * pn)
-                                 )
-
-    return list_of_vertices
+    # return list_of_vertices
+    
 
 
 def draw_line(vertices, color=(255, 255, 255), batch=None):
@@ -516,6 +520,8 @@ def load_tsv(tsv):
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
+        config = Config(double_buffer=True)
+        
         self.actual_camera_number = actual_camera_number
         self.original_index = actual_camera_number - 1
 
@@ -526,6 +532,8 @@ class ClickerWindow(pyglet.window.Window):
                                             height=int(float(self.frameFinder.oh) / factor), visible=True,
                                             resizable=True, vsync=True)
 
+        self.projection = Mat4.orthogonal_projection(0, int(float(self.frameFinder.ow) / factor), 0 , int(float(self.frameFinder.oh) / factor), -255, 255)
+               
         self.movie = movie
         self.offsets = offsets
 
@@ -555,7 +563,7 @@ class ClickerWindow(pyglet.window.Window):
         # batches for fast drawing
         self.main_batch = pyglet.graphics.Batch()
         self.track_batch = pyglet.graphics.Batch()
-        self.background = pyglet.graphics.OrderedGroup(0)
+        self.background = pyglet.graphics.Group(order=0)
         self.dlt_batch = pyglet.graphics.Batch()
         # img is array format from cv2
         img = self.frameFinder.getFrame(1)
@@ -566,11 +574,12 @@ class ClickerWindow(pyglet.window.Window):
             self.img.scale = float(self.scale_factor)
         else:
             self.img = None
-
+    
         # current mouse coordinate for getting a zoomed view finder
         self.x = 0
         self.y = 0
-        self.view = None
+        self.view = Mat4()
+        self.initial_view = Mat4(self.view)
 
         # modifiable boolean for showing the zoomed view finder
         self.show_view = True
@@ -590,7 +599,7 @@ class ClickerWindow(pyglet.window.Window):
 
         self.update_tracks()
 
-        self.init_gl()
+        # self.init_gl()
 
         self.changed = False
 
@@ -601,61 +610,92 @@ class ClickerWindow(pyglet.window.Window):
         self.update_tracks()
         track = current_track_global
         
-        positions = self.points[track].A
+        positions = self.points[track].toarray()
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
         # radius = 2
 
         if self.current_point_index - 1 in non_zeros:
-            self.current_marker = draw_circle(
-                tuple(positions[self.current_point_index - 1]),
-                radius + 4,
-                MARKER_COLOR,
-                self.track_batch
+            # self.current_marker = draw_circle(
+            #     tuple(positions[self.current_point_index - 1]),
+            #     radius + 4,
+            #     MARKER_COLOR,
+            #     self.track_batch
+            # )
+            self.current_marker = shapes.Circle(
+                positions[self.current_point_index - 1][0], positions[self.current_point_index - 1][1], radius + 4, 
+                color = MARKER_COLOR, 
+                batch = self.track_batch
             )
 
         for non_zero_value in non_zeros:
-            self.drawn_points[track][non_zero_value] = draw_circle(
-                tuple(positions[non_zero_value]),
-                radius,
-                colors[track_list_global.index(track) % len(colors)], self.track_batch
+            # self.drawn_points[track][non_zero_value] = draw_circle(
+            #     tuple(positions[non_zero_value]),
+            #     radius,
+            #     colors[track_list_global.index(track) % len(colors)], self.track_batch
+            # )
+            self.drawn_points[track][non_zero_value] = shapes.Circle(
+                positions[non_zero_value][0], positions[non_zero_value][1], radius,
+                color = colors[track_list_global.index(track) % len(colors)],
+                batch = self.track_batch
             )
 
         for non_zero_value in non_zeros:
             if non_zero_value + 1 in non_zeros:
-                t = tuple([positions[non_zero_value], positions[non_zero_value + 1]])
-                self.drawn_lines[track][non_zero_value] = draw_line(
-                    t,
-                    colors[track_list_global.index(track) % len(colors)],
-                    self.track_batch
-                )
+                # t = tuple([positions[non_zero_value], positions[non_zero_value + 1]])
+                # self.drawn_lines[track][non_zero_value] = draw_line(
+                #     t,
+                #     colors[track_list_global.index(track) % len(colors)],
+                #     self.track_batch
+                # )
+                self.drawnlines[track][non_zero_value] = shapes.Line(
+                        positions[non_zero_value][0], positions[non_zero_value][1],
+                        positions[non_zero_value+1][0], positions[non_zero_value+1][1],
+                        width = 2,
+                        color = colors[track_list_global.index(track) % len(colors)],
+                        batch = self.track_batch                        
+                        )
 
         if displaying_all_tracks:
             for track in self.points.keys():
                 if track != current_track_global:
-                    positions = self.points[track].A
+                    positions = self.points[track].toarray()
                     non_zeros = list(set(self.points[track].nonzero()[0]))
                     for non_zero_value in non_zeros:
                         if non_zero_value + 1 in non_zeros:
-                            t = tuple([positions[non_zero_value], positions[non_zero_value + 1]])
-                            self.drawn_lines[track][non_zero_value] = draw_line(t,
-                                                                                colors[track_list_global.index(
-                                                                                    track) % len(colors)],
-                                                                                self.track_batch)
-
+                            # t = tuple([positions[non_zero_value], positions[non_zero_value + 1]])
+                            # self.drawn_lines[track][non_zero_value] = draw_line(t,
+                            #                                                     colors[track_list_global.index(
+                            #                                                         track) % len(colors)],
+                            #                                                     self.track_batch)
+                            self.drawnlines[track][non_zero_value] = shapes.Line(
+                                    positions[non_zero_value][0], positions[non_zero_value][1],
+                                    positions[non_zero_value+1][0], positions[non_zero_value+1][1],
+                                    width = 2,
+                                    color = colors[track_list_global.index(track) % len(colors)],
+                                    batch = self.track_batch                        
+                                )
+                            
     # called when the user decides to display all the tracks
     def draw_all_tracks(self):
         self.update_tracks()
         for track in self.points.keys():
-            positions = self.points[track].A
+            positions = self.points[track].toarray()
             nz = list(set(self.points[track].nonzero()[0]))
 
             if track != current_track_global:
                 for k in nz:
                     if k + 1 in nz:
-                        t = tuple([positions[k], positions[k + 1]])
-                        self.drawn_lines[track][k] = draw_line(t, colors[track_list_global.index(track) % len(colors)],
-                                                               self.track_batch)
+                        # t = tuple([positions[k], positions[k + 1]])
+                        # self.drawn_lines[track][k] = draw_line(t, colors[track_list_global.index(track) % len(colors)],
+                        #                                        self.track_batch)
+                        self.drawn_lines[track][non_zero_value] = shapes.Line(
+                                    positions[k][0], positions[k][1],
+                                    positions[k+1][0], positions[k+1][1],
+                                    width = 2,
+                                    color = colors[track_list_global.index(track) % len(colors)],
+                                    batch = self.track_batch                        
+                            )
 
     # called when the user decides not to display all the tracks
     def delete_all_tracks(self):
@@ -686,7 +726,7 @@ class ClickerWindow(pyglet.window.Window):
                     self.drawn_lines[old_track][k].delete()
                     self.drawn_lines[old_track][k] = None
 
-        positions = self.points[current_track_global].A
+        positions = self.points[current_track_global].toarray()
         nz = list(set(self.points[current_track_global].nonzero()[0]))
 
         if self.current_marker is not None:
@@ -694,19 +734,36 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in nz:
-            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
-                                              self.track_batch)
-
+            # self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
+                                            #   self.track_batch)
+            self.current_marker = shapes.Circle(
+                positions[self.current_point_index - 1][0], positions[self.current_point_index - 1][1], radius + 4, 
+                color = MARKER_COLOR,
+                batch = self.track_batch
+            )
+            
         for k in nz:
-            self.drawn_points[current_track_global][k] = draw_circle(tuple(positions[k]), radius, colors[
-                track_list_global.index(current_track_global) % 4], self.track_batch)
+            # self.drawn_points[current_track_global][k] = draw_circle(tuple(positions[k]), radius, colors[
+            #     track_list_global.index(current_track_global) % 4], self.track_batch)
+            self.drawn_points[current_track_global][k] = shapes.Circle(
+                positions[k][0], positions[k][1], radius, 
+                color = colors[track_list_global.index(current_track_global) % 4], 
+                batch = self.track_batch
+            )
 
         if not displaying_all_tracks:
             for k in nz:
                 if k + 1 in nz:
-                    t = tuple([positions[k], positions[k + 1]])
-                    self.drawn_lines[current_track_global][k] = draw_line(t, colors[
-                        track_list_global.index(current_track_global) % 4], self.track_batch)
+                    # t = tuple([positions[k], positions[k + 1]])
+                    # self.drawn_lines[current_track_global][k] = draw_line(t, colors[
+                    #     track_list_global.index(current_track_global) % 4], self.track_batch)
+                    self.drawnlines[current_track_global][k] = shapes.Line(
+                        positions[k][0], positions[k][1],
+                        positions[k+1][0], positions[k+1][1],
+                        width = 2,
+                        color = colors[track_list_global.index(current_track_global) % 4],
+                        batch = self.track_batch                        
+                        )
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """Allows the user to drag around the current frame
@@ -747,7 +804,7 @@ class ClickerWindow(pyglet.window.Window):
 
         # Get the numpy array from the sparse csc_matrix representing the coordinate plane
         # with the bottom left corner as the center
-        positions = self.points[track].A
+        positions = self.points[track].toarray()
 
         # Note the extra [0] at the end is because numpy returns ([], ) when nonzero is called
         non_zero_points = set(self.points[track].nonzero()[0])
@@ -756,12 +813,18 @@ class ClickerWindow(pyglet.window.Window):
         if self.drawn_points[track][new_point_index] is not None:
             self.drawn_points[track][new_point_index].delete()
 
-        self.drawn_points[track][new_point_index] = draw_circle(
-            tuple(positions[new_point_index]),
-            radius,
-            colors[track_list_global.index(track) % len(colors)],
-            self.track_batch
-        )
+        self.drawn_points[track][new_point_index] = shapes.Circle(
+                x, y, radius, 
+                color = colors[track_list_global.index(track) % len(colors)], 
+                batch = self.track_batch
+            )
+        
+        # self.drawn_points[track][new_point_index] = draw_circle(
+        #     tuple(positions[new_point_index]),
+        #     radius,
+        #     colors[track_list_global.index(track) % len(colors)],
+        #     self.track_batch
+        # )
 
         if new_point_index >= 0:
             # Draws a line from the current point to the previous point
@@ -769,27 +832,43 @@ class ClickerWindow(pyglet.window.Window):
                 point_list = (positions[old_point_index], positions[new_point_index])
                 if self.drawn_lines[track][old_point_index] is not None:
                     self.drawn_lines[track][old_point_index].delete()
-                    self.drawn_lines[track][old_point_index] = draw_line(point_list,
-                                                                         colors[
+                    self.drawn_lines[track][old_point_index] = shapes.Line(
+                                                                point_list[0][0],
+                                                                point_list[0][1],
+                                                                point_list[1][0],
+                                                                point_list[1][1],
+                                                                color = colors[
                                                                              track_list_global.index(track) % len(
                                                                                  colors)
                                                                              ],
-                                                                         self.track_batch)
+                                                                batch = self.track_batch)
                 else:
-                    self.drawn_lines[track][old_point_index] = draw_line(point_list,
-                                                                         colors[
+                    self.drawn_lines[track][old_point_index] = shapes.Line(
+                                                                point_list[0][0],
+                                                                point_list[0][1],
+                                                                point_list[1][0],
+                                                                point_list[1][1],
+                                                                color = colors[
                                                                              track_list_global.index(track) % len(
                                                                                  colors)
                                                                              ],
-                                                                         self.track_batch)
+                                                                batch = self.track_batch)
 
             # Draws a line to points ahead of the current one
             if self.current_point_index in non_zero_points and positions[self.current_point_index][0] != 0:
                 point_list = (positions[new_point_index], positions[self.current_point_index])
                 if self.drawn_lines[track][new_point_index] is not None:
                     self.drawn_lines[track][new_point_index].delete()
-                self.drawn_lines[track][new_point_index] = draw_line(point_list, colors[
-                    track_list_global.index(track) % len(colors)], self.track_batch)
+                self.drawn_lines[track][new_point_index] = shapes.Line(
+                                                                point_list[0][0],
+                                                                point_list[0][1],
+                                                                point_list[1][0],
+                                                                point_list[1][1],
+                                                                color = colors[
+                                                                             track_list_global.index(track) % len(
+                                                                                 colors)
+                                                                             ],
+                                                                batch = self.track_batch)
 
         # Reset the current marker
         if self.current_marker is not None:
@@ -798,20 +877,20 @@ class ClickerWindow(pyglet.window.Window):
 
         # TODO: Further testing required to see how necessary this is
         # Finally, draw a circle at the new point
-        if new_point_index in non_zero_points:
-            self.current_marker = draw_circle(
-                tuple(positions[new_point_index]),
-                radius= radius + 4,
-                color=MARKER_COLOR,
-                batch=self.track_batch
-            )
+        # if new_point_index in non_zero_points:
+        #     self.current_marker = draw_circle(
+        #         tuple(positions[new_point_index]),
+        #         radius= radius + 4,
+        #         color=MARKER_COLOR,
+        #         batch=self.track_batch
+        #     )
 
     def change_marker(self):
         global radius
         self.update_tracks()
         track = current_track_global
 
-        positions = self.points[track].A
+        positions = self.points[track].toarray()
         non_zero_points = list(set(self.points[track].nonzero()[0]))
 
         if self.current_marker is not None:
@@ -819,8 +898,13 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in non_zero_points:
-            self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
-                                              self.track_batch)
+            # self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
+            #                                   self.track_batch)
+            self.current_marker = shapes.Circle(
+                positions[self.current_point_index - 1][0], positions[self.current_point_index - 1][1], radius + 4, 
+                color = MARKER_COLOR, 
+                batch = self.track_batch
+            )
 
     # delete a point
     def delete_point(self):
@@ -864,8 +948,12 @@ class ClickerWindow(pyglet.window.Window):
     # fills the batch for epipolar lines, drawn in Carolina Blue. Go tar heels!
     def make_dlt_batch(self, points):
         for k in range(len(points) - 1):
-            t = tuple([points[k], points[k + 1]])
-            draw_line(t, CAROLINA_BLUE, self.dlt_batch)
+            # t = tuple([points[k], points[k + 1]])
+            # draw_line(t, CAROLINA_BLUE, self.dlt_batch)
+            self.drawn_dlt_curve = shapes.Line(points[k][0], points[k][1],
+                                         points[k+1][0], points[k+1][1],
+                                         color = CAROLINA_BLUE,
+                                         batch = self.dlt_batch)
 
     # Zooms in using OpenGL.  Has bounds so that none of the screen ever has blank space
     def on_mouse_scroll(self, x, y, dx, dy):
@@ -1016,46 +1104,46 @@ class ClickerWindow(pyglet.window.Window):
 
     def init_gl(self):
         # Set clear color
-        glClearColor(0 / 255, 0 / 255, 0 / 255, 0 / 255)
+        gl.glClearColor(0, 0, 0, 0)
 
         # Set antialiasing
-        glEnable(GL_LINE_SMOOTH)
-        # glEnable( GL_POLYGON_SMOOTH )
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST)
+        gl.glEnable(gl.GL_LINE_SMOOTH)
+        gl.glHint(gl.GL_LINE_SMOOTH_HINT, gl.GL_NICEST)
 
         # Set alpha blending
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        gl.glEnable(gl.GL_BLEND)
+        gl.glBlendFunc(gl.GL_SRC_ALPHA, gl.GL_ONE_MINUS_SRC_ALPHA)
 
         # Set viewport
-        glViewport(0, 0, self.width, self.height)
+        gl.glViewport(0, 0, self.width, self.height)
 
         # Initialize Projection matrix
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
+        # gl.glMatrixMode(gl.GL_PROJECTION)
+        # gl.glLoadIdentity()
 
         # Set orthographic projection matrix
-        glOrtho(0, self.width, 0, self.height, 1, -1)
+        # gl.gluOrtho2D(0, self.width, 0, self.height)
 
         # Initialize Modelview matrix
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
+        # gl.glMatrixMode(gl.GL_MODELVIEW)
+        # gl.glLoadIdentity()
 
         # Save the default modelview matrix
-        glPushMatrix()
+        gl.glPushMatrix()
+
 
     def on_draw(self):
         self.clear()
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-        # Initialize Projection matrix
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
+        # # Initialize Projection matrix
+        # glMatrixMode(GL_PROJECTION)
+        # glLoadIdentity()
 
         # Initialize Modelview matrix
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
+        # glMatrixMode(GL_MODELVIEW)
+        # glLoadIdentity()
 
         try:
             while True:
@@ -1063,25 +1151,25 @@ class ClickerWindow(pyglet.window.Window):
         except Exception as e:
             pass
 
-        glPushMatrix()
+        # glPushMatrix()
+        self.projection = Mat4.orthogonal_projection(self.left, self.right, self.bottom, self.top, -255, 255)
+        # glOrtho(self.left, self.right, self.bottom, self.top, 1, -1)
 
-        glOrtho(self.left, self.right, self.bottom, self.top, 1, -1)
-
-        if self.x != 0 and self.y != 0:
-            try:
-                view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vx, vy, self.vf,
-                                                      self.autoTracking)
-                # mark discrete estimate with red cross
-                view[int(view.shape[0] / 2), :] = np.array([255., 0., 0.])
-                view[:, int(view.shape[1] / 2)] = np.array([255., 0., 0.])
-            except:
-                view = None
-            if view is not None:
-                scale = (((self.right - self.left) * (self.top - self.bottom)) / (
-                        self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
-                self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).get_texture(),
-                                                 x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
-                self.view.scale = scale
+        # if self.x != 0 and self.y != 0:
+        #     try:
+        #         view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vx, vy, self.vf,
+        #                                               self.autoTracking)
+        #         # mark discrete estimate with red cross
+        #         view[int(view.shape[0] / 2), :] = np.array([255., 0., 0.])
+        #         view[:, int(view.shape[1] / 2)] = np.array([255., 0., 0.])
+        #     except:
+        #         view = None
+        #     if view != self.initial_view:
+        #         scale = (((self.right - self.left) * (self.top - self.bottom)) / (
+        #                 self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
+        #         self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).get_texture(),
+        #                                          x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
+        #         self.view.scale = scale
 
         if self.current_point_index != current_frame and sync:
             self.current_point_index = current_frame
@@ -1102,8 +1190,8 @@ class ClickerWindow(pyglet.window.Window):
         if self.img is not None:
             self.img.draw()
 
-        if self.view is not None and self.show_view:
-            self.view.draw()
+        # if self.view is not None and self.show_view:
+        #     self.view.draw()
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
             self.dlt_batch = pyglet.graphics.Batch()
@@ -1126,7 +1214,7 @@ class ClickerWindow(pyglet.window.Window):
             sync = False
         if self.autoTracking:
             uv = self.points[current_track_global][self.current_point_index - 2].toarray()[0]
-            pts = self.points[current_track_global].A
+            pts = self.points[current_track_global].toarray()
 
             if self.frameFinder.kf is None:
                 nz = sorted(list(set(self.points[current_track_global].nonzero()[0])))
