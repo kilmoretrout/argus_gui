@@ -26,6 +26,7 @@ import pandas
 import argus.ocam
 # import matplotlib
 from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt
 import pyqtgraph as pg
 import pyqtgraph.opengl as pyqt_gl
 import ctypes
@@ -1573,7 +1574,22 @@ class ClickerWindow(pyglet.window.Window):
         pts = _
 
         track_indices = np.arange(len(track_list_global))
+        
+        app = QtWidgets.QApplication.instance()
+        running = True
+        if app is None:
+            running = False
+            # necessary for regraphing after removing outliers using openGL
+            QtWidgets.QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+            app = QtWidgets.QApplication(sys.argv)
+            
+        
         plotter = TrackPlotter(pts, track_indices, camera_profile, DLTCoefficients, ArgusColors)
+        plotter.init_UI()
+        plotter.show()
+        app.exec()
+        # if not running:
+        #     app.exec()
         # pyglet.app.run()
         # fig = plt.figure()
         # ax = fig.add_subplot(111, projection='3d')
@@ -2118,8 +2134,67 @@ class ClickerWindow(pyglet.window.Window):
         self.x = float(x) / self.width * self.zoomed_width + self.left
         self.y = self.frameFinder.oh - (float(y) / self.height * self.zoomed_height + self.bottom)
 
+class TrackPlotter(QtWidgets.QWidget):
+    def __init__(self, pts, track_indices, camera_profile, DLTcoefficients, ArgusColors):
+        super().__init__()
+        self.pts = pts
+        self.track_indices = track_indices
+        self.camera_profile = camera_profile
+        self.DLTCoefficients = DLTCoefficients
+        self.colors = ArgusColors().getPygletColors()
+        self.xyzss = self.calculate_xyzs()
+        
+    def init_UI(self):
+        main_layout = QtWidgets.QVBoxLayout()
+        self.view = pyqt_gl.GLViewWidget()
+        self.view.setWindowTitle('3D Graph')
+        self.view.setCameraPosition(distance=20)
+        # Create grid items for better visualization
+        self.grid = pyqt_gl.GLGridItem()
+        self.grid.scale(2, 2, 1)
+        self.view.addItem(self.grid)
+        # Add x, y, z axes lines
+        axis_length = 10
+        self.x_axis = pyqt_gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        self.y_axis = pyqt_gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        self.z_axis = pyqt_gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        self.view.addItem(self.x_axis)
+        self.view.addItem(self.y_axis)
+        self.view.addItem(self.z_axis)
+        main_layout.addWidget(self.view)
+        self.setLayout(main_layout)
+        self.resize(800, 800)
+        self.updateGraph()
+        
+    def calculate_xyzs(self):
+        xyzss = []
+        for j in range(int(self.pts.shape[1] / (2 * len(self.camera_profile)))):
+            xyzs = uv_to_xyz(self.pts[:, j * 2 * len(self.camera_profile):(j + 1) * 2 * len(self.camera_profile)], self.camera_profile, self.DLTCoefficients)
+            xyzss.append(xyzs)
+        return xyzss
+        
+    def updateGraph(self):
+        self.view.clear()
+        # Re-add grid and axes
+        self.view.addItem(self.grid)
+        self.view.addItem(self.x_axis)
+        self.view.addItem(self.y_axis)
+        self.view.addItem(self.z_axis)
+        # plot here
+        # Plot each track
+        for k in range(len(self.track_indices)):
+            xyz = self.xyzss[self.track_indices[k]]
+            plotxyz = np.array(xyz).reshape(-1,3)
+            color = self.colors[k % len(self.colors)]
+            color = (color[0]/255.0, color[1]/255.0, color[2]/255.0, 1)
+            
+            scatter = pyqt_gl.GLScatterPlotItem(pos = plotxyz, color=color, size=20)
+            
+            scatter.setGLOptions('translucent')
+            self.view.addItem(scatter)
 
-class TrackPlotter(pyglet.window.Window):
+
+class ATrackPlotter(pyglet.window.Window):
     def __init__(self, pts, track_indices, camera_profile, DLTCoefficients, ArgusColors):
         super(TrackPlotter, self).__init__(width=800, height=600, caption="Track Plotter", resizable=True)
         self.pts = pts
@@ -2150,10 +2225,10 @@ class TrackPlotter(pyglet.window.Window):
         return xyzss
 
     def setup_projection(self):
-        glMatrixMode(GL_PROJECTION)
+        # glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
         gluPerspective(45.0, self.width / self.height, 0.1, 100.0)
-        glMatrixMode(GL_MODELVIEW)
+        # glMatrixMode(GL_MODELVIEW)
         glLoadIdentity()
         
     def plot_grid(self):
@@ -2192,7 +2267,7 @@ class TrackPlotter(pyglet.window.Window):
         
     def plot_tracks(self):
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glLoadIdentity()
+        # glLoadIdentity()
 
         # Apply rotations
         glTranslatef(0, 0, self.zoom)
@@ -2270,6 +2345,7 @@ class TrackPlotter(pyglet.window.Window):
         glScalef(0.02, 0.02, 0.02)  # Scale the text to fit the 3D plot
         label.draw()
         glPopMatrix()
+        
 # function scheduled everytime autotracking is turned on
 # to create a loop. it is unscheduled when autotracking is turned off
 def up(dt):
