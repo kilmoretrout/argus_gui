@@ -861,11 +861,6 @@ class ClickerWindow(pyglet.window.Window):
                                                                                  colors)
                                                                              ],
                                                                 batch = self.track_batch)
-
-        # # Reset the current marker
-        # if self.current_marker is not None:
-        #     self.current_marker.delete()
-        #     self.current_marker = None
         
         self.change_marker()
 
@@ -1873,10 +1868,11 @@ class ClickerWindow(pyglet.window.Window):
             else:
                 current_track_global = track_list_global[0]
             # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            for window in pyglet.app.windows:
-                if isinstance(window, ClickerWindow):
-                    window.change_track(old_track)
-            self.update_all_windows()
+            if current_track_global != old_track:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.change_track(old_track)
+                self.update_all_windows()
 
         # changes track to the previous one in the list
         elif symbol == key.COMMA:
@@ -1886,10 +1882,11 @@ class ClickerWindow(pyglet.window.Window):
             else:
                 current_track_global = track_list_global[-1]
             # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
-            for window in pyglet.app.windows:
-                if isinstance(window, ClickerWindow):
-                    window.change_track(old_track)
-            self.update_all_windows()
+            if current_track_global != old_track:
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        window.change_track(old_track)
+                self.update_all_windows()
         # toggle the display of frame number in the current window
         elif symbol == key.F and modifiers & key.MOD_CTRL:
             if self.displayingFrameNumber:
