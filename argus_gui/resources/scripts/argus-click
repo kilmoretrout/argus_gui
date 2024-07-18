@@ -533,7 +533,7 @@ class ClickerWindow(pyglet.window.Window):
         self.folder = ''
         self.current_marker = None
         self.scale_factor = factor
-
+        print(f"scale factor: {self.scale_factor}")
         # create array to keep track of offset changes
         self.offsets_output = np.zeros(self.end)
         self.offsets_output[:] = np.nan
@@ -612,7 +612,6 @@ class ClickerWindow(pyglet.window.Window):
         frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
         height, width, channels = frame.shape
         img_data = frame.tobytes()
-        print("HERE", height, width, self.height, self.width)
         return ImageData(width, height, 'RGB', img_data, pitch = width * 3)
     
     # only called upon loading a CSV. Pretty slow to define tons of vertices.

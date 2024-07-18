@@ -1078,7 +1078,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 proc = subprocess.Popen(cmd)
 
     def clicker_go(self):
-        if self.resolution_var == "Full":
+
+        if self.resolution_var.currentText() == "Full":
             res_var = 1
         else:
             res_var = 2
