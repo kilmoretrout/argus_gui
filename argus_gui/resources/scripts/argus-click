@@ -412,8 +412,8 @@ def draw_circle(coordinates, radius, color = (255, 255, 255, 255), batch = None)
 def draw_line(pt1, pt2, color=(255, 255, 255, 255), batch=None):
     global thickness
     # pt1 and pt2 are tuples or arrays like (x, y) for the two ends of the line
-    x1, y1 = pt1
-    x2, y2 = pt2
+    (x1, y1) = pt1
+    (x2, y2) = pt2
     return shapes.Line(
         x1, y1, x2, y2,
         width = thickness,
@@ -464,32 +464,36 @@ def load_csv(csv):
 
     # sys.stdout.flush()
 
-    try:
-        track_csv = open(csv)
-        header = track_csv.readline()
-        new_tracks = []
-        header = header.split(',')
-        for st in header:
-            if st.rsplit('_', 3)[0] not in new_tracks:
-                new_tracks.append(st.rsplit('_', 3)[0])
+    # try:
+    track_csv = open(csv)
+    header = track_csv.readline()
+    new_tracks = []
+    header = header.split(',')
+    for st in header:
+        if st.rsplit('_', 3)[0] not in new_tracks:
+            new_tracks.append(st.rsplit('_', 3)[0])
 
-        track_csv.close()
+    track_csv.close()
 
-        track_list_global = new_tracks
-        current_track_global = track_list_global[0]
+    track_list_global = new_tracks
+    current_track_global = track_list_global[0]
 
-        # sys.stdout.flush()
-        load_data_global = np.array(pandas.read_csv(csv, index_col=False).values, dtype=np.float16)
-        load_data_global[np.isnan(load_data_global)] = 0
-        load_data_global = csc_matrix(load_data_global)
-        no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
+    # sys.stdout.flush()
+    load_data_global = np.array(pandas.read_csv(csv, index_col=False).values, dtype=np.float16)
+    load_data_global[np.isnan(load_data_global)] = 0
+    load_data_global = csc_matrix(load_data_global, dtype = np.float32) # this line is failing for some reason but works in tests
+    #   File "/Users/jacksonbe3/miniconda3/envs/newPyglet/lib/python3.11/site-packages/scipy/sparse/_coo.py", line 374, in _coo_to_compressed
+#     coo_tocsr(M, N, nnz, major, minor, self.data, indptr, indices, data)
+# ValueError: Output dtype not compatible with inputs.
+
+    no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
 
     # TODO: Better Exception Handling
-    except:
-        QtWidgets.QMessageBox.warning(None,
-            "Error",
-            "Could not load CSV! Make sure it is formatted according to the documentation."
-        )
+    # except:
+    #     QtWidgets.QMessageBox.warning(None,
+    #         "Error",
+    #         "Could not load CSV! Make sure it is formatted according to the documentation."
+    #     )
     # sys.stdout.flush()
 
 
@@ -532,7 +536,6 @@ def load_tsv(tsv):
 class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
         config = Config(double_buffer=True)
-        
         self.actual_camera_number = actual_camera_number
         self.original_index = actual_camera_number - 1
 
@@ -621,7 +624,6 @@ class ClickerWindow(pyglet.window.Window):
         global radius
         self.update_tracks()
         track = current_track_global
-        
         positions = self.points[track].toarray()
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
@@ -655,7 +657,7 @@ class ClickerWindow(pyglet.window.Window):
         if displaying_all_tracks:
             for track in self.points.keys():
                 if track != current_track_global:
-                    positions = self.points[track].toarray()
+                    positions = self.points[track]
                     non_zeros = list(set(self.points[track].nonzero()[0]))
                     for non_zero_value in non_zeros:
                         if non_zero_value + 1 in non_zeros:
@@ -664,9 +666,10 @@ class ClickerWindow(pyglet.window.Window):
                             #                                                     colors[track_list_global.index(
                             #                                                         track) % len(colors)],
                             #                                                     self.track_batch)
+
                             self.drawn_lines[track][non_zero_value] = draw_line(
-                                    positions[non_zero_value],
-                                    positions[non_zero_value+1],
+                                    positions[non_zero_value].toarray()[0],
+                                    positions[non_zero_value+1].toarray()[0],
                                     color = colors[track_list_global.index(track) % len(colors)],
                                     batch = self.track_batch                        
                                 )
@@ -720,7 +723,7 @@ class ClickerWindow(pyglet.window.Window):
                     self.drawn_lines[old_track][k].delete()
                     self.drawn_lines[old_track][k] = None
 
-        positions = self.points[current_track_global].toarray()
+        positions = self.points[current_track_global]
         nz = list(set(self.points[current_track_global].nonzero()[0]))
 
         if self.current_marker is not None:
@@ -731,7 +734,7 @@ class ClickerWindow(pyglet.window.Window):
             # self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
                                             #   self.track_batch)
             self.current_marker = draw_circle(
-                positions[self.current_point_index - 1], radius + 4, 
+                positions[self.current_point_index - 1].toarray()[0], radius + 4, 
                 color = MARKER_COLOR,
                 batch = self.track_batch
             )
@@ -740,7 +743,7 @@ class ClickerWindow(pyglet.window.Window):
             # self.drawn_points[current_track_global][k] = draw_circle(tuple(positions[k]), radius, colors[
             #     track_list_global.index(current_track_global) % 4], self.track_batch)
             self.drawn_points[current_track_global][k] = draw_circle(
-                positions[k], radius, 
+                positions[k].toarray()[0], radius, 
                 color = colors[track_list_global.index(current_track_global) % 4], 
                 batch = self.track_batch
             )
@@ -878,7 +881,7 @@ class ClickerWindow(pyglet.window.Window):
         self.update_tracks()
         track = current_track_global
 
-        positions = self.points[track].toarray()
+        positions = self.points[track]
         non_zero_points = list(set(self.points[track].nonzero()[0]))
 
         if self.current_marker is not None:
@@ -889,7 +892,7 @@ class ClickerWindow(pyglet.window.Window):
             # self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
             #                                   self.track_batch)
             self.current_marker = draw_circle(
-                positions[self.current_point_index - 1], radius + 4, 
+                positions[self.current_point_index - 1].toarray()[0], radius + 4, 
                 color = MARKER_COLOR, 
                 batch = self.track_batch
             )
@@ -997,7 +1000,8 @@ class ClickerWindow(pyglet.window.Window):
                         print(e)
         coordinates = sorted(coordinates)
         for coordinate in coordinates:
-            if True not in (coordinate[1] == 0):
+            # coordinate[1] is [0. 0.] if no point marked
+            if np.all(coordinate[1] != 0):
                 dlc_coeff_1 = DLTCoefficients[coordinate[0] - 1]
                 x_cord = coordinate[1][0]
                 y_cord = coordinate[1][1]
@@ -1078,7 +1082,7 @@ class ClickerWindow(pyglet.window.Window):
 
         uvs = dict()
         for track in self.points.keys():
-            uvs[track] = copy.copy(self.points[track].toarray())
+            uvs[track] = copy.copy(self.points[track]).toarray()
             uvs[track][uvs[track] == 0] = np.nan
             common[track + '_cam_' + str(self.actual_camera_number) + '_x'] = uvs[track][:, 0]
             common[track + '_cam_' + str(self.actual_camera_number) + '_y'] = uvs[track][:, 1]
@@ -1103,7 +1107,6 @@ class ClickerWindow(pyglet.window.Window):
         self.clearBatch()
         # sys.stdout.flush()
         start_time = time.time()
-
         self.draw_tracks()
 
         return matching
@@ -1219,7 +1222,7 @@ class ClickerWindow(pyglet.window.Window):
         if sync:
             sync = False
         if self.autoTracking:
-            uv = self.points[current_track_global][self.current_point_index - 2].toarray()[0]
+            uv = self.points[current_track_global][self.current_point_index - 2][0].toarray()[0]
             pts = self.points[current_track_global].toarray()
 
             if self.frameFinder.kf is None:
@@ -1926,7 +1929,7 @@ class ClickerWindow(pyglet.window.Window):
         # skip to next marked point
         elif symbol == key.RIGHT:
             for k in range(self.current_point_index, self.points[current_track_global].shape[0]):
-                if not True in (self.points[current_track_global][k].toarray() == 0):
+                if np.all(self.points[current_track_global][k].toarray()[0] != 0):
                     self.current_point_index = k + 1
                     current_frame = self.current_point_index
                     self.change_marker()
@@ -1937,7 +1940,7 @@ class ClickerWindow(pyglet.window.Window):
         # skip to previously marked point
         elif symbol == key.LEFT:
             for k in range(2, self.current_point_index):
-                if not True in (self.points[current_track_global][self.current_point_index - k].toarray() == 0):
+                if np.all(self.points[current_track_global][self.current_point_index - k].toarray()[0] != 0):
                     self.current_point_index = self.current_point_index - k + 1
                     current_frame = self.current_point_index
                     self.change_marker()
@@ -1982,7 +1985,7 @@ class ClickerWindow(pyglet.window.Window):
             if app is None:
                 app = QtWidgets.QApplication([])
             w = YesNoPopup(f"Clear all tracks for camera {self.actual_camera_number}. Are you sure?")
-            if w.exec_() == QtWidgets.QDialog.Accepted:
+            if w.exec() == QtWidgets.QDialog.Accepted:
                 if w.reply == 'Yes':
                     self.points = dict()
                     self.clearBatch()
@@ -1993,7 +1996,7 @@ class ClickerWindow(pyglet.window.Window):
                 if app is None:
                     app = QtWidgets.QApplication([])
                 w = YesNoPopup(f"Delete track {current_track_global}. Are you sure?")
-                if w.exec_() == QtWidgets.QDialog.Accepted:
+                if w.exec() == QtWidgets.QDialog.Accepted:
                     if w.reply == 'Yes':
                         old_track = current_track_global
                         track_list_global.remove(current_track_global)
@@ -2022,7 +2025,7 @@ class ClickerWindow(pyglet.window.Window):
                 filename = w.filename
                 if type(filename) == str:
                     if filename != '' and filename.split('.')[-1] == 'csv':
-                        load_csv(filename)
+                        load_csv(filename) #creates load_data_global as a csc_matrix for all points (shape of csv)
 
                     elif filename != '' and filename.split('.')[-1] == 'tsv':
                         outputSparse = True
@@ -2035,8 +2038,9 @@ class ClickerWindow(pyglet.window.Window):
                 for window in pyglet.app.windows:
                     if isinstance(window, ClickerWindow):
                         window.points = dict()
-                        window.update_tracks()
-                        offsetMatches.append(window.load_points())
+                        window.update_tracks() # gives points its track names as keys and each value as empty csc_matrix with shape of rows = frames and 2 cols
+                        offsetMatches.append(window.load_points()) # assigns values to points from load_data_global
+                        # on load, load_data_global is a csc_matrix, but the assignment uses normal indexing
                         window.updateSelf()
                 if False in offsetMatches:
                     QtWidgets.QMessageBox.warning(None,
@@ -2429,10 +2433,10 @@ def load_from_config(path):
             windows.append(mov)
 
     load_csv(project_points["points"])
-
+    
     settings = project[7]["settings"]
     load_settings(settings)
-
+    
     if sys.platform == 'win32':
         pyglet.clock.schedule_once(check_to_close, .5)
 
@@ -2461,13 +2465,18 @@ def load_from_config(path):
             if im is not None:
                 window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
                 window.img.scale = float(window.scale_factor)
-
+                
     pyglet.clock.schedule_once(update_after, .05)
     pyglet.app.run()
 
 
 if __name__ == '__main__':
     movies_global = None
+    # start a QT app for warning dialogs at least
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication([])
+        
     if sys.argv[1].startswith("configload@"):
         load_from_config(sys.argv[1].split("@")[1])
 
