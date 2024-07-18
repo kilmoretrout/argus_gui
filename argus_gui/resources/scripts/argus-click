@@ -793,7 +793,6 @@ class ClickerWindow(pyglet.window.Window):
     def draw_new_point(self, x, y):
         global radius
         track = current_track_global
-        # radius = 2
 
         new_point_index = self.current_point_index - 1
         old_point_index = self.current_point_index - 2
@@ -863,12 +862,15 @@ class ClickerWindow(pyglet.window.Window):
                                                                              ],
                                                                 batch = self.track_batch)
 
-        # Reset the current marker
-        if self.current_marker is not None:
-            self.current_marker.delete()
-            self.current_marker = None
+        # # Reset the current marker
+        # if self.current_marker is not None:
+        #     self.current_marker.delete()
+        #     self.current_marker = None
+        
+        self.change_marker()
 
     def change_marker(self):
+        #  updates current marker with highlight
         global radius
         self.update_tracks()
         track = current_track_global
