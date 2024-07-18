@@ -13,6 +13,7 @@ from scipy.interpolate import RectBivariateSpline
 from scipy.optimize import fmin_tnc
 from scipy.signal import correlate2d
 
+import pyglet
 
 def acceptable(contour, llimit=0., blimit=720.):
     m = cv2.moments(contour)
