@@ -160,17 +160,24 @@ class FrameFinder:
         image = np.rot90(image)
         image = np.rot90(image)
         if len(image) != 0:
-            if size is None:
-                image = cv2.resize(image, (int(float(self.ow) / self.factor), int(float(self.oh) / self.factor)))
-            else:
-                image = cv2.resize(image, size)
+            image = self.scaleSize(image, size)
+        
             if (self.rgb or bgs):
                 return image
             else:
                 return cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         else:
             return None
-
+        
+    def scaleSize(self, image, size=None):
+        if len(image) != 0:
+            if size is None:
+                return cv2.resize(image, (int(float(self.ow) / self.factor), int(float(self.oh) / self.factor)))
+            else:
+                return cv2.resize(image, size)
+        else:
+            return None
+        
     def getColor(self, pt):
         return self.movie.read()[1][int(self.oh - (np.round(pt[1]))), int(np.round(pt[0]))]
 
