@@ -414,8 +414,8 @@ busy = False
 outputSparse = False
 global_filename = ''
 rgb = True
-vx = 15
-vy = 15
+vw = 15
+vh = 15
 # vf = 30
 radius = 3
 thickness = 3
@@ -558,27 +558,28 @@ class ClickerWindow(pyglet.window.Window):
         # self.img is in pyglet image format to make it easier to get region.
         # self.img is full (or half) resolution, same as self.frame - scaling happens at draw
         self.img = self.numpy_to_pyglet_image(self.frame, viewfinder = False)
-        # at init, frameFinder.w and h are full resoltion, self.frame.shape and self.image are resized based on scaling factor from main GUI
+        # at init, frameFinder.w and h are full resolution, but self.frame.shape and self.image are resized based on scaling factor from main GUI
 
         
         if self.img is not None:
-            # self.img = pyglet.sprite.Sprite(ArrayInterfaceImage(img).get_texture())
             self.img_sprite = pyglet.sprite.Sprite(self.img)
             # set image anchor to lower left (no panning yet)
             self.img_sprite.x = 0
             self.img_sprite.y = 0
-            # and scale to based on selected resolution
-            # self.img_sprite.scale = float(self.scale_factor)
         else:
             self.img_sprite = None
 
-        # current mouse coordinate for getting a zoomed view finder on init
-        self.x = 2 * vx
-        self.y = 2 * vy
+        # init current mouse coordinate for getting a zoomed view finder on init
+        #self.x and y will change as soon as mouse moves
+        self.x = 2 * vw
+        self.y = 2 * vh
 
+        # viewfinder zoom factor
         self.zoom_factor = 4
-        self.viewfinder_zoomed_size = vx * self.zoom_factor
-        #intialize viewfinder window
+        self.viewfinder_zoomed_size = vw * self.zoom_factor
+        self.view_sprite = None
+        self.update_viewfinder()
+        # intialize viewfinder window
         # self.viewfinder_window = pyglet.window.Window(
         #     width=vx,
         #     height=vy,
@@ -609,7 +610,7 @@ class ClickerWindow(pyglet.window.Window):
 
         self.changed = False
 
-        self.vf = int(np.round(self.frameFinder.oh / (vx * 3.)))
+        self.vf = int(np.round(self.frameFinder.oh / (vw * 3.)))
 
     # convert numpy array to pyglet image format
     def numpy_to_pyglet_image(self, frame, viewfinder=False):
@@ -1182,22 +1183,22 @@ class ClickerWindow(pyglet.window.Window):
 
         # self.viewfinder_window.switch_to()
         # zoomed_image.blit(10,10, vx, vy)
+
         try:
-            view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vx, vy, self.vf,
+            view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vw, vh, self.vf,
                                                     self.autoTracking)
+            # add red cross hairs
+            view[int(view.shape[0] / 2), :] = np.array([255., 0., 0.])
+            view[:, int(view.shape[1] / 2)] = np.array([255., 0., 0.])
         except:
             view = None
         if view is not None:
-            # scale = (((self.right - self.left) * (self.top - self.bottom)) / (
-            #         self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
-            zoomed_image = self.numpy_to_pyglet_image(view, viewfinder=True)
-            # zoomed_image.blit(x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
-            zoomed_image.blit(0,0)
-            # zoomed_image.blit(self.right - int(vx * scale), self.bottom)
-            # self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).get_texture(),
-            #                                     x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
-            # self.view = ArrayInterfaceImage(view).get_texture()
-            # self.view.scale = scale
+            view = self.numpy_to_pyglet_image(view, viewfinder = True)
+            # scale = ((((self.right - self.left) * (self.top - self.bottom)) / (
+                    # self.frameFinder.oh * self.frameFinder.ow)) ** 0.5) / self.scale_factor
+            scale = ((self.width * self.height) / (self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
+            self.view_sprite = pyglet.sprite.Sprite(view)
+            self.view_sprite.scale = scale
         #     self.
         # zoomed_image = self.imgarr.get_region(
         #     self.x - self.viewfinder_size // 2,
@@ -1221,38 +1222,9 @@ class ClickerWindow(pyglet.window.Window):
         # glEnd()
 
         self.switch_to()
-    
-    # def on_resize(self, width, height):
-    #     super().on_resize(width, height)
-    #     if self.initialized:
-    #         self.zoomed_width
-    #         self.zoomed_width = self.zoomed_width * width_change
-    #         self.zoomed_height = self.zoomed_height * height_change
-    #         self.zoom_level = self.zoom_level * width_change
-    #         self.update_sprite()
-    #         self.update_drawings()
-    #     else:
-    #         self.initialized = True  # Set the flag to True after the initial resize
         
     def on_draw(self):
         self.clear()
-        # if self.x != 0 and self.y != 0:
-            # self.sprite.draw()
-            # self.update_viewfinder()
-            # try:
-            #     view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vx, vy, self.vf,
-            #                                           self.autoTracking)
-        #         # mark discrete estimate with red cross
-        #         view[int(view.shape[0] / 2), :] = np.array([255., 0., 0.])
-        #         view[:, int(view.shape[1] / 2)] = np.array([255., 0., 0.])
-            # except:
-            #     view = None
-            # if view != self.initial_view:
-            #     scale = (((self.right - self.left) * (self.top - self.bottom)) / (
-            #             self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
-            #     self.view = pyglet.sprite.Sprite(ArrayInterfaceImage(view).get_texture(),
-            #                                      x=self.right - np.floor(vx * self.vf * scale), y=self.bottom)
-            #     self.view.scale = scale
 
         if self.current_point_index != current_frame and sync:
             self.current_point_index = current_frame
@@ -1324,6 +1296,10 @@ class ClickerWindow(pyglet.window.Window):
             self.set_caption('{0} - Working...'.format(self.movie.split('/')[-1]))
 
         self.track_batch.draw()
+        # viewfinder
+        if self.show_view:
+            if self.view_sprite is not None:
+                self.view_sprite.draw()
         self.changed = False
         
 
@@ -1850,7 +1826,7 @@ class ClickerWindow(pyglet.window.Window):
                     window.frameFinder.rgb = rgb
                     im = window.frameFinder.getFrame(window.current_point_index)
                     if im is not None:
-                        window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
+                        window.img = pyglet.sprite.Sprite(self.numpy_to_pyglet_image(im))
                         window.img.scale = float(self.scale_factor)
 
             current_track_global = w.tracks.currentText()
@@ -2265,8 +2241,7 @@ class ClickerWindow(pyglet.window.Window):
             self.delete_point()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        self.x = float(x) / self.width * self.zoomed_width + self.left
-        self.y = self.frameFinder.oh - (float(y) / self.height * self.zoomed_height + self.bottom)
+        self.x, self.y = self.window_to_world((x, y))
         if self.show_view:
             # self.viewfinder_window.clear()
             self.update_viewfinder()
