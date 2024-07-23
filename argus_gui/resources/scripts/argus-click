@@ -597,12 +597,12 @@ class ClickerWindow(pyglet.window.Window):
         global radius
         self.update_tracks()
         track = current_track_global
-        positions = self.points[track].toarray()
+        positions = self.points[track]
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
         if self.current_point_index - 1 in non_zeros:
             self.current_marker = draw_circle(
-                positions[self.current_point_index - 1],
+                positions[self.current_point_index - 1].toarray()[0],
                 radius + 4,
                 color = MARKER_COLOR,
                 batch = self.track_batch
@@ -610,7 +610,7 @@ class ClickerWindow(pyglet.window.Window):
 
         for non_zero_value in non_zeros:
             self.drawn_points[track][non_zero_value] = draw_circle(
-                positions[non_zero_value],
+                positions[non_zero_value].toarray()[0],
                 radius,
                 color = colors[track_list_global.index(track) % len(colors)],
                 batch = self.track_batch
@@ -619,8 +619,8 @@ class ClickerWindow(pyglet.window.Window):
         for non_zero_value in non_zeros:
             if non_zero_value + 1 in non_zeros:
                 self.drawn_lines[track][non_zero_value] = draw_line(
-                        positions[non_zero_value],
-                        positions[non_zero_value+1],
+                        positions[non_zero_value].toarray()[0],
+                        positions[non_zero_value+1].toarray()[0],
                         color = colors[track_list_global.index(track) % len(colors)],
                         batch = self.track_batch                        
                         )
@@ -643,15 +643,17 @@ class ClickerWindow(pyglet.window.Window):
     def draw_all_tracks(self):
         self.update_tracks()
         for track in self.points.keys():
-            positions = self.points[track].toarray()
+            positions = self.points[track]
             nz = list(set(self.points[track].nonzero()[0]))
 
             if track != current_track_global:
                 for k in nz:
                     if k + 1 in nz:
+                        x1, y1 = self.world_to_window(positions[k].toarray()[0])
+                        x2, y2 = self.world_to_window(positions[k+1].toarray()[0])
                         self.drawn_lines[track][k] = draw_line(
-                                    positions[k],
-                                    positions[k+1],
+                                    (x1, y1),
+                                    (x2, y2),
                                     color = colors[track_list_global.index(track) % len(colors)],
                                     batch = self.track_batch                        
                             )
@@ -717,8 +719,8 @@ class ClickerWindow(pyglet.window.Window):
         if not displaying_all_tracks:
             for k in nz:
                 if k + 1 in nz:
-                    x1, y1 = self.world_to_window(positions[k])
-                    x2, y2 = self.world_to_window(positions[k+1])
+                    x1, y1 = self.world_to_window(positions[k].toarray()[0])
+                    x2, y2 = self.world_to_window(positions[k+1].toarray()[0])
                     self.drawn_lines[current_track_global][k] = draw_line(
                         (x1, y1),
                         (x2, y2),
@@ -778,15 +780,19 @@ class ClickerWindow(pyglet.window.Window):
         positions = self.points[track].toarray()
         #non_zero_points is a list of indices (frames) of posisions where digitized points can be found
         non_zero_points = list(set(self.points[track].nonzero()[0]))
-        for i, (x, y) in zip(non_zero_points, positions):
-            tx_x, tx_y = self.world_to_window((x, y))
-            if self.drawn_points[track][i] is not None:
-                self.drawn_points[track][i].x = tx_x
-                self.drawn_points[track][i].y = tx_y
+        # print(positions[non_zero_points])
+        # for i, (x, y) in zip(non_zero_points, positions):
+        for k in non_zero_points:
+            # print(x, y)
+            tx_x, tx_y = self.world_to_window(positions[k])
+            if self.drawn_points[track][k] is not None:
+                self.drawn_points[track][k].x = tx_x
+                self.drawn_points[track][k].y = tx_y
 
         #update current marker
         if new_point_index in non_zero_points:
             tx_x, tx_y = self.world_to_window(positions[new_point_index])
+            print(tx_x, tx_y)
             self.current_marker.x = tx_x
             self.current_marker.y = tx_y
         
@@ -809,12 +815,13 @@ class ClickerWindow(pyglet.window.Window):
                     nz = list(set(self.points[other_track].nonzero()[0]))
                     for k in nz:
                         if k + 1 in nz:
-                            x1, y1 = self.world_to_window(positions[k])
-                            x2, y2 = self.world_to_window(positions[k+1])
-                            self.drawn_lines[other_track][k].x = x1
-                            self.drawn_lines[other_track][k].y = y1
-                            self.drawn_lines[other_track][k].x2 = x2
-                            self.drawn_lines[other_track][k].y2 = y2
+                            if self.drawn_lines[other_track][k] is not None:
+                                x1, y1 = self.world_to_window(positions[k])
+                                x2, y2 = self.world_to_window(positions[k+1])
+                                self.drawn_lines[other_track][k].x = x1
+                                self.drawn_lines[other_track][k].y = y1
+                                self.drawn_lines[other_track][k].x2 = x2
+                                self.drawn_lines[other_track][k].y2 = y2
                             
         #update dlt line drawings
         if DLTCoefficients is not None:
@@ -904,8 +911,9 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in non_zero_points:
+            x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
             self.current_marker = draw_circle(
-                positions[self.current_point_index - 1].toarray()[0], radius + 4, 
+                (x, y), radius + 4, 
                 color = MARKER_COLOR, 
                 batch = self.track_batch
             )
@@ -1169,13 +1177,13 @@ class ClickerWindow(pyglet.window.Window):
 
         if self.changed:
             im = self.frameFinder.getFrame(self.current_point_index)
-            self.update_drawings()
             if im is not None:
                 self.img = self.numpy_to_pyglet_image(im, viewfinder=False)
                 self.img_sprite = pyglet.sprite.Sprite(self.img)
                 self.update_sprite()
             else:
                 self.img = None
+            self.update_drawings()
                 
         if self.img is not None:
             self.img_sprite.draw()
@@ -1183,6 +1191,8 @@ class ClickerWindow(pyglet.window.Window):
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
             self.dlt_batch.draw()
+                
+        self.track_batch.draw()
             
         if not busy:
             # if not self.base:
@@ -1192,7 +1202,6 @@ class ClickerWindow(pyglet.window.Window):
         else:
             self.set_caption('{0} - Working...'.format(self.movie.split('/')[-1]))
 
-        self.track_batch.draw()
         # viewfinder
         if self.show_view:
             if self.view_sprite is not None:
@@ -2126,8 +2135,8 @@ class ClickerWindow(pyglet.window.Window):
             self.delete_point()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        self.x, self.y = self.window_to_world((x, y))
         if self.show_view:
+            self.x, self.y = self.window_to_world((x, y))
             self.update_viewfinder()
 
 class TrackPlotter(QtWidgets.QWidget):
