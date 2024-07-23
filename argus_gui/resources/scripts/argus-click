@@ -1170,20 +1170,6 @@ class ClickerWindow(pyglet.window.Window):
         return matching
 
     def update_viewfinder(self):
-        # if self.frame is not None:
-            
-            # # Calculate the region around the mouse cursor
-            # region_x = int(max(0, min(self.x - vx // 2, self.width - vx)))
-            # region_y = int(max(0, min(self.y - vy // 2, self.height - vy)))
-            
-            # # Extract and resize the region
-            # region = self.frame[region_y:region_y + vy, region_x:region_x + vx]
-            # zoomed_region = cv2.resize(region, (vx * self.zoom_factor, vy * self.zoom_factor), interpolation=cv2.INTER_NEAREST)
-            # zoomed_image = self.numpy_to_pyglet_image(zoomed_region, viewfinder=True)
-
-        # self.viewfinder_window.switch_to()
-        # zoomed_image.blit(10,10, vx, vy)
-
         try:
             view = self.frameFinder.getViewFinder(self.current_point_index, self.x, self.y, vw, vh, self.vf,
                                                     self.autoTracking)
@@ -1194,8 +1180,7 @@ class ClickerWindow(pyglet.window.Window):
             view = None
         if view is not None:
             view = self.numpy_to_pyglet_image(view, viewfinder = True)
-            # scale = ((((self.right - self.left) * (self.top - self.bottom)) / (
-                    # self.frameFinder.oh * self.frameFinder.ow)) ** 0.5) / self.scale_factor
+
             scale = ((self.width * self.height) / (self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
             self.view_sprite = pyglet.sprite.Sprite(view)
             self.view_sprite.scale = scale
@@ -2211,13 +2196,7 @@ class ClickerWindow(pyglet.window.Window):
 
         if buttons & mouse.LEFT:
             if current_track_global != '' and (modifiers == 16 or modifiers == 0):
-                # print(f"xy: {x, y}")
-                # print(f"prop x {float(x) / self.width}")
-                # print(f"FFw: {self.frameFinder.w}")
-                # print(f"sL: {self.left}")
-                print(f"ptxy: {(float(x) - self.img_sprite.x) / self.zoom_level * self.scale_factor, (float(y) - self.img_sprite.y) / self.zoom_level * self.scale_factor}")
                 ptx, pty = self.window_to_world((float(x), float(y)))
-                # print(f"lbtr: {self.left, self.bottom, self.top, self.right}")
                 self.draw_new_point(ptx, pty)
                 if auto_advance:
                     im = self.frameFinder.getFrame(self.current_point_index + 1)
@@ -2243,7 +2222,6 @@ class ClickerWindow(pyglet.window.Window):
     def on_mouse_motion(self, x, y, dx, dy):
         self.x, self.y = self.window_to_world((x, y))
         if self.show_view:
-            # self.viewfinder_window.clear()
             self.update_viewfinder()
 
 class TrackPlotter(QtWidgets.QWidget):

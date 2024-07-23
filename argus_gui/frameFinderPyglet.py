@@ -190,7 +190,7 @@ class FrameFinder:
             if self.image[0] == n:
                 im = copy.copy(self.image[1])
                 if (y - wy >= 0) and (y + wy < im.shape[0]) and (x - wx >= 0) and (x + wx < im.shape[1]):
-                    return self.format(im[y - wy: y + wy, x - wx: x + wx], size=(wf * wx, wf * wy), bgs=False)
+                    return self.format(im[im.shape[0] - y - wy: im.shape[0] - y + wy, x - wx: x + wx], size=(wf * wx, wf * wy), bgs=False)
                 else:
                     return None
         if n - 1 + self.offset >= 0 and n - 1 + self.offset <= self.frameCount - 1:
