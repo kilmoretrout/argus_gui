@@ -1192,19 +1192,7 @@ class ClickerWindow(pyglet.window.Window):
 
         if self.current_point_index != current_frame and sync:
             self.current_point_index = current_frame
-            
-        # If there exists a frame relative to the first camera, display it. else you get a black screen
-        # if self.changed:
-        #     im = self.frameFinder.getFrame(self.current_point_index)
-        #     if im is not None:
-        #         if self.img is not None:
-        #             self.img.image = ArrayInterfaceImage(im)
-        #         else:
-        #             self.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im))
-        #             self.img.scale = float(self.scale_factor)
-        #     else:
-        #         self.img = None
-        # self.img.blit(0,0, width = self.frameFinder.ow, height = self.frameFinder.oh)
+
         if self.changed:
             im = self.frameFinder.getFrame(self.current_point_index)
             self.update_drawings()
@@ -1217,36 +1205,7 @@ class ClickerWindow(pyglet.window.Window):
                 
         if self.img is not None:
             self.img_sprite.draw()
-            # self.img.blit(
-            #     x =-1 *self.left / self.scale_factor, 
-            #     y = -1 * self.bottom / self.scale_factor, 
-            #     width = self.zoomed_width / self.scale_factor, 
-            #     height = self.zoomed_height / self.scale_factor)
-
-            # get the part zoomed in
-            # region = self.img.get_region(int(self.frameFinder.x/self.scale_factor), int(self.frameFinder.y/self.scale_factor), int(self.frameFinder.w/self.scale_factor), int(self.frameFinder.h/self.scale_factor))
-            # region = pyglet.sprite.Sprite(region)
             
-            # print(f"region w, h: {region.width, region.height}")
-            # print(f"init region scale: {region.scale}")
-            # region.scale = self.width/region.width
-            # print(f"scaled scale: {region.scale}")
-            # print(f"scale: {max(min(self.width, region.width)/max(self.width, region.width), min(region.height, self.height)/max(region.height, self.height))}")
-            # region.scale = max(min(self.width, region.width)/max(self.width, region.width), min(region.height, self.height)/max(region.height, self.height))
-            
-            # region.scale = min(self.width, self.frameFinder.w)/max(self.width, self.frameFinder.w)
-            
-            # region.scale_x = self.frameFinder.w/self.width
-            # region.scale_y = self.frameFinder.h/self.height
-            # print(region.width, self.width, self.frameFinder.w,region.height, self.height, self.frameFinder.h)
-            # print(self.width/region.width)
-            # print(region.scale_x, region.scale_y)
-            
-            # region.draw()#, width = self.width, height=self.height)
-        # if self.view is not None and self.show_view:
-        # if self.show_view:
-        #     self.update_viewfinder()
-            # self.view.draw()
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
             self.dlt_batch.draw()
