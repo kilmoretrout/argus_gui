@@ -508,6 +508,7 @@ def load_tsv(tsv):
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
+        self.initialized = False #flag to control running on_resize function
         config = Config(double_buffer=True)
         self.actual_camera_number = actual_camera_number
         self.original_index = actual_camera_number - 1
@@ -563,8 +564,10 @@ class ClickerWindow(pyglet.window.Window):
         if self.img is not None:
             # self.img = pyglet.sprite.Sprite(ArrayInterfaceImage(img).get_texture())
             self.img_sprite = pyglet.sprite.Sprite(self.img)
-            # self.img_sprite.x = 0
-            # self.img_sprite.y = 0
+            # set image anchor to lower left (no panning yet)
+            self.img_sprite.x = 0
+            self.img_sprite.y = 0
+            # and scale to based on selected resolution
             # self.img_sprite.scale = float(self.scale_factor)
         else:
             self.img_sprite = None
@@ -590,6 +593,7 @@ class ClickerWindow(pyglet.window.Window):
         # dictionaries for storing OpenGL vertices and deleting later if needed
         self.drawn_points = {}
         self.drawn_lines = {}
+        self.orig_dlt = []
         self.drawn_dlt = []
 
         # Initialize camera values
@@ -609,8 +613,6 @@ class ClickerWindow(pyglet.window.Window):
 
     # convert numpy array to pyglet image format
     def numpy_to_pyglet_image(self, frame, viewfinder=False):
-        # if viewfinder == False:
-        #     frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
         height, width, channels = frame.shape
         img_data = frame.tobytes()
         return ImageData(width, height, 'RGB', img_data, pitch = width * 3)
@@ -679,6 +681,8 @@ class ClickerWindow(pyglet.window.Window):
                                     batch = self.track_batch                        
                             )
 
+        self.update_drawings()
+        
     # called when the user decides not to display all the tracks
     def delete_all_tracks(self):
         for track in self.points.keys():
@@ -697,11 +701,13 @@ class ClickerWindow(pyglet.window.Window):
     def change_track(self, old_track):
         #radius = 2
         global radius
+        # remove the points from the old track
         for k in range(len(self.drawn_points[old_track])):
             if self.drawn_points[old_track][k] is not None:
                 self.drawn_points[old_track][k].delete()
                 self.drawn_points[old_track][k] = None
 
+        # remove lines from old track if not being displayed
         if not displaying_all_tracks:
             for k in range(len(self.drawn_lines[old_track])):
                 if self.drawn_lines[old_track][k] is not None:
@@ -716,25 +722,31 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in nz:
+            x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
             self.current_marker = draw_circle(
-                positions[self.current_point_index - 1].toarray()[0], radius + 4, 
+                (x, y), radius + 4, 
                 color = MARKER_COLOR,
                 batch = self.track_batch
             )
-            
+        
+        # draw markers for new current track
         for k in nz:
+            x, y = self.world_to_window(positions[k].toarray()[0])
             self.drawn_points[current_track_global][k] = draw_circle(
-                positions[k].toarray()[0], radius, 
+                (x, y), radius, 
                 color = colors[track_list_global.index(current_track_global) % 4], 
                 batch = self.track_batch
             )
-
+        
+        # add line for new current track (not needed if displaying all tracks because it's already drawn)
         if not displaying_all_tracks:
             for k in nz:
                 if k + 1 in nz:
+                    x1, y1 = self.world_to_window(positions[k])
+                    x2, y2 = self.world_to_window(positions[k+1])
                     self.drawn_lines[current_track_global][k] = draw_line(
-                        positions[k],
-                        positions[k+1],
+                        (x1, y1),
+                        (x2, y2),
                         color = colors[track_list_global.index(current_track_global) % 4],
                         batch = self.track_batch                        
                         )
@@ -756,17 +768,88 @@ class ClickerWindow(pyglet.window.Window):
         """
         # Move camera
         if modifiers & key.MOD_SHIFT:
-            left = self.left - dx * self.zoom_level
-            right = self.right - dx * self.zoom_level
-            bottom = self.bottom - dy * self.zoom_level
-            top = self.top - dy * self.zoom_level
+            left = self.left - dx * self.zoom_level / self.scale_factor
+            right = self.right - dx * self.zoom_level / self.scale_factor
+            bottom = self.bottom - dy * self.zoom_level / self.scale_factor
+            top = self.top - dy * self.zoom_level / self.scale_factor
 
-            if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow and top <= self.frameFinder.oh:
-                self.left, self.right, self.bottom, self.top = left, right, bottom, top
-                self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+            # if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow and top <= self.frameFinder.oh:
 
+            self.left, self.right, self.bottom, self.top = left, right, bottom, top
+            self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+            self.update_sprite()
+            self.update_drawings()
+
+    # converts from full resolution coordinates to window coordinates for drawing
+    def world_to_window(self, pts):
+        tx_x = (pts[0] / self.scale_factor * self.zoom_level) + self.img_sprite.x
+        tx_y = (pts[1] / self.scale_factor * self.zoom_level) + self.img_sprite.y
+        return tx_x, tx_y
+    
+    # converts from window coordinates to full resolution coordinates for saving data
+    def window_to_world(self, pts):
+        tx_x = (pts[0] - self.img_sprite.x) / self.zoom_level * self.scale_factor
+        tx_y = (pts[1] - self.img_sprite.y) / self.zoom_level * self.scale_factor
+        return tx_x, tx_y
+    
+    # update drawn circle and epipolar location for zoom and pan of window
+    def update_drawings(self):
+        global radius
+        track = current_track_global
+        new_point_index = self.current_point_index - 1
+        old_point_index = self.current_point_index - 2
+        
+        # draw circles
+        positions = self.points[track].toarray()
+        #non_zero_points is a list of indices (frames) of posisions where digitized points can be found
+        non_zero_points = list(set(self.points[track].nonzero()[0]))
+        for i, (x, y) in zip(non_zero_points, positions):
+            tx_x, tx_y = self.world_to_window((x, y))
+            if self.drawn_points[track][i] is not None:
+                self.drawn_points[track][i].x = tx_x
+                self.drawn_points[track][i].y = tx_y
+
+        #update current marker
+        if new_point_index in non_zero_points:
+            tx_x, tx_y = self.world_to_window(positions[new_point_index])
+            self.current_marker.x = tx_x
+            self.current_marker.y = tx_y
+        
+                    
+        for k in non_zero_points:
+            if k + 1 in non_zero_points:
+                x1, y1 = self.world_to_window(positions[k])
+                x2, y2 = self.world_to_window(positions[k+1])
+                
+                self.drawn_lines[track][k].x = x1
+                self.drawn_lines[track][k].y = y1
+                self.drawn_lines[track][k].x2 = x2
+                self.drawn_lines[track][k].y2 = y2
+                    
+        #update all track lines if needed
+        if self.draw_all_tracks:
+            for other_track in self.points.keys():
+                if other_track != track:
+                    positions = self.points[other_track].toarray()
+                    nz = list(set(self.points[other_track].nonzero()[0]))
+                    for k in nz:
+                        if k + 1 in nz:
+                            x1, y1 = self.world_to_window(positions[k])
+                            x2, y2 = self.world_to_window(positions[k+1])
+                            self.drawn_lines[other_track][k].x = x1
+                            self.drawn_lines[other_track][k].y = y1
+                            self.drawn_lines[other_track][k].x2 = x2
+                            self.drawn_lines[other_track][k].y2 = y2
+                            
+        #update dlt line drawings
+        if DLTCoefficients is not None:
+            self.dlt_batch = pyglet.graphics.Batch() #clear out existing
+            self.get_epipolar_lines()
+                
+                
     # draw a new point
     def draw_new_point(self, x, y):
+        
         global radius
         track = current_track_global
 
@@ -787,8 +870,11 @@ class ClickerWindow(pyglet.window.Window):
         if self.drawn_points[track][new_point_index] is not None:
             self.drawn_points[track][new_point_index].delete()
 
+        # correct for zoom and pan
+        tx_x, tx_y = self.world_to_window((x , y))
+
         self.drawn_points[track][new_point_index] = draw_circle(
-                positions[new_point_index], radius, 
+                (tx_x, tx_y), radius, 
                 color = colors[track_list_global.index(track) % len(colors)], 
                 batch = self.track_batch
             )
@@ -796,21 +882,15 @@ class ClickerWindow(pyglet.window.Window):
         if new_point_index >= 0:
             # Draws a line from the current point to the previous point
             if old_point_index in non_zero_points:
-                point_list = (positions[old_point_index], positions[new_point_index])
+                x1, y1 = self.world_to_window(positions[old_point_index])
+                x2, y2 = self.world_to_window(positions[new_point_index])
+                
                 if self.drawn_lines[track][old_point_index] is not None:
                     self.drawn_lines[track][old_point_index].delete()
-                    self.drawn_lines[track][old_point_index] = draw_line(
-                                                                point_list[0],
-                                                                point_list[1],
-                                                                color = colors[
-                                                                             track_list_global.index(track) % len(
-                                                                                 colors)
-                                                                             ],
-                                                                batch = self.track_batch)
-                else:
-                    self.drawn_lines[track][old_point_index] = draw_line(
-                                                                point_list[0],
-                                                                point_list[1],
+                    
+                self.drawn_lines[track][old_point_index] = draw_line(
+                                                                (x1, y1),
+                                                                (x2, y2),
                                                                 color = colors[
                                                                              track_list_global.index(track) % len(
                                                                                  colors)
@@ -819,12 +899,14 @@ class ClickerWindow(pyglet.window.Window):
 
             # Draws a line to points ahead of the current one
             if self.current_point_index in non_zero_points and positions[self.current_point_index][0] != 0:
-                point_list = (positions[new_point_index], positions[self.current_point_index])
+        
+                x1, y1 = self.world_to_window(positions[new_point_index])
+                x2, y2 = self.world_to_window(positions[self.current_point_index])
                 if self.drawn_lines[track][new_point_index] is not None:
                     self.drawn_lines[track][new_point_index].delete()
                 self.drawn_lines[track][new_point_index] = draw_line(
-                                                                point_list[0],
-                                                                point_list[1],
+                                                                (x1, y1),
+                                                                (x2, y2),
                                                                 color = colors[
                                                                              track_list_global.index(track) % len(
                                                                                  colors)
@@ -847,19 +929,16 @@ class ClickerWindow(pyglet.window.Window):
             self.current_marker = None
 
         if self.current_point_index - 1 in non_zero_points:
-            # self.current_marker = draw_circle(tuple(positions[self.current_point_index - 1]), radius + 4, MARKER_COLOR,
-            #                                   self.track_batch)
             self.current_marker = draw_circle(
                 positions[self.current_point_index - 1].toarray()[0], radius + 4, 
                 color = MARKER_COLOR, 
                 batch = self.track_batch
             )
+        self.changed = True
+
 
     # delete a point
     def delete_point(self):
-        # if self.current_point_index == 1: return
-        #
-        # self.current_point_index = 0 if self.current_point_index == 1 else self.current_point_index - 1
 
         track = current_track_global
 
@@ -880,66 +959,6 @@ class ClickerWindow(pyglet.window.Window):
         if self.drawn_lines[track][last_added_index] is not None:
             self.drawn_lines[track][last_added_index].delete()
             self.drawn_lines[track][last_added_index] = None
-
-    # doesn't really get a bezier curve, just draws lines in between 70 points on the distorted epipolar line
-    def get_bezier_curve(self, m, b, prof):
-        pts = list()
-        for k in range(-10, 60):
-            pts.append(np.asarray([self.frameFinder.ow * k / 49., m * (self.frameFinder.ow * k / 49.) + b]))
-
-        ret = redistort_pts(np.asarray(pts), prof)
-        ret = np.reshape(ret, (len(pts), 2))
-
-        for k in range(len(ret)):
-            ret[k] = ret[k]
-        return list(ret)
-
-    # fills the batch for epipolar lines, drawn in Carolina Blue. Go tar heels!
-    def make_dlt_batch(self, points):
-        for k in range(len(points) - 1):
-            # t = tuple([points[k], points[k + 1]])
-            # draw_line(t, CAROLINA_BLUE, self.dlt_batch)
-            # self.drawn_dlt_curve = draw_line(points[k],
-            #                              points[k+1],
-            #                              color = CAROLINA_BLUE,
-            #                              width = 4,
-            #                              batch = self.dlt_batch)
-            self.drawn_dlt.append(draw_line(points[k],
-                    points[k+1],
-                    color = CAROLINA_BLUE,
-                    width = 4,
-                    batch = self.dlt_batch))
-
-    # Zooms in using OpenGL.  Has bounds so that none of the screen ever has blank space
-    def on_mouse_scroll(self, x, y, dx, dy):
-        # Get scale factor
-        f = ZOOM_IN_FACTOR if dy > 0 else ZOOM_OUT_FACTOR if dy < 0 else 1
-
-        # If zoom_level is in the proper range
-        if .05 < self.zoom_level * f < 6:
-
-            zoom_level = f * self.zoom_level
-            mouse_x = float(x) / self.width
-            mouse_y = float(y) / self.height
-
-            mouse_x_in_world = self.left + mouse_x * self.zoomed_width
-            mouse_y_in_world = self.bottom + mouse_y * self.zoomed_height
-
-            zoomed_width = f * self.zoomed_width
-            zoomed_height = f * self.zoomed_height
-
-            left = mouse_x_in_world - mouse_x * zoomed_width
-            right = mouse_x_in_world + (1 - mouse_x) * zoomed_width
-            bottom = mouse_y_in_world - mouse_y * zoomed_height
-            top = mouse_y_in_world + (1 - mouse_y) * zoomed_height
-
-            # Check bounds 
-            if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow \
-                    and top <= self.frameFinder.oh and zoomed_width <= self.frameFinder.ow \
-                    and zoomed_height <= self.frameFinder.oh:
-                self.left, self.right, self.bottom, self.top, self.zoomed_width, self.zoomed_height = left, right, bottom, top, zoomed_width, zoomed_height
-                self.zoom_level = zoom_level
-                self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
 
     # uses Hedrick's function to get a slope and intercept for the Epipolar lines
     def get_epipolar_lines(self):
@@ -969,7 +988,7 @@ class ClickerWindow(pyglet.window.Window):
                 dlc_coeff_1 = DLTCoefficients[coordinate[0] - 1]
                 x_cord = coordinate[1][0]
                 y_cord = coordinate[1][1]
-                # The coordinate has the first value of the camera
+                # each coordinate is [n, [[x, y]]] the first value is the camera number
                 # Thus the camera profile is indexing at the literal profile for this camera
                 if camera_profile is not None:
                     try:
@@ -997,6 +1016,83 @@ class ClickerWindow(pyglet.window.Window):
                 else:
                     tmp = self.get_bezier_curve(slope, intercept, camera_profile[coordinate[0] - 1])
                 self.make_dlt_batch(tmp)
+                
+    # doesn't really get a bezier curve, just draws lines in between 70 points on the distorted epipolar line
+    def get_bezier_curve(self, m, b, prof):
+        pts = list()
+        for k in range(-10, 60):
+            pts.append(np.asarray([self.frameFinder.ow * k / 49., m * (self.frameFinder.ow * k / 49.) + b]))
+
+        ret = redistort_pts(np.asarray(pts), prof)
+        ret = np.reshape(ret, (len(pts), 2))
+
+        for k in range(len(ret)):
+            ret[k] = ret[k]
+        return list(ret)
+
+    # fills the batch for epipolar lines, drawn in Carolina Blue. Go tar heels!
+    def make_dlt_batch(self, points):
+        for k in range(len(points) - 1):
+            x1, y1 = self.world_to_window(points[k])
+            x2, y2 = self.world_to_window(points[k+1])
+            self.drawn_dlt.append(draw_line((x1, y1),
+                    (x2, y2),
+                    color = CAROLINA_BLUE,
+                    width = 2,
+                    batch = self.dlt_batch))
+                
+    # Zooms in using OpenGL.  Has bounds so that none of the screen ever has blank space
+    def on_mouse_scroll(self, x, y, dx, dy):
+        # Get scale factor
+        f = ZOOM_IN_FACTOR if dy > 0 else ZOOM_OUT_FACTOR if dy < 0 else 1
+        # If zoom_level is in the proper range
+        if 0.1 <= self.zoom_level * f < 6:
+            # find the new x, y coordinates of the pixel after zoom
+            new_x = float(x) - (float(x) - self.img_sprite.x) * f
+            new_y = float(y) - (float(y) - self.img_sprite.y) * f
+
+            zoom_level = f * self.zoom_level
+            # disp_width and height is the width in original pixels of the zoomed view
+            old_disp_width = self.frameFinder.ow / self.zoom_level
+            old_disp_height = self.frameFinder.oh / self.zoom_level
+
+            new_disp_width = old_disp_width / f #when zooming in, this should get smaller
+            new_disp_height = old_disp_height / f
+            
+            # zoomed_width and height is the new width in zoomed pixels of the full res 
+            zoomed_width = self.frameFinder.ow * self.zoom_level
+            zoomed_height = self.frameFinder.oh * self.zoom_level
+
+            # the camera coordinates in full res reference (the view of zoomed_width and height)
+            left = -1 * new_x * self.scale_factor
+            right = left + new_disp_width
+            bottom = -1 * new_y * self.scale_factor
+            top = bottom + new_disp_height
+            
+            # save values to class
+            self.left = left
+            self.right = right
+            self.bottom = bottom
+            self.top = top 
+            self.zoomed_width = zoomed_width
+            self.zoomed_height = zoomed_height
+            
+            self.zoom_level = zoom_level
+            
+            #update frameFinder.x, y, w, h
+            self.frameFinder.update(self.left, self.bottom, new_disp_width, new_disp_height)
+            
+            # draw it all
+            self.update_sprite()
+            self.update_drawings()
+                
+    # draws the image based 
+    def update_sprite(self):
+        self.img_sprite.update(
+            scale = self.zoom_level,
+            x = -1 * self.left / self.scale_factor,
+            y = -1 * self.bottom / self.scale_factor
+        )
 
     # makes sure all the dictionaries have the proper keys
     def update_tracks(self):
@@ -1069,7 +1165,7 @@ class ClickerWindow(pyglet.window.Window):
         # sys.stdout.flush()
         start_time = time.time()
         self.draw_tracks()
-
+        self.update_drawings()
         return matching
 
     def update_viewfinder(self):
@@ -1125,10 +1221,21 @@ class ClickerWindow(pyglet.window.Window):
         # glEnd()
 
         self.switch_to()
+    
+    # def on_resize(self, width, height):
+    #     super().on_resize(width, height)
+    #     if self.initialized:
+    #         self.zoomed_width
+    #         self.zoomed_width = self.zoomed_width * width_change
+    #         self.zoomed_height = self.zoomed_height * height_change
+    #         self.zoom_level = self.zoom_level * width_change
+    #         self.update_sprite()
+    #         self.update_drawings()
+    #     else:
+    #         self.initialized = True  # Set the flag to True after the initial resize
         
     def on_draw(self):
         self.clear()
-
         # if self.x != 0 and self.y != 0:
             # self.sprite.draw()
             # self.update_viewfinder()
@@ -1164,20 +1271,25 @@ class ClickerWindow(pyglet.window.Window):
         # self.img.blit(0,0, width = self.frameFinder.ow, height = self.frameFinder.oh)
         if self.changed:
             im = self.frameFinder.getFrame(self.current_point_index)
+            self.update_drawings()
             if im is not None:
                 self.img = self.numpy_to_pyglet_image(im, viewfinder=False)
+                self.img_sprite = pyglet.sprite.Sprite(self.img)
+                self.update_sprite()
             else:
                 self.img = None
                 
         if self.img is not None:
-            # self.img.draw()
-            # handle zoom here?
-            # print(f"frameFinder {int(self.frameFinder.w), int(self.frameFinder.h)}")
-            # print(f"self: {self.width, self.height}")
-            # print(f"img: {self.img.width, self.img.height}")
+            self.img_sprite.draw()
+            # self.img.blit(
+            #     x =-1 *self.left / self.scale_factor, 
+            #     y = -1 * self.bottom / self.scale_factor, 
+            #     width = self.zoomed_width / self.scale_factor, 
+            #     height = self.zoomed_height / self.scale_factor)
+
             # get the part zoomed in
-            region = self.img.get_region(int(self.frameFinder.x/self.scale_factor), int(self.frameFinder.y/self.scale_factor), int(self.frameFinder.w/self.scale_factor), int(self.frameFinder.h/self.scale_factor))
-            region = pyglet.sprite.Sprite(region)
+            # region = self.img.get_region(int(self.frameFinder.x/self.scale_factor), int(self.frameFinder.y/self.scale_factor), int(self.frameFinder.w/self.scale_factor), int(self.frameFinder.h/self.scale_factor))
+            # region = pyglet.sprite.Sprite(region)
             
             # print(f"region w, h: {region.width, region.height}")
             # print(f"init region scale: {region.scale}")
@@ -1194,15 +1306,13 @@ class ClickerWindow(pyglet.window.Window):
             # print(self.width/region.width)
             # print(region.scale_x, region.scale_y)
             
-            region.draw()#, width = self.width, height=self.height)
+            # region.draw()#, width = self.width, height=self.height)
         # if self.view is not None and self.show_view:
-        if self.show_view:
-            self.update_viewfinder()
+        # if self.show_view:
+        #     self.update_viewfinder()
             # self.view.draw()
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
-            self.dlt_batch = pyglet.graphics.Batch()
-            self.get_epipolar_lines()
             self.dlt_batch.draw()
             
         if not busy:
@@ -1214,7 +1324,7 @@ class ClickerWindow(pyglet.window.Window):
             self.set_caption('{0} - Working...'.format(self.movie.split('/')[-1]))
 
         self.track_batch.draw()
-        # self.drawn_lines['test'] = draw_line([1339.44370511, 378.78527146], [1373.30335652, 336.79267411], width = 20, batch = self.dlt_batch)
+        self.changed = False
         
 
     def tick(self):
@@ -1265,12 +1375,14 @@ class ClickerWindow(pyglet.window.Window):
         for window in pyglet.app.windows:
             if isinstance(window, ClickerWindow):
                 if self is not window:
+                    # window.changed = True
                     window.switch_to()
                     window.update_tracks()
                     window.dispatch_events()
                     window.dispatch_event('on_draw')
                     window.change_marker()
                     window.flip()
+                    # self.switch_to()
 
     def dense_to_sparse(self, arr):
         # create a sparse data file with rows and columns indexed by the natural numbers
@@ -1342,7 +1454,6 @@ class ClickerWindow(pyglet.window.Window):
                 for j in range(pts.shape[1] // (2 * len(camera_profile))):
                     xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)],
                                      camera_profile, DLTCoefficients)
-                    # cPickle.dump(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], open('points' + str(j) + '.p', 'wb'))
                     xyzss.append(xyzs)
                 xyzss = np.asarray(xyzss)
                 _ = xyzss[0]
@@ -1453,7 +1564,6 @@ class ClickerWindow(pyglet.window.Window):
                 for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
                     xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)],
                                      camera_profile, DLTCoefficients)
-                    # cPickle.dump(pts[:,j*2*len(CameraProfile):(j+1)*2*len(CameraProfile)], open('points' + str(j) + '.p', 'wb'))
                     xyzss.append(xyzs)
                 xyzss = np.asarray(xyzss)
                 _ = xyzss[0]
@@ -1547,6 +1657,7 @@ class ClickerWindow(pyglet.window.Window):
         self.track_batch = pyglet.graphics.Batch()
         self.drawn_points = dict()
         self.drawn_lines = dict()
+        self.orig_dlt = list()
         self.drawn_dlt = list()
         return
 
@@ -1746,6 +1857,7 @@ class ClickerWindow(pyglet.window.Window):
             displaying_all_tracks = new_disp
 
         self.toggleBusy()
+        self.update_drawings()
         self.update_all_windows()
 
     def go_to_frame(self, frame):
@@ -1916,14 +2028,27 @@ class ClickerWindow(pyglet.window.Window):
                 self.displayingFrameNumber = True
         # reset to the original view of the entire frame
         elif symbol == key.R:
+            win_ratio = self.width / self.height
+            if (self.frameFinder.ow / self.frameFinder.oh) <= win_ratio:
+                #narrower window than original aspect ratio
+                self.zoom_level = self.width * self.scale_factor / self.frameFinder.ow
+                self.left = 0
+                self.bottom = 0
+            else:
+                #wider window
+                self.zoom_level = self.height * self.scale_factor / self.frameFinder.oh
+                
             self.left = 0
-            self.right = self.frameFinder.ow
             self.bottom = 0
-            self.top = self.frameFinder.oh
-            self.zoom_level = 1
-            self.zoomed_width = self.frameFinder.ow
-            self.zoomed_height = self.frameFinder.oh
+            self.right = self.left + self.width * self.scale_factor * self.zoom_level
+            self.top = self.bottom + self.height * self.scale_factor * self.zoom_level
+                
+            self.zoomed_width = self.frameFinder.ow * self.zoom_level
+            self.zoomed_height = self.frameFinder.oh * self.zoom_level
             self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
+            self.update_sprite()
+            self.update_drawings()
+            
         # saving points to a CSV file
         elif symbol == key.S:
             if modifiers & key.MOD_CTRL:
@@ -2110,8 +2235,14 @@ class ClickerWindow(pyglet.window.Window):
 
         if buttons & mouse.LEFT:
             if current_track_global != '' and (modifiers == 16 or modifiers == 0):
-                self.draw_new_point(float(x) / self.width * self.zoomed_width + self.left,
-                                    float(y) / self.height * self.zoomed_height + self.bottom)
+                # print(f"xy: {x, y}")
+                # print(f"prop x {float(x) / self.width}")
+                # print(f"FFw: {self.frameFinder.w}")
+                # print(f"sL: {self.left}")
+                print(f"ptxy: {(float(x) - self.img_sprite.x) / self.zoom_level * self.scale_factor, (float(y) - self.img_sprite.y) / self.zoom_level * self.scale_factor}")
+                ptx, pty = self.window_to_world((float(x), float(y)))
+                # print(f"lbtr: {self.left, self.bottom, self.top, self.right}")
+                self.draw_new_point(ptx, pty)
                 if auto_advance:
                     im = self.frameFinder.getFrame(self.current_point_index + 1)
                     if im is not None and self.current_point_index + 1 <= self.end:
@@ -2132,8 +2263,6 @@ class ClickerWindow(pyglet.window.Window):
             positions.eliminate_zeros()
             self.points[current_track_global] = positions
             self.delete_point()
-
-
 
     def on_mouse_motion(self, x, y, dx, dy):
         self.x = float(x) / self.width * self.zoomed_width + self.left
@@ -2200,159 +2329,6 @@ class TrackPlotter(QtWidgets.QWidget):
             
             scatter.setGLOptions('translucent')
             self.view.addItem(scatter)
-
-
-class ATrackPlotter(pyglet.window.Window):
-    def __init__(self, pts, track_indices, camera_profile, DLTCoefficients, ArgusColors):
-        super(TrackPlotter, self).__init__(width=800, height=600, caption="Track Plotter", resizable=True)
-        self.pts = pts
-        self.track_indices = track_indices
-        self.camera_profile = camera_profile
-        self.DLTCoefficients = DLTCoefficients
-        self.colors = ArgusColors().getPygletColors()
-        self.xyzss = self.calculate_xyzs()
-        
-        # Set up OpenGL context
-        glEnable(GL_DEPTH_TEST)
-        glClearColor(0.0, 0.0, 0.0, 1.0)
-        
-        # Rotation state
-        self.rot_x = 0
-        self.rot_y = 0
-        self.mouse_x = 0
-        self.mouse_y = 0
-        
-        # Zoom state
-        self.zoom = -40
-        
-    def calculate_xyzs(self):
-        xyzss = []
-        for j in range(int(self.pts.shape[1] / (2 * len(self.camera_profile)))):
-            xyzs = uv_to_xyz(self.pts[:, j * 2 * len(self.camera_profile):(j + 1) * 2 * len(self.camera_profile)], self.camera_profile, self.DLTCoefficients)
-            xyzss.append(xyzs)
-        return xyzss
-
-    def setup_projection(self):
-        # glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        gluPerspective(45.0, self.width / self.height, 0.1, 100.0)
-        # glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        
-    def plot_grid(self):
-        glColor3f(0.5, 0.5, 0.5)  # Gray color for grid
-        glBegin(GL_LINES)
-        grid_size = 10
-        for i in range(-grid_size, grid_size + 1):
-            glVertex3f(i, -grid_size, 0)
-            glVertex3f(i, grid_size, 0)
-            glVertex3f(-grid_size, i, 0)
-            glVertex3f(grid_size, i, 0)
-        glEnd()
-        
-    def plot_axes(self):
-        axis_length = 10
-        glLineWidth(2.0)  # Set line width for axes
-        glBegin(GL_LINES)
-
-        # X axis (Red)
-        glColor3f(1.0, 0.0, 0.0)
-        glVertex3f(0, 0, 0)
-        glVertex3f(axis_length, 0, 0)
-
-        # Y axis (Green)
-        glColor3f(0.0, 1.0, 0.0)
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, axis_length, 0)
-
-        # Z axis (Blue)
-        glColor3f(0.0, 0.0, 1.0)
-        glVertex3f(0, 0, 0)
-        glVertex3f(0, 0, axis_length)
-        
-        glEnd()
-        glLineWidth(1.0)
-        
-    def plot_tracks(self):
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        # glLoadIdentity()
-
-        # Apply rotations
-        glTranslatef(0, 0, self.zoom)
-        glRotatef(self.rot_x, 1, 0, 0)
-        glRotatef(self.rot_y, 0, 1, 0)
-
-        # Plot grid on XY plane
-        self.plot_grid()
-
-        # Plot axes 
-        self.plot_axes()
-        
-        # Plot each track
-        for k in range(len(self.track_indices)):
-            xyz = self.xyzss[self.track_indices[k]]
-            # xyz = xyz[~np.isnan(xyz).any(axis=1)]
-            # if xyz.size == 0:  # Skip if xyz is empty after filtering
-            #     continue
-            x = xyz[:, 0]
-            y = xyz[:, 1]
-            z = xyz[:, 2]
-            color = self.colors[k % len(self.colors)]
-            glColor3f(color[0]/255.0, color[1]/255.0, color[2]/255.0)
-            glBegin(GL_LINE_STRIP)
-            for i in range(len(x)):
-                glVertex3f(x[i], y[i], z[i])
-            glEnd()
-            self.plot_spheres(x, y, z, color)
-            
-    def plot_spheres(self, x, y, z, color):
-        quadric = gluNewQuadric()
-        glColor3f(color[0]/255.0, color[1]/255.0, color[2]/255.0)
-        for i in range(len(x)):
-            glPushMatrix()
-            glTranslatef(x[i], y[i], z[i])
-            gluSphere(quadric, 0.2, 4, 4)  # Radius of 0.2, 4 slices, 4 stacks
-            glPopMatrix()
-        gluDeleteQuadric(quadric)
-        
-    def on_draw(self):
-        self.setup_projection()
-        self.plot_tracks()
-        self.draw_labels()
-        
-    def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-        self.rot_x += dy * 0.5
-        self.rot_y += dx * 0.5
-
-    def on_mouse_press(self, x, y, button, modifiers):
-        self.mouse_x = x
-        self.mouse_y = y
-
-    def on_mouse_release(self, x, y, button, modifiers):
-        self.mouse_x = 0
-        self.mouse_y = 0
-        
-    def on_mouse_scroll(self, x, y, scroll_x, scroll_y):
-        self.zoom += scroll_y * 2  # Adjust zoom speed
-        
-    def draw_labels(self):
-        # Draw axis labels
-        self.draw_text("X", 1.0, 0.0, 0.0, (1.0, 0.0, 0.0, 1.0))
-        self.draw_text("Y", 0.0, 1.0, 0.0, (0.0, 1.0, 0.0, 1.0))
-        self.draw_text("Z", 0.0, 0.0, 1.0, (0.0, 0.0, 1.0, 1.0))
-
-    def draw_text(self, text, x, y, z, color):
-        label = pyglet.text.Label(text,
-                                  font_name='Times New Roman',
-                                  font_size=24,
-                                  color=(int(color[0]*255), int(color[1]*255), int(color[2]*255), int(color[3]*255)),
-                                  x=0, y=0,
-                                  anchor_x='center', anchor_y='center')
-        glPushMatrix()
-        glTranslatef(x, y, z)
-        glScalef(0.02, 0.02, 0.02)  # Scale the text to fit the 3D plot
-        label.draw()
-        glPopMatrix()
         
 # function scheduled everytime autotracking is turned on
 # to create a loop. it is unscheduled when autotracking is turned off
