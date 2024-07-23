@@ -3,34 +3,22 @@
 
 from __future__ import absolute_import
 import yaml
-# from six.moves import map
 import os
 import sys
 
 import pyglet
-from pyglet import gl
 from pyglet.gl import Config
 from pyglet import shapes
 from pyglet.window import key, mouse
 from pyglet.graphics import *
-from pyglet.math import Mat4
 from pyglet.image import ImageData
-#from pygarrayimage.arrayimage import ArrayInterfaceImage
 
 from argus_gui import ArgusColors, FrameFinder, ClickerProject
 from argus_gui.tools import *
-from argus_gui.arrayImage import ArrayInterfaceImage
-
-import itertools
-import math
 import pandas
 import argus.ocam
-# import matplotlib
-from PySide6.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget
 from PySide6.QtCore import Qt
-import pyqtgraph as pg
 import pyqtgraph.opengl as pyqt_gl
-import ctypes
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
@@ -284,9 +272,6 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         layout.addWidget(self.save_button, 15, 2)
         layout.addWidget(self.okbutton, 16, 2)
 
-        # self.track_list = track_list
-        # self.dlts = list()
-
     # close with Return key
     def keyPressEvent(self, event):
         if event.key() == QtCore.Qt.Key_Return:
@@ -454,10 +439,7 @@ def load_csv(csv):
     # sys.stdout.flush()
     load_data_global = np.array(pandas.read_csv(csv, index_col=False).values, dtype=np.float16)
     load_data_global[np.isnan(load_data_global)] = 0
-    load_data_global = csc_matrix(load_data_global, dtype = np.float32) # this line is failing for some reason but works in tests
-    #   File "/Users/jacksonbe3/miniconda3/envs/newPyglet/lib/python3.11/site-packages/scipy/sparse/_coo.py", line 374, in _coo_to_compressed
-#     coo_tocsr(M, N, nnz, major, minor, self.data, indptr, indices, data)
-# ValueError: Output dtype not compatible with inputs.
+    load_data_global = csc_matrix(load_data_global, dtype = np.float32)
 
     no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
 
@@ -579,14 +561,6 @@ class ClickerWindow(pyglet.window.Window):
         self.viewfinder_zoomed_size = vw * self.zoom_factor
         self.view_sprite = None
         self.update_viewfinder()
-        # intialize viewfinder window
-        # self.viewfinder_window = pyglet.window.Window(
-        #     width=vx,
-        #     height=vy,
-        #     resizable=True,
-        #     style=pyglet.window.Window.WINDOW_STYLE_BORDERLESS
-        # )
-        # self.viewfinder_window.set_location(int(vx // 2), int(vy // 2))
         
         # modifiable boolean for showing the zoomed view finder
         self.show_view = True
@@ -1321,14 +1295,12 @@ class ClickerWindow(pyglet.window.Window):
             return
         if filename != '' and type(filename) == str:
             global_filename = filename
-            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
             for window in pyglet.app.windows:
                 if isinstance(window, ClickerWindow):
                     window.fill_common_dictionary()
 
             offsets_out = list()
 
-            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
             for window in pyglet.app.windows:
                 if isinstance(window, ClickerWindow):
                     offsets_out.append(window.offsets_output)
@@ -1572,12 +1544,8 @@ class ClickerWindow(pyglet.window.Window):
         self.update_all_windows()
         self.updateSelf()
 
-    # def plotTracks(self):
-    #     for window in [u for u in pyglet.app.windows]:
-    #         print(type(window))
-    #         print(type(window) == 'ClickerWindow')
-    def plotTracks(self): #, track_indices=np.arange(len(track_list_global))):
-        # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+    def plotTracks(self):
+
         for window in pyglet.app.windows:
             if isinstance(window, ClickerWindow):
                 window.fill_common_dictionary()
@@ -2412,7 +2380,7 @@ def load_from_config(path):
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
             if im is not None:
-                window.img = pyglet.sprite.Sprite(ArrayInterfaceImage(im).get_texture())
+                window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
                 window.img.scale = float(window.scale_factor)
                 
     pyglet.clock.schedule_once(update_after, .05)
