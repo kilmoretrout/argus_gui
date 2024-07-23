@@ -195,8 +195,6 @@ class FrameFinder:
                     return None
         if n - 1 + self.offset >= 0 and n - 1 + self.offset <= self.frameCount - 1:
             self.movie.set(cv2.CAP_PROP_POS_MSEC, (n - 1 + self.offset) * self.frame_msec)
-            # print('using frame number')
-            # self.movie.set(cv2.CAP_PROP_POS_FRAMES, (n - 1 + self.offset))
 
             retval, im = self.movie.read()
             if retval:

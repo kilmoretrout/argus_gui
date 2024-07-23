@@ -1184,27 +1184,6 @@ class ClickerWindow(pyglet.window.Window):
             scale = ((self.width * self.height) / (self.frameFinder.oh * self.frameFinder.ow)) ** 0.5
             self.view_sprite = pyglet.sprite.Sprite(view)
             self.view_sprite.scale = scale
-        #     self.
-        # zoomed_image = self.imgarr.get_region(
-        #     self.x - self.viewfinder_size // 2,
-        #     self.y - self.viewfinder_size // 2,
-        #     self.viewfinder_size,
-        #     self.viewfinder_size
-        # ).get_texture()
-        # zoomed_image.width = self.viewfinder_zoomed_size
-        # zoomed_image.height = self.viewfinder_zoomed_size
-
-        # self.viewfinder_window.switch_to()
-        # self.view.blit(0, 0)
-
-        # Draw the red crosshair
-        # glColor3f(1.0, 0.0, 0.0)
-        # glBegin(GL_LINES)
-        # glVertex2f(self.viewfinder_zoomed_size // 2, 0)
-        # glVertex2f(self.viewfinder_zoomed_size // 2, self.viewfinder_zoomed_size)
-        # glVertex2f(0, self.viewfinder_zoomed_size // 2)
-        # glVertex2f(self.viewfinder_zoomed_size, self.viewfinder_zoomed_size // 2)
-        # glEnd()
 
         self.switch_to()
         
