@@ -23,6 +23,7 @@ setup(
     install_requires=[
         "numpy >= 1.9.1",
         "pandas >= 0.15.2",
+        "pyopengl",
         "pyglet",
         "moviepy >= 0.2.2.11",
         "Pmw >= 1.3.3",
