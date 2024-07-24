@@ -23,12 +23,10 @@ setup(
     install_requires=[
         "numpy >= 1.9.1",
         "pandas >= 0.15.2",
-        # "matplotlib >= 1.3.1",
         "pyglet",
         "moviepy >= 0.2.2.11",
         "Pmw >= 1.3.3",
         "texttable >= 0.8.3",
-        #"pygarrayimage >= 1.0",
         "sba >= 1.6.5.1",
         "audioread >= 2.1.1",
         "psutil >= 3.4.1",
@@ -38,7 +36,6 @@ setup(
         "PyYAML >= 5.0",
         "pyside6 >= 6.4",
         "pyqtgraph >= 0.13.7",
-        "pyopengl"	
         ],
     dependency_links=[
         #'http://opencv.org/downloads.html',

@@ -22,6 +22,6 @@ dependencies:
     - pyside6
     - git+https://github.com/backyardbiomech/python-sba.git@python310
     - git+https://github.com/backyardbiomech/argus.git@python310
-    - git+https://github.com/backyardbiomech/argus_gui.git@newPyglet
+    - git+https://github.com/backyardbiomech/argus_gui.git@imageSprite
     
 
