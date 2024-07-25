@@ -1739,7 +1739,12 @@ class ClickerProject:
         with open(f"{proj_path}-config.yaml", "w") as f:
             f.write(yaml.dump(project))
 
-
+def startArgus():
+    app = QtWidgets.QApplication()
+    window = MainWindow(app)
+    window.show()
+    sys.exit(app.exec())
+    
 if __name__ == "__main__":
     app = QtWidgets.QApplication()
     window = MainWindow(app)
