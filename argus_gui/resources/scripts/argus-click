@@ -1209,7 +1209,7 @@ class ClickerWindow(pyglet.window.Window):
             self.switch_to()
             self.track_batch.draw()
         except Exception as e:
-            print(f"draw failed on {self.caption}")
+            print(f"draw failed on {self.caption} with error: {e}")
             pass
             
         if not busy:
