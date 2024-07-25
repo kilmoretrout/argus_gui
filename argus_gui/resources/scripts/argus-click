@@ -490,6 +490,7 @@ def load_tsv(tsv):
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
+        
         self.initialized = False #flag to control running on_resize function
         config = Config(double_buffer=True)
         self.actual_camera_number = actual_camera_number
@@ -529,17 +530,23 @@ class ClickerWindow(pyglet.window.Window):
         self.trackingColors = list()
         self.previous = list()
         self.autoTracking = False
-
+        self.img = None
         # batches for fast drawing
         self.main_batch = pyglet.graphics.Batch()
         self.track_batch = pyglet.graphics.Batch()
         self.background = pyglet.graphics.Group(order=0)
         self.dlt_batch = pyglet.graphics.Batch()
+        
+        self.black_image = np.zeros((self.frameFinder.h, self.frameFinder.w, 3), dtype=np.uint8)
+        
         # self.frame is array format from cv2, full size (or half depending on factor setting)
         self.frame = self.frameFinder.getFrame(1)
         # self.img is in pyglet image format to make it easier to get region.
         # self.img is full (or half) resolution, same as self.frame - scaling happens at draw
-        self.img = self.numpy_to_pyglet_image(self.frame, viewfinder = False)
+        if self.frame is not None:
+            self.img = self.numpy_to_pyglet_image(self.frame, viewfinder = False)
+        else:
+            self.img = self.numpy_to_pyglet_image(self.black_image.copy)
         # at init, frameFinder.w and h are full resolution, but self.frame.shape and self.image are resized based on scaling factor from main GUI
 
         
@@ -563,7 +570,7 @@ class ClickerWindow(pyglet.window.Window):
         self.update_viewfinder()
         
         # modifiable boolean for showing the zoomed view finder
-        self.show_view = True
+        self.show_view = False
 
         # dictionaries for storing OpenGL vertices and deleting later if needed
         self.drawn_points = {}
@@ -792,7 +799,6 @@ class ClickerWindow(pyglet.window.Window):
         #update current marker
         if new_point_index in non_zero_points:
             tx_x, tx_y = self.world_to_window(positions[new_point_index])
-            print(tx_x, tx_y)
             self.current_marker.x = tx_x
             self.current_marker.y = tx_y
         
@@ -1167,11 +1173,16 @@ class ClickerWindow(pyglet.window.Window):
             self.view_sprite = pyglet.sprite.Sprite(view)
             self.view_sprite.scale = scale
 
+        # self.switch_to()
+    def on_mouse_enter(self, x, y):
+        self.activate()
+        
+    def on_activate(self):
         self.switch_to()
         
     def on_draw(self):
         self.clear()
-
+                
         if self.current_point_index != current_frame and sync:
             self.current_point_index = current_frame
 
@@ -1179,10 +1190,12 @@ class ClickerWindow(pyglet.window.Window):
             im = self.frameFinder.getFrame(self.current_point_index)
             if im is not None:
                 self.img = self.numpy_to_pyglet_image(im, viewfinder=False)
-                self.img_sprite = pyglet.sprite.Sprite(self.img)
-                self.update_sprite()
+                
             else:
-                self.img = None
+                self.img = self.numpy_to_pyglet_image(self.black_image.copy)
+                
+            self.img_sprite = pyglet.sprite.Sprite(self.img)
+            self.update_sprite()
             self.update_drawings()
                 
         if self.img is not None:
@@ -1191,21 +1204,31 @@ class ClickerWindow(pyglet.window.Window):
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
             self.dlt_batch.draw()
-                
-        self.track_batch.draw()
+        
+        try:
+            self.switch_to()
+            self.track_batch.draw()
+        except Exception as e:
+            print(f"draw failed on {self.caption} with error: {e}")
+            pass
             
         if not busy:
             # if not self.base:
             self.set_caption(
                 '{0} - Frame {1}, Offset: {2} - Track: {3}'.format(self.movie.split('/')[-1], self.current_point_index,
-                                                                   self.frameFinder.offset, current_track_global))
+                                                                self.frameFinder.offset, current_track_global))
         else:
             self.set_caption('{0} - Working...'.format(self.movie.split('/')[-1]))
 
         # viewfinder
         if self.show_view:
-            if self.view_sprite is not None:
-                self.view_sprite.draw()
+            if self.x != 0 and self.y != 0:
+                try: 
+                    self.update_viewfinder()
+                except: self.view_sprite = None
+                if self.view_sprite is not None:
+                    self.view_sprite.draw()
+                
         self.changed = False
         
 
@@ -1257,6 +1280,7 @@ class ClickerWindow(pyglet.window.Window):
         for window in pyglet.app.windows:
             if isinstance(window, ClickerWindow):
                 if self is not window:
+                    print(f"updating {window.caption}")
                     # window.changed = True
                     window.switch_to()
                     window.update_tracks()
@@ -1264,7 +1288,7 @@ class ClickerWindow(pyglet.window.Window):
                     window.dispatch_event('on_draw')
                     window.change_marker()
                     window.flip()
-                    # self.switch_to()
+                    self.switch_to()
 
     def dense_to_sparse(self, arr):
         # create a sparse data file with rows and columns indexed by the natural numbers
@@ -1725,9 +1749,11 @@ class ClickerWindow(pyglet.window.Window):
                 if isinstance(window, ClickerWindow):
                     window.frameFinder.rgb = rgb
                     im = window.frameFinder.getFrame(window.current_point_index)
-                    if im is not None:
-                        window.img = pyglet.sprite.Sprite(self.numpy_to_pyglet_image(im))
-                        window.img.scale = float(self.scale_factor)
+                    if im is None:
+                        im = window.black_image.copy
+                        
+                    window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
+                    window.img.scale = float(window.scale_factor)
 
             current_track_global = w.tracks.currentText()
             displaying_all_tracks = new_disp
@@ -2108,7 +2134,8 @@ class ClickerWindow(pyglet.window.Window):
         global track_list_global
         global current_track_global
         global current_frame
-
+        
+        
         if buttons & mouse.LEFT:
             if current_track_global != '' and (modifiers == 16 or modifiers == 0):
                 ptx, pty = self.window_to_world((float(x), float(y)))
@@ -2135,9 +2162,8 @@ class ClickerWindow(pyglet.window.Window):
             self.delete_point()
 
     def on_mouse_motion(self, x, y, dx, dy):
-        if self.show_view:
+        if self.show_view and self.img is not None:
             self.x, self.y = self.window_to_world((x, y))
-            self.update_viewfinder()
 
 class TrackPlotter(QtWidgets.QWidget):
     def __init__(self, pts, track_indices, camera_profile, DLTcoefficients, ArgusColors):
@@ -2388,9 +2414,10 @@ def load_from_config(path):
 
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
-            if im is not None:
-                window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
-                window.img.scale = float(window.scale_factor)
+            if im is None:
+                im = window.black_image.copy
+            window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
+            window.img.scale = float(window.scale_factor)
                 
     pyglet.clock.schedule_once(update_after, .05)
     pyglet.app.run()
