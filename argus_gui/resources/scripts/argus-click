@@ -77,7 +77,10 @@ class OpenFilePopup(QtWidgets.QWidget):
 class SaveFilePopup(QtWidgets.QWidget):
     def __init__(self, win_title, init, filt):
         super().__init__()
-        self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt)
+        # Show the save file dialog
+        options = QtWidgets.QFileDialog.Options()
+        # options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt, options=options)
 
 def load_camera(filename):
     global camera_profile
