@@ -1,5 +1,7 @@
 from PySide6 import QtGui, QtWidgets, QtCore
-import pkg_resources
+# import pkg_resources
+import os
+import importlib.resources
 import os.path
 import shutil
 import subprocess
@@ -19,7 +21,7 @@ from PySide6.QtCore import QStandardPaths
 # from argus_gui import Logger
 
 RESOURCE_PATH = os.path.abspath(
-    pkg_resources.resource_filename("argus_gui.resources", "")
+    importlib.resources.path("argus_gui.resources", "")
 )
 
 
