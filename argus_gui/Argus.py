@@ -20,9 +20,13 @@ from PySide6.QtCore import QStandardPaths
 
 # from argus_gui import Logger
 
-RESOURCE_PATH = os.path.abspath(
-    importlib.resources.path("argus_gui.resources", "")
-)
+# Ensure the package is available
+try:
+    # Use the context manager to get the path
+    with importlib.resources.path("argus_gui.resources", "") as resource_path:
+        RESOURCE_PATH = os.path.abspath(resource_path)
+except ModuleNotFoundError:
+    raise ImportError("The package 'argus_gui' is required but not installed.")
 
 
 class MainWindow(QtWidgets.QMainWindow):
