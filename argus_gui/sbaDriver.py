@@ -14,6 +14,7 @@ import sba
 from .output import *
 
 os.chdir(cwd)
+import numpy as np
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt
 import pyqtgraph as pg
@@ -1120,22 +1121,22 @@ def rigid_transform_3D(A, B):
 
     N = A.shape[0];  # total points
 
-    centroid_A = mean(A, axis=0)
-    centroid_B = mean(B, axis=0)
+    centroid_A = np.mean(A, axis=0)
+    centroid_B = np.mean(B, axis=0)
 
     # center the points
-    AA = A - tile(centroid_A, (N, 1))
-    BB = B - tile(centroid_B, (N, 1))
+    AA = A - np.tile(centroid_A, (N, 1))
+    BB = B - np.tile(centroid_B, (N, 1))
 
     # dot is matrix multiplication for array
-    H = transpose(AA).dot(BB)
+    H = np.transpose(AA).dot(BB)
 
-    U, S, Vt = linalg.svd(H)
+    U, S, Vt = np.linalg.svd(H)
 
     R = Vt.T.dot(U.T)
 
     # special reflection case
-    if linalg.det(R) < 0:
+    if np.linalg.det(R) < 0:
         print('Reflection detected - likely due to an underlying left-handed coordinate system')
         # do nothing (commented the below lines out on 2020-05-26)
         #Vt[2, :] *= -1
