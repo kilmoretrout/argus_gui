@@ -568,7 +568,7 @@ class OutlierWindow(QtWidgets.QWidget):
                 # z = self.up[:, 2]
                 plotup = np.array(self.up).reshape(-1, 3)  # Ensure a 2D array of shape (n_points, 3)
                 # print(f"uppts: {plotup.shape}")
-                scatter = gl.GLScatterPlotItem(pos = plotup, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter = gl.GLScatterPlotItem(pos = plotup, color=(0, 1, 1, 1), size=10)  # Cyan color, larger markers
                 scatter.setGLOptions('translucent')
                 self.view.addItem(scatter)
 
@@ -594,7 +594,7 @@ class OutlierWindow(QtWidgets.QWidget):
         camXYZ = DLTtoCamXYZ(self.dlts)
         plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
         # print(f"cams: {plotcamXYZ.shape}")
-        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
+        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=20)  # Green color, larger markers
         scatter.setGLOptions('translucent')
         self.view.addItem(scatter)
        
