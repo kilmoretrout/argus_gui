@@ -755,12 +755,10 @@ class ClickerWindow(pyglet.window.Window):
         """
         # Move camera
         if modifiers & key.MOD_SHIFT:
-            left = self.left - dx * self.zoom_level / self.scale_factor
-            right = self.right - dx * self.zoom_level / self.scale_factor
-            bottom = self.bottom - dy * self.zoom_level / self.scale_factor
-            top = self.top - dy * self.zoom_level / self.scale_factor
-
-            # if left >= 0 and bottom >= 0 and right <= self.frameFinder.ow and top <= self.frameFinder.oh:
+            left = self.left - dx #* self.zoom_level / self.scale_factor
+            right = self.right - dx #* self.zoom_level / self.scale_factor
+            bottom = self.bottom - dy #* self.zoom_level / self.scale_factor
+            top = self.top - dy #* self.zoom_level / self.scale_factor
 
             self.left, self.right, self.bottom, self.top = left, right, bottom, top
             self.frameFinder.update(self.left, self.bottom, self.right - self.left, self.top - self.bottom)
@@ -1045,7 +1043,6 @@ class ClickerWindow(pyglet.window.Window):
             # find the new x, y coordinates of the cursor pixel after zoom
             new_x = float(x) - (float(x) - self.img_sprite.x) * f
             new_y = float(y) - (float(y) - self.img_sprite.y) * f
-
             zoom_level = f * self.zoom_level
             # disp_width and height is the width in original pixels of the zoomed view
             old_disp_width = self.frameFinder.ow / self.zoom_level
