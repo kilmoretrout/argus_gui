@@ -567,7 +567,7 @@ class ClickerWindow(pyglet.window.Window):
         self.y = 2 * vh
 
         # viewfinder zoom factor
-        self.zoom_factor = 4
+        self.zoom_factor = 5
         self.viewfinder_zoomed_size = vw * self.zoom_factor
         self.view_sprite = None
         self.update_viewfinder()
@@ -1035,11 +1035,14 @@ class ClickerWindow(pyglet.window.Window):
                 
     # Zooms in using OpenGL.  Has bounds so that none of the screen ever has blank space
     def on_mouse_scroll(self, x, y, dx, dy):
+        self.zoom_vid(x, y, dy)
+        
+    def zoom_vid(self, x, y, zm):
         # Get scale factor
-        f = ZOOM_IN_FACTOR if dy > 0 else ZOOM_OUT_FACTOR if dy < 0 else 1
+        f = ZOOM_IN_FACTOR if zm > 0 else ZOOM_OUT_FACTOR if zm < 0 else 1
         # If zoom_level is in the proper range
-        if 0.1 <= self.zoom_level * f < 6:
-            # find the new x, y coordinates of the pixel after zoom
+        if 0.01 <= self.zoom_level * f < 10:
+            # find the new x, y coordinates of the cursor pixel after zoom
             new_x = float(x) - (float(x) - self.img_sprite.x) * f
             new_y = float(y) - (float(y) - self.img_sprite.y) * f
 
@@ -1931,6 +1934,14 @@ class ClickerWindow(pyglet.window.Window):
                 self.displayingFrameNumber = False
             else:
                 self.displayingFrameNumber = True
+                
+        # Zoom with + - 
+        elif symbol == key.EQUAL:
+            self.zoom_vid(self._mouse_x, self._mouse_y, 1)
+            
+        elif symbol == key.MINUS:
+            self.zoom_vid(self._mouse_x, self._mouse_y, -1)
+        
         # reset to the original view of the entire frame
         elif symbol == key.R:
             win_ratio = self.width / self.height
