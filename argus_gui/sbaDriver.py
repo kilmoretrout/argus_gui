@@ -1020,7 +1020,8 @@ class OutlierWindow(QtWidgets.QWidget):
                     pass
 
         rmse = error / float(len(errors))
-
+        print(f"OUTLIERS: {outliers}")
+        sys.stdout.flush()
         return L, rmse, outliers, ptsi
 
 
