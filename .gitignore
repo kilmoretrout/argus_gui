@@ -42,6 +42,7 @@ local_settings.py
 *.iml
 argus_gui/__pycache__/__init__.cpython-36.pyc
 build/lib/argus_gui/resources/__init__.pyc
+.vscode/
 
 # others
 *.DS_Store
