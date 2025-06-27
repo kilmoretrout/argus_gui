@@ -554,7 +554,7 @@ class ClickerWindow(pyglet.window.Window):
         if self.frame is not None:
             self.img = self.numpy_to_pyglet_image(self.frame, viewfinder = False)
         else:
-            self.img = self.numpy_to_pyglet_image(self.black_image.copy)
+            self.img = self.numpy_to_pyglet_image(self.black_image.copy(), viewfinder = False)
         # at init, frameFinder.w and h are full resolution, but self.frame.shape and self.image are resized based on scaling factor from main GUI
 
         
@@ -603,9 +603,25 @@ class ClickerWindow(pyglet.window.Window):
 
     # convert numpy array to pyglet image format
     def numpy_to_pyglet_image(self, frame, viewfinder=False):
-        height, width, channels = frame.shape
-        img_data = frame.tobytes()
-        return ImageData(width, height, 'RGB', img_data, pitch = width * 3)
+        if frame is None:
+            # Use black image if frame is None
+            frame = self.black_image.copy()
+        elif not hasattr(frame, 'shape'):
+            # Handle case where a method reference was passed instead of array
+            raise ValueError(f"Invalid frame type: {type(frame)}. Expected numpy array, got {frame}")
+        
+        try:
+            height, width, channels = frame.shape
+            img_data = frame.tobytes()
+            return ImageData(width, height, 'RGB', img_data, pitch = width * 3)
+        except (ValueError, AttributeError) as e:
+            print(f"Error converting frame to pyglet image: {e}")
+            print(f"Frame type: {type(frame)}, Frame shape: {getattr(frame, 'shape', 'No shape attribute')}")
+            # Fallback to black image
+            fallback_frame = self.black_image.copy()
+            height, width, channels = fallback_frame.shape
+            img_data = fallback_frame.tobytes()
+            return ImageData(width, height, 'RGB', img_data, pitch = width * 3)
     
     # only called upon loading a CSV. Pretty slow to define tons of vertices.
     def draw_tracks(self):
@@ -1210,7 +1226,7 @@ class ClickerWindow(pyglet.window.Window):
                 self.img = self.numpy_to_pyglet_image(im, viewfinder=False)
                 
             else:
-                self.img = self.numpy_to_pyglet_image(self.black_image.copy)
+                self.img = self.numpy_to_pyglet_image(self.black_image.copy(), viewfinder=False)
                 
             self.img_sprite = pyglet.sprite.Sprite(self.img)
             self.update_sprite()
@@ -1774,7 +1790,7 @@ class ClickerWindow(pyglet.window.Window):
                     window.frameFinder.rgb = rgb
                     im = window.frameFinder.getFrame(window.current_point_index)
                     if im is None:
-                        im = window.black_image.copy
+                        im = window.black_image.copy()
                         
                     window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
                     window.img.scale = float(window.scale_factor)
@@ -2452,7 +2468,7 @@ def load_from_config(path):
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
             if im is None:
-                im = window.black_image.copy
+                im = window.black_image.copy()
             window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
             window.img.scale = float(window.scale_factor)
                 
