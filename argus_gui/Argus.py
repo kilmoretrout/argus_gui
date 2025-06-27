@@ -82,7 +82,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.pids = []
 
         # clicker
-        self.offsets = []
         self.drivers = []
 
         self.tmps.append(tempfile.mkdtemp())
@@ -105,21 +104,32 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def add_clicker_tab(self):
         # Create the Clicker tab
-        # Create file list
-        self.file_list = QtWidgets.QListWidget()
-        self.file_list.setToolTip(
-            "List of movies to click through for\nPress '+' button to add movie"
+        # Create file table with video paths and offsets
+        self.file_table = QtWidgets.QTableWidget()
+        self.file_table.setColumnCount(2)
+        self.file_table.setHorizontalHeaderLabels(["Video File", "Frame Offset"])
+        self.file_table.setToolTip(
+            "List of movies to click through.\nPress '+' button to add movie.\nDouble-click offset to edit."
         )
+        # Make the video file column stretch to fill available space
+        header = self.file_table.horizontalHeader()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
+        
         # Create add button
-        self.add_button = QtWidgets.QPushButton(" + ")
+        self.add_button = QtWidgets.QPushButton("+")
+        self.add_button.setMaximumWidth(30)
         self.add_button.setToolTip("Add a movie to the list")
         self.add_button.clicked.connect(self.add)
         # Create clear button
         self.clear_button = QtWidgets.QPushButton("Clear")
+        self.clear_button.setMaximumWidth(60)
         self.clear_button.setToolTip("Clear the list of movies")
         self.clear_button.clicked.connect(self.clear)
         # Create remove button
-        self.remove_button = QtWidgets.QPushButton(" - ")
+        self.remove_button = QtWidgets.QPushButton("-")
+        self.remove_button.setMaximumWidth(30)
         self.remove_button.setToolTip("Remove the selected movie from the list")
         self.remove_button.clicked.connect(self.delete)
         # Create resolution dropdown
@@ -134,16 +144,20 @@ class MainWindow(QtWidgets.QMainWindow):
         self.go_button = QtWidgets.QPushButton("Go")
         self.go_button.setToolTip("Start digitizing through the movies")
         self.go_button.clicked.connect(self.clicker_go)
+        
+        # Connect cell changed signal to update offsets
+        self.file_table.cellChanged.connect(self.update_offset)
+        
         # Layout
         layout = QtWidgets.QGridLayout()
-        layout.addWidget(self.file_list, 0, 0, 3, 2)
-        layout.addWidget(self.add_button, 0, 2)
-        layout.addWidget(self.clear_button, 2, 2)
-        layout.addWidget(self.remove_button, 1, 2)
+        layout.addWidget(self.file_table, 0, 0, 3, 4)  # Give table more width
+        layout.addWidget(self.add_button, 0, 4)
+        layout.addWidget(self.remove_button, 1, 4)
+        layout.addWidget(self.clear_button, 2, 4)
         layout.addWidget(self.resolution_label, 3, 0)
         layout.addWidget(self.resolution_var, 3, 1)
         layout.addWidget(self.load_button, 5, 0)
-        layout.addWidget(self.go_button, 5, 2)
+        layout.addWidget(self.go_button, 5, 4)
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -841,7 +855,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if current_tab_name == "Clicker":
             title = "Select Movie File"
             filter = "All files (*)"
-            target = self.file_list
+            target = self.file_table
 
         if current_tab_name == "Sync":
             title = "Select Movie File"
@@ -901,11 +915,21 @@ class MainWindow(QtWidgets.QMainWindow):
             self.current_directory = QtCore.QFileInfo(file_name).absolutePath()
             # Clicker
             if current_tab_name == "Clicker":
-                if not self.file_list.findItems(file_name, QtCore.Qt.MatchExactly):  # type: ignore
+                # Check if file already exists in table
+                file_exists = False
+                for row in range(self.file_table.rowCount()):
+                    existing_item = self.file_table.item(row, 0)
+                    if existing_item:
+                        # Compare against the full path stored in UserRole
+                        existing_full_path = existing_item.data(QtCore.Qt.UserRole)
+                        if existing_full_path == file_name:
+                            file_exists = True
+                            break
+                
+                if not file_exists:
                     print(f"adding {file_name}")
-                    self.file_list.addItem(file_name)
-
-                    if len(self.offsets) != 0:
+                    # Get offset from user
+                    if self.file_table.rowCount() != 0:
                         offset, ok = QtWidgets.QInputDialog.getInt(
                             self, "Enter Offset", "Frame offset: ", value=0
                         )
@@ -913,12 +937,28 @@ class MainWindow(QtWidgets.QMainWindow):
                         offset = 0
 
                     try:
-                        self.offsets.append(int(offset))
+                        offset_int = int(offset)
                     except ValueError:
                         QtWidgets.QMessageBox.warning(None, "Error", "Frame offset must be an integer")  # type: ignore
                         return
+
+                    # Add new row to table
+                    row_position = self.file_table.rowCount()
+                    self.file_table.insertRow(row_position)
+                    
+                    # Add filename item with formatted display path
+                    display_path = self.format_file_path_for_display(file_name)
+                    filename_item = QtWidgets.QTableWidgetItem(display_path)
+                    filename_item.setFlags(filename_item.flags() & ~QtCore.Qt.ItemIsEditable)  # Make read-only
+                    # Store the full path as tooltip and user data for later retrieval
+                    filename_item.setToolTip(file_name)
+                    filename_item.setData(QtCore.Qt.UserRole, file_name)
+                    self.file_table.setItem(row_position, 0, filename_item)
+                    
+                    # Add offset item
+                    offset_item = QtWidgets.QTableWidgetItem(str(offset_int))
+                    self.file_table.setItem(row_position, 1, offset_item)
                 else:
-                    # if file_name in set(self.file_list):
                     QtWidgets.QMessageBox.warning(
                         None,  # type: ignore
                         "Error",
@@ -974,6 +1014,56 @@ class MainWindow(QtWidgets.QMainWindow):
                         None, "Error", "Cannot read selected video"  # type: ignore
                     )
 
+    def format_file_path_for_display(self, file_path, max_length=70):
+        """
+        Format file path to show filename and truncate beginning if too long.
+        For example: /very/long/path/to/video.mp4 becomes ...path/to/video.mp4
+        """
+        if len(file_path) <= max_length:
+            return file_path
+        
+        # Split the path and always keep the filename
+        parts = file_path.split('/')
+        filename = parts[-1]
+        
+        # If just the filename is too long, return it as is
+        if len(filename) > max_length:
+            return filename
+        
+        # Build path from the end, keeping as much as possible
+        result = filename
+        for i in range(len(parts) - 2, -1, -1):
+            part = parts[i]
+            # Check if adding this part (plus separator and "...") would exceed limit
+            test_length = len("..." + part + "/" + result)
+            if test_length <= max_length:
+                result = part + "/" + result
+            else:
+                result = "..." + result
+                break
+        
+        return result
+
+    def update_offset(self, row, column):
+        """
+        Called when a cell in the file table is changed.
+        Validates offset values and updates the table.
+        """
+        if column == 1:  # Only validate offset column
+            item = self.file_table.item(row, column)
+            if item:
+                try:
+                    # Try to convert to integer
+                    offset_value = int(item.text())
+                    # Update the item text to ensure it's properly formatted
+                    item.setText(str(offset_value))
+                except ValueError:
+                    # If conversion fails, reset to 0
+                    QtWidgets.QMessageBox.warning(
+                        None, "Error", "Frame offset must be an integer. Resetting to 0."
+                    )
+                    item.setText("0")
+
     def delete(self):
         """
         Removes videos from various tabs
@@ -983,19 +1073,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # for Clicker
         if current_tab_name == "Clicker":
-            # Get the selected item
-            selected_items = self.file_list.selectedItems()
+            # Get the selected row
+            current_row = self.file_table.currentRow()
 
-            if selected_items:
-                # If an item is selected, delete it
-                for item in selected_items:
-                    self.file_list.takeItem(self.file_list.row(item))
-                    del self.offsets[self.file_list.row(item)]
+            if current_row >= 0:
+                # If a row is selected, delete it
+                self.file_table.removeRow(current_row)
             else:
-                # If no item is selected, delete the last item in the list
-                if self.file_list.count() > 0:
-                    self.file_list.takeItem(self.file_list.count() - 1)
-                    del self.offsets[-1]
+                # If no row is selected, delete the last row in the table
+                if self.file_table.rowCount() > 0:
+                    self.file_table.removeRow(self.file_table.rowCount() - 1)
         # for Sync
         if current_tab_name == "Sync":
             # Get the selected item
@@ -1025,8 +1112,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # for Clicker
         if current_tab_name == "Clicker":
-            self.file_list.selectAll()
-            self.delete()
+            self.file_table.setRowCount(0)  # Clear all rows
 
         # for Sync
         if current_tab_name == "Sync":
@@ -1090,12 +1176,27 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             res_var = 2
 
-        movies = [
-            str(self.file_list.item(x).text()) for x in range(self.file_list.count())
-        ]
+        # Read movies and offsets from the table
+        movies = []
+        offsets = []
+        for row in range(self.file_table.rowCount()):
+            filename_item = self.file_table.item(row, 0)
+            offset_item = self.file_table.item(row, 1)
+            if filename_item and offset_item:
+                # Get the full path from UserRole data instead of displayed text
+                full_path = filename_item.data(QtCore.Qt.UserRole)
+                if full_path:
+                    movies.append(str(full_path))
+                else:
+                    # Fallback to displayed text if UserRole data is not available
+                    movies.append(str(filename_item.text()))
+                try:
+                    offsets.append(int(offset_item.text()))
+                except ValueError:
+                    offsets.append(0)  # Default to 0 if invalid
 
         if len(movies) != 0:
-            driver = PygletDriver(movies, self.offsets, res=str(res_var))
+            driver = PygletDriver(movies, offsets, res=str(res_var))
             driver.run()
             self.drivers.append(driver)
         else:
