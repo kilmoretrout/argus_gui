@@ -649,6 +649,11 @@ class ClickerWindow(pyglet.window.Window):
         
         self.update_tracks()
         track = current_track_global
+        
+        # Guard against calling this before track data is loaded
+        if track not in self.points:
+            return
+            
         positions = self.points[track]
         non_zeros = list(set(self.points[track].nonzero()[0]))
 
@@ -730,6 +735,11 @@ class ClickerWindow(pyglet.window.Window):
     def change_track(self, old_track):
         #radius = 2
         global radius
+        
+        # Guard against calling this before track data is loaded
+        if old_track not in self.points or current_track_global not in self.points:
+            return
+            
         # remove the points from the old track
         for k in range(len(self.drawn_points[old_track])):
             if self.drawn_points[old_track][k] is not None:
@@ -825,6 +835,10 @@ class ClickerWindow(pyglet.window.Window):
         track = current_track_global
         new_point_index = self.current_point_index - 1
         old_point_index = self.current_point_index - 2
+        
+        # Guard against calling this before track data is loaded
+        if track not in self.points:
+            return
         
         # draw circles
         positions = self.points[track].toarray()
