@@ -82,6 +82,24 @@ class SaveFilePopup(QtWidgets.QWidget):
         # options |= QtWidgets.QFileDialog.DontUseNativeDialog
         self.filename, _ = QtWidgets.QFileDialog.getSaveFileName(self, caption=win_title, dir = init, filter = filt, options=options)
 
+def clean_filename_for_prefix(filename):
+    """
+    Remove file extension from filename to use as a clean prefix.
+    This ensures consistent behavior across platforms where Windows may force 
+    users to add extensions while Mac does not.
+    
+    Args:
+        filename (str): The filename from the file dialog
+        
+    Returns:
+        str: The filename without extension, suitable for use as a prefix
+    """
+    if not filename:
+        return filename
+    # Use os.path.splitext to remove the extension
+    base_name, ext = os.path.splitext(filename)
+    return base_name
+
 def load_camera(filename):
     global camera_profile
     global camera_filename
@@ -1400,7 +1418,7 @@ class ClickerWindow(pyglet.window.Window):
                 app = QtWidgets.QApplication([])
             w = SaveFilePopup("Select location and enter prefix for sparse file", global_filename.split('/')[-1], 'All files (*.*)')
             if w.filename:
-                filename = w.filename
+                filename = clean_filename_for_prefix(w.filename)
         else:
             filename = global_filename
         if filename == '':
@@ -1524,7 +1542,7 @@ class ClickerWindow(pyglet.window.Window):
                 app = QtWidgets.QApplication([])
             w = SaveFilePopup("Select location and enter prefix for dense file", global_filename.split('/')[-1], 'All files (*.*)')
             if w.filename:
-                filename = w.filename
+                filename = clean_filename_for_prefix(w.filename)
         else:
             filename = global_filename
         if filename == '':
@@ -1609,7 +1627,7 @@ class ClickerWindow(pyglet.window.Window):
                     dataf3 = pandas.DataFrame(_, columns=cols)
                     dataf3.to_csv(filename + '-xyz-cis.csv', index=False, na_rep='NaN')
 
-                    pandas.DataFrame(weights, columns=xyz_cols).to_csv(filename + '-spline-weights.csv', index=False,More actions
+                    pandas.DataFrame(weights, columns=xyz_cols).to_csv(filename + '-spline-weights.csv', index=False,
                                                                        na_rep='NaN')
 
                     pandas.DataFrame(np.reshape(tols, (1, len(xyz_cols))), columns=xyz_cols).to_csv(
