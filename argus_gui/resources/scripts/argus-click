@@ -496,6 +496,10 @@ class ClickerWindow(pyglet.window.Window):
         
         self.initialized = False #flag to control running on_resize function
         config = Config(double_buffer=True)
+        # On Windows, enable context sharing for proper multi-window OpenGL support
+        if sys.platform.startswith('win'):
+            config.sample_buffers = 1
+            config.samples = 4
         self.actual_camera_number = actual_camera_number
         self.original_index = actual_camera_number - 1
 
@@ -507,7 +511,8 @@ class ClickerWindow(pyglet.window.Window):
             height=int(float(self.frameFinder.oh) / factor),
             visible=True,
             resizable=True,
-            vsync=True)
+            vsync=True,
+            config=config)
                
         self.movie = movie
         self.offsets = offsets
@@ -605,6 +610,9 @@ class ClickerWindow(pyglet.window.Window):
     # only called upon loading a CSV. Pretty slow to define tons of vertices.
     def draw_tracks(self):
         global radius
+        # Ensure this window's OpenGL context is active
+        self.switch_to()
+        
         self.update_tracks()
         track = current_track_global
         positions = self.points[track]
@@ -842,6 +850,10 @@ class ClickerWindow(pyglet.window.Window):
         global radius
         track = current_track_global
 
+        # Ensure this window's OpenGL context is active before creating graphics objects
+        # This is crucial for proper multi-window support on Windows
+        self.switch_to()
+
         new_point_index = self.current_point_index - 1
         old_point_index = self.current_point_index - 2
 
@@ -909,6 +921,9 @@ class ClickerWindow(pyglet.window.Window):
         global radius
         self.update_tracks()
         track = current_track_global
+
+        # Ensure this window's OpenGL context is active
+        self.switch_to()
 
         positions = self.points[track]
         non_zero_points = list(set(self.points[track].nonzero()[0]))
@@ -1213,6 +1228,12 @@ class ClickerWindow(pyglet.window.Window):
             self.track_batch.draw()
         except Exception as e:
             print(f"draw failed on {self.caption} with error: {e}")
+            # Try to recreate the batch if it failed
+            try:
+                self.track_batch = pyglet.graphics.Batch()
+                self.draw_tracks()
+            except Exception as e2:
+                print(f"Failed to recreate batch: {e2}")
             pass
             
         if not busy:
@@ -2146,10 +2167,13 @@ class ClickerWindow(pyglet.window.Window):
         global current_track_global
         global current_frame
         
+        # Ensure this window's OpenGL context is active
+        self.switch_to()
         
         if buttons & mouse.LEFT:
             if current_track_global != '' and (modifiers == 16 or modifiers == 0):
                 ptx, pty = self.window_to_world((float(x), float(y)))
+                print(f"Drawing point at ({ptx:.2f}, {pty:.2f}) on camera {self.actual_camera_number}")
                 self.draw_new_point(ptx, pty)
                 if auto_advance:
                     im = self.frameFinder.getFrame(self.current_point_index + 1)
@@ -2417,6 +2441,8 @@ def load_from_config(path):
         indexable_windows[0].update_all_windows()
 
         for window in indexable_windows:
+            # Critical: Activate each window properly on Windows
+            window.activate()
             window.switch_to()
             window.update_tracks()
             window.dispatch_events()
@@ -2440,6 +2466,14 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication([])
+    
+    # Fix for Windows multi-window OpenGL context issues
+    if sys.platform.startswith('win'):
+        # Enable shared OpenGL contexts on Windows
+        QtWidgets.QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
+        # Force single threaded OpenGL
+        import os
+        os.environ['PYGLET_SHADOW_WINDOW'] = '0'
         
     if sys.argv[1].startswith("configload@"):
         load_from_config(sys.argv[1].split("@")[1])
