@@ -45,6 +45,13 @@ setup(
     ],
     package_data = {'argus_gui.resources':['*.*', 'scripts/*.*', 'icons/*.*','calibrations/*.*']},
     include_package_data = True,
+    
+    # Add console script entry points
+    entry_points={
+        'console_scripts': [
+            'argus-gui=argus_gui.Argus:main',
+        ],
+    },
 
     zip_safe = False,
 
@@ -72,8 +79,9 @@ if 'linux' in sys.platform:
     try:
         os.system("cp argus_gui/resources/libsba.so /usr/local/lib/libsba.so")
         os.system("cp argus_gui/resources/libsbaprojs.so /usr/local/lib/libsbaprojs.so")
-    except:
-        print("Install successful but could not copy SBA shared objects to /usr/local/lib.  Wand may not work...")
+    except Exception as e:
+        print(f"Install successful but could not copy SBA shared objects to /usr/local/lib: {e}")
+        print("Wand may not work...")
         sys.exit()
         
     print("Copy successful.  Install OK")

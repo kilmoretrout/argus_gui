@@ -22,9 +22,9 @@ from PySide6.QtCore import QStandardPaths
 
 # Ensure the package is available
 try:
-    # Use the context manager to get the path
-    with importlib.resources.path("argus_gui.resources", "") as resource_path:
-        RESOURCE_PATH = os.path.abspath(resource_path)
+    # Use the newer files() API instead of deprecated path()
+    resource_files = importlib.resources.files("argus_gui.resources")
+    RESOURCE_PATH = os.path.abspath(str(resource_files))
 except ModuleNotFoundError:
     raise ImportError("The package 'argus_gui' is required but not installed.")
 
@@ -1846,14 +1846,16 @@ class ClickerProject:
         with open(f"{proj_path}-config.yaml", "w") as f:
             f.write(yaml.dump(project))
 
-def startArgus():
+def main():
+    """Main entry point for the argus_gui application."""
     app = QtWidgets.QApplication()
     window = MainWindow(app)
     window.show()
     sys.exit(app.exec())
+
+def startArgus():
+    """Legacy function for backwards compatibility."""
+    main()
     
 if __name__ == "__main__":
-    app = QtWidgets.QApplication()
-    window = MainWindow(app)
-    window.show()
-    sys.exit(app.exec())
+    main()
