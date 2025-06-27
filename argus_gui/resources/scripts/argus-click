@@ -859,7 +859,24 @@ class ClickerWindow(pyglet.window.Window):
             self.dlt_batch = pyglet.graphics.Batch() #clear out existing
             self.get_epipolar_lines()
                 
-                
+    # called to update epipolar lines on all windows when a new point is added
+    def update_all_windows_epipolar(self):
+        for window in pyglet.app.windows:
+            if isinstance(window, ClickerWindow):
+                # Only update windows that are on the same frame as this window
+                if window.current_point_index == self.current_point_index:
+                    print(f"updating epipolar lines on {window.caption}")
+                    window.switch_to()
+                    # Clear existing epipolar lines and recalculate
+                    window.dlt_batch = pyglet.graphics.Batch()
+                    window.drawn_dlt = []
+                    window.get_epipolar_lines()
+                    # Force a redraw
+                    window.dispatch_event('on_draw')
+                    window.flip()
+        # Switch back to the original window
+        self.switch_to()
+
     # draw a new point
     def draw_new_point(self, x, y):
         
@@ -931,6 +948,10 @@ class ClickerWindow(pyglet.window.Window):
                                                                 batch = self.track_batch)
         
         self.change_marker()
+        
+        # Update epipolar lines on all windows if DLT coefficients are available
+        if DLTCoefficients is not None:
+            self.update_all_windows_epipolar()
 
     def change_marker(self):
         #  updates current marker with highlight
@@ -1330,6 +1351,24 @@ class ClickerWindow(pyglet.window.Window):
                     window.flip()
                     self.switch_to()
 
+    # called to update epipolar lines on all windows when a new point is added
+    def update_all_windows_epipolar(self):
+        for window in pyglet.app.windows:
+            if isinstance(window, ClickerWindow):
+                # Only update windows that are on the same frame as this window
+                if window.current_point_index == self.current_point_index:
+                    print(f"updating epipolar lines on {window.caption}")
+                    window.switch_to()
+                    # Clear existing epipolar lines and recalculate
+                    window.dlt_batch = pyglet.graphics.Batch()
+                    window.drawn_dlt = []
+                    window.get_epipolar_lines()
+                    # Force a redraw
+                    window.dispatch_event('on_draw')
+                    window.flip()
+        # Switch back to the original window
+        self.switch_to()
+
     def dense_to_sparse(self, arr):
         # create a sparse data file with rows and columns indexed by the natural numbers
         # as per MATLAB etiquette
@@ -1546,25 +1585,263 @@ class ClickerWindow(pyglet.window.Window):
                     for k in range(upper.shape[1] // 3):
                         _[:, 2 * k * 3:2 * (k + 1) * 3] = np.concatenate(
                             (lower[:, k * 3:(k + 1) * 3], upper[:, k * 3:(k + 1) * 3]), axis=1)
-                    dataf3 = pandas.DataFrame(_, columns=cols)
-                    dataf3.to_csv(filename + '-xyz-cis.csv', index=False, na_rep='NaN')
+                    dataf3 = pandas.DataFrame(self.dense_to_sparse(_), columns=['Row', 'Column', 'Entry'])
+                    dataf3[['Row', 'Column']] = dataf3[['Row', 'Column']].astype(np.uint32)
+                    dataf3.iloc[0].apply(np.uint32)
 
-                    pandas.DataFrame(weights, columns=xyz_cols).to_csv(filename + '-spline-weights.csv', index=False,
-                                                                       na_rep='NaN')
+                    dataf3.to_csv(filename + '-xyz-cis.tsv', index=False, na_rep='NaN', sep='\t')
+
+                    pandas.DataFrame(self.dense_to_sparse(weights), columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-weights.tsv', index=False, na_rep='NaN', sep='\t')
                     # pickle.dump(tols, open('tols.p', 'w'))
-                    pandas.DataFrame(np.reshape(tols, (1, len(xyz_cols))), columns=xyz_cols).to_csv(
-                        filename + '-spline-error-tolerances.csv', index=False, na_rep='NaN')
+                    pandas.DataFrame(self.dense_to_sparse(np.reshape(tols, (1, len(xyz_cols)))),
+                                     columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-error-tolerances.tsv', index=False, na_rep='NaN', sep='\t')
 
                 # write the data frames to CSV
-                dataf1.to_csv(filename + '-xyzpts.csv', index=False, na_rep='NaN')
-                dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
+                dataf1.to_csv(filename + '-xyzpts.tsv', index=False, na_rep='NaN', sep='\t')
+                dataf2.to_csv(filename + '-xyzres.tsv', index=False, na_rep='NaN', sep='\t')
             else:
                 # for matlab compatibility, make a residual file, even if we can't reproject
                 _ = np.zeros((self.end, len(track_list_global)))
                 _[:, :] = np.nan
                 dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
                 dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
-            dataf.to_csv(filename + '-xypts.csv', index=False, na_rep='NaN')
+            dataf.to_csv(filename + '-xypts.tsv', index=False, na_rep='NaN', sep='\t')
+            QtWidgets.QMessageBox.information(None,"Success", f'Write successful! TSVs successfully written to {filename}.')
+        return
+
+    def save_non_sparse(self, saveas=True):
+        global global_filename
+        filename = ''
+        if saveas or global_filename == '':
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for dense file", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = w.filename
+        else:
+            filename = global_filename
+        if filename == '':
+            return
+        if filename != '' and type(filename) == str:
+            global_filename = filename
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
+
+            # get the header
+            cols = sorted(common.keys())
+            # stack all the columns together
+            _ = common[cols[0]]
+            _ = np.reshape(_, (_.shape[0], 1))
+            for k in range(1, len(cols)):
+                _ = np.hstack((_, np.reshape(common[cols[k]], (_.shape[0], 1))))
+            # make a dataframe from the marked pixel coordinates
+            dataf = pandas.DataFrame(_, columns=cols)
+            pts = dataf.values
+
+            offsets_out = list()
+
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    offsets_out.append(window.offsets_output)
+
+            offsets_out = np.array(offsets_out).T
+
+            # save offsets (always non-sparse)
+            datafo = pandas.DataFrame(offsets_out, columns=['camera_{0}'.format(u) for u in range(1, len(
+                [u for u in pyglet.app.windows if type(u) != GhostWindow]) + 1)])
+            datafo.to_csv(filename + '-offsets.csv', index=False, na_rep='NaN')
+
+            # if we have DLT coefficients and intrinsic camera information, triangulate and write the 3D coordinates frame-by-frame
+            if DLTCoefficients is not None and camera_profile is not None:
+                # make a data frame for the xyz coordinates for all tracks and all frames
+                xyzss = list()
+                for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
+                    xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)],
+                                     camera_profile, DLTCoefficients)
+                    xyzss.append(xyzs)
+                xyzss = np.asarray(xyzss)
+                _ = xyzss[0]
+                for k in range(1, len(xyzss)):
+                    _ = np.hstack((_, xyzss[k]))
+
+                xyz_cols = list()
+                sTracks = sorted(track_list_global)
+                for k in range(len(track_list_global)):
+                    xyz_cols.append(sTracks[k] + '_x')
+                    xyz_cols.append(sTracks[k] + '_y')
+                    xyz_cols.append(sTracks[k] + '_z')
+                dataf1 = pandas.DataFrame(_, columns=xyz_cols)
+
+                # get reprojection errors for all 3d points and make a data frame for it
+                repoErrs = get_repo_errors(_, pts, camera_profile, DLTCoefficients).T
+                cols = sorted(track_list_global)
+                dataf2 = pandas.DataFrame(repoErrs, columns=cols)
+
+                if bstrap:
+                    cols = list()
+                    for k in range(len(track_list_global)):
+                        cols.append(sTracks[k] + '_x_lower')
+                        cols.append(sTracks[k] + '_y_lower')
+                        cols.append(sTracks[k] + '_z_lower')
+                        cols.append(sTracks[k] + '_x_upper')
+                        cols.append(sTracks[k] + '_y_upper')
+                        cols.append(sTracks[k] + '_z_upper')
+
+                    CIs, weights, tols = bootstrapXYZs(pts, repoErrs, camera_profile, DLTCoefficients)
+                    upper = dataf1.values + CIs
+                    lower = dataf1.values - CIs
+
+                    _ = np.zeros((upper.shape[0], upper.shape[1] * 2))
+                    _[_ == 0] = np.nan
+                    for k in range(int(upper.shape[1] / 3)):
+                        _[:, 2 * k * 3:2 * (k + 1) * 3] = np.concatenate(
+                            (lower[:, k * 3:(k + 1) * 3], upper[:, k * 3:(k + 1) * 3]), axis=1)
+                    dataf3 = pandas.DataFrame(self.dense_to_sparse(_), columns=['Row', 'Column', 'Entry'])
+                    dataf3[['Row', 'Column']] = dataf3[['Row', 'Column']].astype(np.uint32)
+                    dataf3.iloc[0].apply(np.uint32)
+
+                    dataf3.to_csv(filename + '-xyz-cis.tsv', index=False, na_rep='NaN', sep='\t')
+
+                    pandas.DataFrame(self.dense_to_sparse(weights), columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-weights.tsv', index=False, na_rep='NaN', sep='\t')
+                    # pickle.dump(tols, open('tols.p', 'w'))
+                    pandas.DataFrame(self.dense_to_sparse(np.reshape(tols, (1, len(xyz_cols)))),
+                                     columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-error-tolerances.tsv', index=False, na_rep='NaN', sep='\t')
+
+                # write the data frames to CSV
+                dataf1.to_csv(filename + '-xyzpts.tsv', index=False, na_rep='NaN', sep='\t')
+                dataf2.to_csv(filename + '-xyzres.tsv', index=False, na_rep='NaN', sep='\t')
+            else:
+                # for matlab compatibility, make a residual file, even if we can't reproject
+                _ = np.zeros((self.end, len(track_list_global)))
+                _[:, :] = np.nan
+                dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
+                dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
+            dataf.to_csv(filename + '-xypts.tsv', index=False, na_rep='NaN', sep='\t')
+            QtWidgets.QMessageBox.information(None,"Success", f'Write successful! TSVs successfully written to {filename}.')
+        return
+
+    def save_non_sparse(self, saveas=True):
+        global global_filename
+        filename = ''
+        if saveas or global_filename == '':
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for dense file", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = w.filename
+        else:
+            filename = global_filename
+        if filename == '':
+            return
+        if filename != '' and type(filename) == str:
+            global_filename = filename
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
+
+            # get the header
+            cols = sorted(common.keys())
+            # stack all the columns together
+            _ = common[cols[0]]
+            _ = np.reshape(_, (_.shape[0], 1))
+            for k in range(1, len(cols)):
+                _ = np.hstack((_, np.reshape(common[cols[k]], (_.shape[0], 1))))
+            # make a dataframe from the marked pixel coordinates
+            dataf = pandas.DataFrame(_, columns=cols)
+            pts = dataf.values
+
+            offsets_out = list()
+
+            # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    offsets_out.append(window.offsets_output)
+
+            offsets_out = np.array(offsets_out).T
+
+            # save offsets (always non-sparse)
+            datafo = pandas.DataFrame(offsets_out, columns=['camera_{0}'.format(u) for u in range(1, len(
+                [u for u in pyglet.app.windows if type(u) != GhostWindow]) + 1)])
+            datafo.to_csv(filename + '-offsets.csv', index=False, na_rep='NaN')
+
+            # if we have DLT coefficients and intrinsic camera information, triangulate and write the 3D coordinates frame-by-frame
+            if DLTCoefficients is not None and camera_profile is not None:
+                # make a data frame for the xyz coordinates for all tracks and all frames
+                xyzss = list()
+                for j in range(int(pts.shape[1] / (2 * len(camera_profile)))):
+                    xyzs = uv_to_xyz(pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)],
+                                     camera_profile, DLTCoefficients)
+                    xyzss.append(xyzs)
+                xyzss = np.asarray(xyzss)
+                _ = xyzss[0]
+                for k in range(1, len(xyzss)):
+                    _ = np.hstack((_, xyzss[k]))
+
+                xyz_cols = list()
+                sTracks = sorted(track_list_global)
+                for k in range(len(track_list_global)):
+                    xyz_cols.append(sTracks[k] + '_x')
+                    xyz_cols.append(sTracks[k] + '_y')
+                    xyz_cols.append(sTracks[k] + '_z')
+                dataf1 = pandas.DataFrame(_, columns=xyz_cols)
+
+                # get reprojection errors for all 3d points and make a data frame for it
+                repoErrs = get_repo_errors(_, pts, camera_profile, DLTCoefficients).T
+                cols = sorted(track_list_global)
+                dataf2 = pandas.DataFrame(repoErrs, columns=cols)
+
+                if bstrap:
+                    cols = list()
+                    for k in range(len(track_list_global)):
+                        cols.append(sTracks[k] + '_x_lower')
+                        cols.append(sTracks[k] + '_y_lower')
+                        cols.append(sTracks[k] + '_z_lower')
+                        cols.append(sTracks[k] + '_x_upper')
+                        cols.append(sTracks[k] + '_y_upper')
+                        cols.append(sTracks[k] + '_z_upper')
+
+                    CIs, weights, tols = bootstrapXYZs(pts, repoErrs, camera_profile, DLTCoefficients)
+                    upper = dataf1.values + CIs
+                    lower = dataf1.values - CIs
+
+                    _ = np.zeros((upper.shape[0], upper.shape[1] * 2))
+                    _[_ == 0] = np.nan
+                    for k in range(int(upper.shape[1] / 3)):
+                        _[:, 2 * k * 3:2 * (k + 1) * 3] = np.concatenate(
+                            (lower[:, k * 3:(k + 1) * 3], upper[:, k * 3:(k + 1) * 3]), axis=1)
+                    dataf3 = pandas.DataFrame(self.dense_to_sparse(_), columns=['Row', 'Column', 'Entry'])
+                    dataf3[['Row', 'Column']] = dataf3[['Row', 'Column']].astype(np.uint32)
+                    dataf3.iloc[0].apply(np.uint32)
+
+                    dataf3.to_csv(filename + '-xyz-cis.tsv', index=False, na_rep='NaN', sep='\t')
+
+                    pandas.DataFrame(self.dense_to_sparse(weights), columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-weights.tsv', index=False, na_rep='NaN', sep='\t')
+                    # pickle.dump(tols, open('tols.p', 'w'))
+                    pandas.DataFrame(self.dense_to_sparse(np.reshape(tols, (1, len(xyz_cols)))),
+                                     columns=['Row', 'Column', 'Entry']).to_csv(
+                        filename + '-spline-error-tolerances.tsv', index=False, na_rep='NaN', sep='\t')
+
+                # write the data frames to CSV
+                dataf1.to_csv(filename + '-xyzpts.tsv', index=False, na_rep='NaN', sep='\t')
+                dataf2.to_csv(filename + '-xyzres.tsv', index=False, na_rep='NaN', sep='\t')
+            else:
+                # for matlab compatibility, make a residual file, even if we can't reproject
+                _ = np.zeros((self.end, len(track_list_global)))
+                _[:, :] = np.nan
+                dataf2 = pandas.DataFrame(_, columns=sorted(track_list_global))
+                dataf2.to_csv(filename + '-xyzres.csv', index=False, na_rep='NaN')
+            dataf.to_csv(filename + '-xypts.tsv', index=False, na_rep='NaN', sep='\t')
             QtWidgets.QMessageBox.information(None, "Success", f'Write successful! CSVs successfully written to {filename}')
 
             settings = {
@@ -2034,7 +2311,7 @@ class ClickerWindow(pyglet.window.Window):
         # skip to previously marked point
         elif symbol == key.LEFT:
             for k in range(2, self.current_point_index):
-                if np.all(self.points[current_track_global][self.current_point_index - k].toarray()[0] != 0):
+                if np.all(self.points[currentTrack_global][self.current_point_index - k].toarray()[0] != 0):
                     self.current_point_index = self.current_point_index - k + 1
                     current_frame = self.current_point_index
                     self.change_marker()
@@ -2151,6 +2428,10 @@ class ClickerWindow(pyglet.window.Window):
             positions.eliminate_zeros()
             self.points[current_track_global] = positions
             self.delete_point()
+            
+            # Update epipolar lines on all windows if DLT coefficients are available
+            if DLTCoefficients is not None:
+                self.update_all_windows_epipolar()
         # plot 3D tracks if we have dlt coefficients and camera profile
         elif symbol == key.P:
             self.toggleBusy()
@@ -2211,6 +2492,10 @@ class ClickerWindow(pyglet.window.Window):
             positions.eliminate_zeros()
             self.points[current_track_global] = positions
             self.delete_point()
+            
+            # Update epipolar lines on all windows if DLT coefficients are available
+            if DLTCoefficients is not None:
+                self.update_all_windows_epipolar()
 
     def on_mouse_motion(self, x, y, dx, dy):
         if self.show_view and self.img is not None:
