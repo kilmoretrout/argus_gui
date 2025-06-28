@@ -3209,30 +3209,49 @@ def load_from_config(path):
         if load_data_global is not None:
             offsetMatches = list()
             for window in indexable_windows:
+                # Ensure valid OpenGL context before modifying graphics data
+                if not window.ensure_valid_context():
+                    continue
+                    
                 window.points = dict()
                 window.update_tracks()
                 offsetMatches.append(window.load_points())
+                # Force graphics recovery after loading points which creates new graphics objects
+                window.recover_graphics_if_needed()
                 window.updateSelf()
 
-        indexable_windows[0].change_track(settings["init_track"])
-        indexable_windows[0].update_all_windows()
+        # Safely change track and update all windows
+        if indexable_windows and indexable_windows[0].safe_switch_to():
+            indexable_windows[0].change_track(settings["init_track"])
+            indexable_windows[0].update_all_windows()
 
         for window in indexable_windows:
             # Critical: Activate each window properly on Windows
             window.activate()
             if not window.safe_switch_to():
                 continue
+                
+            # Ensure valid context before graphics operations
+            if not window.ensure_valid_context():
+                continue
+                
             window.update_tracks()
             window.dispatch_events()
             window.dispatch_event('on_draw')
             window.flip()
 
+            # Set RGB mode and update frame sprite with safe context
             window.frameFinder.rgb = rgb
             im = window.frameFinder.getFrame(window.current_point_index)
             if im is None:
                 im = window.black_image.copy()
-            window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
-            window.img.scale = float(window.scale_factor)
+            
+            # Ensure context is still valid before creating new sprite
+            if window.ensure_valid_context():
+                window.img = pyglet.sprite.Sprite(window.numpy_to_pyglet_image(im))
+                window.img.scale = float(window.scale_factor)
+                # Force graphics recovery after creating new sprite
+                window.recover_graphics_if_needed()
                 
     pyglet.clock.schedule_once(update_after, .05)
     pyglet.app.run()
