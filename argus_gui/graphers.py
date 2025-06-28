@@ -113,9 +113,11 @@ class Shower():
             # Handle edge cases with NaN or infinite values
             finite_signal = signal[np.isfinite(signal)]
             if len(finite_signal) > 0:
-                signal_min = np.min(finite_signal)
-                signal_max = np.max(finite_signal)
-                signal_ranges.append(signal_max - signal_min)
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_range = signal_max - signal_min
+                signal_ranges.append(signal_range)
             else:
                 signal_ranges.append(1.0)  # fallback for all NaN/inf signals
         
@@ -132,6 +134,11 @@ class Shower():
             max_range = 1e6
         vertical_offset = float(max_range * 1.5)  # 50% padding between signals
         
+        # Debug output for Windows troubleshooting
+        print(f"Signal ranges: {signal_ranges}")
+        print(f"Max range: {max_range}, Vertical offset: {vertical_offset}")
+        sys.stdout.flush()
+        
         for k in range(len(signals)):
             color = colors[k % len(colors)]
             #convert tuple of [0,1] to tuple of [0,255] for pyqtgraph
@@ -142,11 +149,18 @@ class Shower():
             # Use the signal's offset from its center, then apply vertical separation
             finite_signal = signals[k][np.isfinite(signals[k])]
             if len(finite_signal) > 0:
-                signal_center = (np.max(finite_signal) + np.min(finite_signal)) / 2.0
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
             else:
                 signal_center = 0.0  # fallback for all NaN/inf signals
             y_offset = k * vertical_offset
-            curve = plot.plot(t, signals[k] - signal_center - y_offset, pen=pg.mkPen(color=color, width=2))
+            # Debug output for Windows troubleshooting
+            adjusted_signal = signals[k] - signal_center - y_offset
+            print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
+            sys.stdout.flush()
+            curve = plot.plot(t, adjusted_signal, pen=pg.mkPen(color=color, width=2))
             legend.addItem(curve, self.files[k].split('/')[-1])
 
         app.exec_()
