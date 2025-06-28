@@ -514,24 +514,58 @@ class ClickerWindow(pyglet.window.Window):
     def __init__(self, movie, offsets, actual_camera_number, end, factor, last=False):
         
         self.initialized = False #flag to control running on_resize function
-        config = Config(double_buffer=True)
-        # On Windows, enable context sharing for proper multi-window OpenGL support
-        if sys.platform.startswith('win'):
-            config.sample_buffers = 1
-            config.samples = 4
         self.actual_camera_number = actual_camera_number
         self.original_index = actual_camera_number - 1
 
         # Function for converting openCV images to pyglt compatible frames
         self.frameFinder = FrameFinder(movie, factor=factor, offset=offsets[self.original_index], rgb=rgb)
         
-        super(ClickerWindow, self).__init__(
-            width=int(float(self.frameFinder.ow) / factor),
-            height=int(float(self.frameFinder.oh) / factor),
-            visible=True,
-            resizable=True,
-            vsync=True,
-            config=config)
+        # Try different OpenGL configurations, starting with the most advanced
+        # and falling back to simpler ones if they fail (especially important on Windows)
+        configs_to_try = []
+        
+        if sys.platform.startswith('win'):
+            # On Windows, try multiple configurations due to driver compatibility issues
+            # Try with multisampling first
+            config_ms = Config(double_buffer=True)
+            config_ms.sample_buffers = 1
+            config_ms.samples = 4
+            configs_to_try.append(config_ms)
+            
+            # Fallback: basic double buffering without multisampling
+            config_basic = Config(double_buffer=True)
+            configs_to_try.append(config_basic)
+            
+            # Last resort: minimal configuration
+            config_minimal = Config()
+            configs_to_try.append(config_minimal)
+        else:
+            # On macOS/Linux, use the standard configuration
+            config = Config(double_buffer=True)
+            configs_to_try.append(config)
+        
+        # Try each configuration until one works
+        window_created = False
+        last_error = None
+        
+        for config in configs_to_try:
+            try:
+                super(ClickerWindow, self).__init__(
+                    width=int(float(self.frameFinder.ow) / factor),
+                    height=int(float(self.frameFinder.oh) / factor),
+                    visible=True,
+                    resizable=True,
+                    vsync=True,
+                    config=config)
+                window_created = True
+                break
+            except Exception as e:
+                last_error = e
+                continue
+        
+        if not window_created:
+            # If all configurations failed, raise the last error
+            raise last_error
                
         self.movie = movie
         self.offsets = offsets
