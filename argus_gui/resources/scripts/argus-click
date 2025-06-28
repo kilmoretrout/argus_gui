@@ -1605,6 +1605,13 @@ class ClickerWindow(pyglet.window.Window):
             except Exception as e:
                 print(f"Error creating marker for {self.caption}: {e}")
                 self.current_marker = None
+        
+        # On macOS, force a redraw to ensure the marker is visible
+        if sys.platform == 'darwin':
+            try:
+                self.dispatch_events()
+            except Exception as e:
+                print(f"Error dispatching events for marker update on {self.caption}: {e}")
                 
         self.changed = True
 
@@ -2111,11 +2118,17 @@ class ClickerWindow(pyglet.window.Window):
                     try:
                         if not window.safe_switch_to():
                             continue
+                        # Sync the current point index to this window
+                        window.current_point_index = self.current_point_index
                         window.update_tracks()
                         window.dispatch_events()
                         # Mark window as changed instead of forcing immediate redraw
                         window.changed = True
+                        # Ensure marker is updated with proper context
                         window.change_marker()
+                        # Force a graphics recovery check on macOS to ensure marker is properly displayed
+                        if sys.platform == 'darwin':
+                            window.recover_graphics_if_needed()
                     except Exception as e:
                         print(f"Failed to update window {window.caption}: {e}")
         # Switch back to the original window
