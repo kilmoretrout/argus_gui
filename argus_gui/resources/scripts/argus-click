@@ -7,6 +7,17 @@ import os
 import sys
 import cv2
 
+# Windows OpenGL compatibility settings - MUST be set before pyglet import
+if sys.platform.startswith('win'):
+    # Force software rendering if hardware acceleration is problematic
+    os.environ['PYGLET_GL_DISABLE_MULTISAMPLING'] = '1'
+    os.environ['PYGLET_GL_FALLBACK'] = '1'
+    os.environ['PYGLET_SHADOW_WINDOW'] = '0'
+    # Force OpenGL software rendering as fallback
+    os.environ['MESA_GL_VERSION_OVERRIDE'] = '3.3'
+    # Disable advanced OpenGL features that might not be supported
+    os.environ['PYGLET_GL_DISABLE_WGL'] = '1'
+
 import pyglet
 from pyglet.gl import Config
 from pyglet import shapes
@@ -551,6 +562,19 @@ class ClickerWindow(pyglet.window.Window):
             except Exception:
                 pass  # Skip if Config creation fails
             
+            # Software rendering fallback - force minimal OpenGL requirements
+            try:
+                config_software = Config()
+                config_software.double_buffer = False
+                config_software.depth_size = 0
+                config_software.stencil_size = 0
+                config_software.aux_buffers = 0
+                config_software.sample_buffers = 0
+                config_software.samples = 0
+                configs_to_try.append(config_software)
+            except Exception:
+                pass  # Skip if Config creation fails
+            
             # Last resort: minimal configuration with no specific requirements
             try:
                 config_minimal = Config()
@@ -593,6 +617,16 @@ class ClickerWindow(pyglet.window.Window):
             except Exception as e:
                 print(f"Failed to create window with config {config}: {e}")
                 last_error = e
+                # Check for the specific OpenGL error
+                if "wglChoosePixelFormatARB" in str(e) or "ARB_pixel_format" in str(e):
+                    print("Detected ARB_pixel_format issue, trying software rendering fallback...")
+                    # Try to force software rendering
+                    try:
+                        import os
+                        os.environ['LIBGL_ALWAYS_SOFTWARE'] = '1'
+                        os.environ['GALLIUM_DRIVER'] = 'llvmpipe'
+                    except Exception:
+                        pass
                 continue
         
         if not window_created:
@@ -606,10 +640,34 @@ class ClickerWindow(pyglet.window.Window):
                 print("Successfully created window with minimal parameters")
             except Exception as final_error:
                 print(f"Final fallback also failed: {final_error}")
-                # If all configurations failed, raise the last error with helpful message
-                error_msg = (f"Failed to create OpenGL window. This is usually due to outdated or incompatible "
-                           f"graphics drivers on Windows. Original error: {last_error}")
-                raise Exception(error_msg) from last_error
+                
+                # Last resort: Try to force a different platform
+                if sys.platform.startswith('win'):
+                    try:
+                        print("Trying platform override fallback...")
+                        pyglet.options['gl_lib'] = None
+                        pyglet.gl.gl_info.set_active_context()
+                        super(ClickerWindow, self).__init__(
+                            width=int(float(self.frameFinder.ow) / factor),
+                            height=int(float(self.frameFinder.oh) / factor),
+                            visible=False)  # Start invisible to avoid drawing issues
+                        self.set_visible(True)
+                        window_created = True
+                        print("Successfully created window with platform override")
+                    except Exception as platform_error:
+                        print(f"Platform override also failed: {platform_error}")
+                
+                if not window_created:
+                    # If all configurations failed, raise the last error with helpful message
+                    error_msg = (f"Failed to create OpenGL window. This is usually due to outdated or incompatible "
+                               f"graphics drivers on Windows. Original error: {last_error}\n\n"
+                               f"Please try the following solutions:\n"
+                               f"1. Update your graphics drivers (NVIDIA, AMD, or Intel)\n"
+                               f"2. Install Mesa3D software renderer for Windows\n"
+                               f"3. Run with software rendering: set MESA_GL_VERSION_OVERRIDE=3.3\n"
+                               f"4. Check if your system supports OpenGL 2.0 or higher\n"
+                               f"5. Try running as administrator")
+                    raise Exception(error_msg) from last_error
                
         self.movie = movie
         self.offsets = offsets
@@ -2347,7 +2405,7 @@ class ClickerWindow(pyglet.window.Window):
         # skip to previously marked point
         elif symbol == key.LEFT:
             for k in range(2, self.current_point_index):
-                if np.all(self.points[currentTrack_global][self.current_point_index - k].toarray()[0] != 0):
+                if np.all(self.points[current_track_global][self.current_point_index - k].toarray()[0] != 0):
                     self.current_point_index = self.current_point_index - k + 1
                     current_frame = self.current_point_index
                     self.change_marker()
