@@ -1009,6 +1009,25 @@ class ClickerWindow(pyglet.window.Window):
             positions = self.points[track]
             non_zeros = list(set(self.points[track].nonzero()[0]))
 
+            # Clear existing graphics for this track to prevent mixing between windows
+            if track in self.drawn_points:
+                for i, point in enumerate(self.drawn_points[track]):
+                    if point is not None:
+                        try:
+                            point.delete()
+                        except Exception:
+                            pass
+                        self.drawn_points[track][i] = None
+                        
+            if track in self.drawn_lines:
+                for i, line in enumerate(self.drawn_lines[track]):
+                    if line is not None:
+                        try:
+                            line.delete()
+                        except Exception:
+                            pass
+                        self.drawn_lines[track][i] = None
+
             # Draw all points for current track with null checking
             for non_zero_value in non_zeros:
                 try:
@@ -1022,7 +1041,7 @@ class ClickerWindow(pyglet.window.Window):
                                 batch = self.track_batch
                             )
                 except Exception as e:
-                    print(f"Error drawing point {non_zero_value} for {track}: {e}")
+                    print(f"Error drawing point {non_zero_value} for {track} on {self.caption}: {e}")
 
             # Draw lines connecting consecutive points with null checking
             for non_zero_value in non_zeros:
@@ -1040,7 +1059,7 @@ class ClickerWindow(pyglet.window.Window):
                                     batch = self.track_batch                        
                                 )
                     except Exception as e:
-                        print(f"Error drawing line from {non_zero_value} to {non_zero_value+1} for {track}: {e}")
+                        print(f"Error drawing line from {non_zero_value} to {non_zero_value+1} for {track} on {self.caption}: {e}")
 
             # Draw all other tracks if displaying_all_tracks is enabled
             if displaying_all_tracks:
@@ -1049,6 +1068,42 @@ class ClickerWindow(pyglet.window.Window):
                         try:
                             other_positions = self.points[other_track]
                             other_non_zeros = list(set(self.points[other_track].nonzero()[0]))
+                            
+                            # Clear existing graphics for other tracks too
+                            if other_track in self.drawn_points:
+                                for i, point in enumerate(self.drawn_points[other_track]):
+                                    if point is not None:
+                                        try:
+                                            point.delete()
+                                        except Exception:
+                                            pass
+                                        self.drawn_points[other_track][i] = None
+                                        
+                            if other_track in self.drawn_lines:
+                                for i, line in enumerate(self.drawn_lines[other_track]):
+                                    if line is not None:
+                                        try:
+                                            line.delete()
+                                        except Exception:
+                                            pass
+                                        self.drawn_lines[other_track][i] = None
+                            
+                            # Draw points for other tracks
+                            for non_zero_value in other_non_zeros:
+                                try:
+                                    pos = other_positions[non_zero_value].toarray()[0]
+                                    if self.is_valid_position(pos):
+                                        x, y = self.world_to_window(pos)
+                                        if x is not None and y is not None and not np.isnan(x) and not np.isnan(y):
+                                            self.drawn_points[other_track][non_zero_value] = draw_circle(
+                                                (x, y), radius,
+                                                color = colors[track_list_global.index(other_track) % len(colors)],
+                                                batch = self.track_batch
+                                            )
+                                except Exception as e:
+                                    print(f"Error drawing point {non_zero_value} for {other_track} on {self.caption}: {e}")
+                            
+                            # Draw lines for other tracks
                             for non_zero_value in other_non_zeros:
                                 if non_zero_value + 1 in other_non_zeros:
                                     try:
@@ -1064,9 +1119,9 @@ class ClickerWindow(pyglet.window.Window):
                                                     batch = self.track_batch                        
                                                 )
                                     except Exception as e:
-                                        print(f"Error drawing line from {non_zero_value} to {non_zero_value+1} for {other_track}: {e}")
+                                        print(f"Error drawing line from {non_zero_value} to {non_zero_value+1} for {other_track} on {self.caption}: {e}")
                         except Exception as e:
-                            print(f"Error drawing track {other_track}: {e}")
+                            print(f"Error drawing track {other_track} on {self.caption}: {e}")
                             
         except Exception as e:
             print(f"Error in draw_tracks_safe for {self.caption}: {e}")
@@ -1202,59 +1257,78 @@ class ClickerWindow(pyglet.window.Window):
         #radius = 2
         global radius
         
-        # Guard against calling this before track data is loaded
-        if old_track not in self.points or current_track_global not in self.points:
+        # Ensure we have a valid context for this window before changing tracks
+        if not self.safe_switch_to():
+            print(f"Failed to switch to context for {self.caption} during track change")
             return
             
-        # remove the points from the old track
-        for k in range(len(self.drawn_points[old_track])):
-            if self.drawn_points[old_track][k] is not None:
-                self.drawn_points[old_track][k].delete()
-                self.drawn_points[old_track][k] = None
-
-        # remove lines from old track if not being displayed
-        if not displaying_all_tracks:
-            for k in range(len(self.drawn_lines[old_track])):
-                if self.drawn_lines[old_track][k] is not None:
-                    self.drawn_lines[old_track][k].delete()
-                    self.drawn_lines[old_track][k] = None
-
-        positions = self.points[current_track_global]
-        nz = list(set(self.points[current_track_global].nonzero()[0]))
-
-        if self.current_marker is not None:
-            self.current_marker.delete()
-            self.current_marker = None
-
-        if self.current_point_index - 1 in nz:
-            x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
-            self.current_marker = draw_circle(
-                (x, y), radius + 4, 
-                color = MARKER_COLOR,
-                batch = self.track_batch
-            )
+        if not self.ensure_valid_context():
+            print(f"Invalid context for {self.caption} during track change")
+            return
         
-        # draw markers for new current track
-        for k in nz:
-            x, y = self.world_to_window(positions[k].toarray()[0])
-            self.drawn_points[current_track_global][k] = draw_circle(
-                (x, y), radius, 
-                color = colors[track_list_global.index(current_track_global) % 4], 
-                batch = self.track_batch
-            )
-        
-        # add line for new current track (not needed if displaying all tracks because it's already drawn)
-        if not displaying_all_tracks:
+        # Guard against calling this before track data is loaded
+        if old_track not in self.points or current_track_global not in self.points:
+            print(f"Track data not found for {self.caption}: old_track={old_track}, current_track={current_track_global}")
+            return
+            
+        try:
+            # remove the points from the old track
+            for k in range(len(self.drawn_points[old_track])):
+                if self.drawn_points[old_track][k] is not None:
+                    self.drawn_points[old_track][k].delete()
+                    self.drawn_points[old_track][k] = None
+
+            # remove lines from old track if not being displayed
+            if not displaying_all_tracks:
+                for k in range(len(self.drawn_lines[old_track])):
+                    if self.drawn_lines[old_track][k] is not None:
+                        self.drawn_lines[old_track][k].delete()
+                        self.drawn_lines[old_track][k] = None
+
+            positions = self.points[current_track_global]
+            nz = list(set(self.points[current_track_global].nonzero()[0]))
+
+            if self.current_marker is not None:
+                self.current_marker.delete()
+                self.current_marker = None
+
+            if self.current_point_index - 1 in nz:
+                x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
+                self.current_marker = draw_circle(
+                    (x, y), radius + 4, 
+                    color = MARKER_COLOR,
+                    batch = self.track_batch
+                )
+            
+            # draw markers for new current track
             for k in nz:
-                if k + 1 in nz:
-                    x1, y1 = self.world_to_window(positions[k].toarray()[0])
-                    x2, y2 = self.world_to_window(positions[k+1].toarray()[0])
-                    self.drawn_lines[current_track_global][k] = draw_line(
-                        (x1, y1),
-                        (x2, y2),
-                        color = colors[track_list_global.index(current_track_global) % 4],
-                        batch = self.track_batch                        
-                        )
+                x, y = self.world_to_window(positions[k].toarray()[0])
+                self.drawn_points[current_track_global][k] = draw_circle(
+                    (x, y), radius, 
+                    color = colors[track_list_global.index(current_track_global) % 4], 
+                    batch = self.track_batch
+                )
+            
+            # add line for new current track (not needed if displaying all tracks because it's already drawn)
+            if not displaying_all_tracks:
+                for k in nz:
+                    if k + 1 in nz:
+                        x1, y1 = self.world_to_window(positions[k].toarray()[0])
+                        x2, y2 = self.world_to_window(positions[k+1].toarray()[0])
+                        self.drawn_lines[current_track_global][k] = draw_line(
+                            (x1, y1),
+                            (x2, y2),
+                            color = colors[track_list_global.index(current_track_global) % 4],
+                            batch = self.track_batch                        
+                            )
+            
+            # Mark for redraw and force graphics recovery to ensure everything is properly drawn
+            self.changed = True
+            
+        except Exception as e:
+            print(f"Error in change_track for {self.caption}: {e}")
+            # If track change failed, try recovery
+            self.recover_graphics_if_needed()
 
     def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
         """Allows the user to drag around the current frame
@@ -1540,9 +1614,20 @@ class ClickerWindow(pyglet.window.Window):
         Call this after track changes or frame changes that might result in missing data.
         """
         try:
+            # Ensure we have a valid context for THIS window before doing anything
+            if not self.safe_switch_to():
+                print(f"Cannot switch to context for {self.caption}, skipping recovery")
+                return
+                
+            if not self.ensure_valid_context():
+                print(f"Invalid context for {self.caption}, attempting context recovery")
+                if not self.recreate_graphics_batches():
+                    print(f"Context recovery failed for {self.caption}")
+                    return
+            
             # Check if we have valid data for the current track at current frame
             track = current_track_global
-            frame = current_frame  # Fixed: use current_frame instead of current_frame_global
+            frame = current_frame
             
             needs_recovery = False
             
@@ -1551,33 +1636,46 @@ class ClickerWindow(pyglet.window.Window):
                 print(f"Track {track} not found in data for {self.caption}, triggering recovery")
                 needs_recovery = True
             else:
-                # Check if current frame has data for this track
+                # Check if current frame has data for this track and verify graphics exist
                 try:
                     positions = self.points[track]
-                    if frame < positions.shape[0]:
-                        pos = positions[frame].toarray()[0] if hasattr(positions[frame], 'toarray') else positions[frame]
-                        if not self.is_valid_position(pos):
-                            print(f"No valid data for track {track} at frame {frame} in {self.caption}, triggering recovery")
-                            needs_recovery = True
-                    else:
-                        print(f"Frame {frame} out of range for track {track} in {self.caption}, triggering recovery")
-                        needs_recovery = True
+                    if frame - 1 < positions.shape[0]:  # frame is 1-indexed, positions is 0-indexed
+                        # Check if we have any points for this track
+                        non_zero_points = list(set(positions.nonzero()[0]))
+                        if non_zero_points:
+                            # Check if graphics objects exist for the points we should have
+                            if track in self.drawn_points:
+                                missing_graphics = 0
+                                for point_idx in non_zero_points:
+                                    if (point_idx >= len(self.drawn_points[track]) or 
+                                        self.drawn_points[track][point_idx] is None):
+                                        missing_graphics += 1
+                                
+                                if missing_graphics > 0:
+                                    print(f"Missing {missing_graphics} graphics objects for track {track} in {self.caption}, triggering recovery")
+                                    needs_recovery = True
+                            else:
+                                print(f"No graphics data for track {track} in {self.caption}, triggering recovery")
+                                needs_recovery = True
                 except Exception as e:
                     print(f"Error checking data for track {track} at frame {frame} in {self.caption}: {e}")
                     needs_recovery = True
-            
-            # Check for OpenGL context validity
-            if not self.ensure_valid_context():
-                print(f"Invalid OpenGL context detected for {self.caption}, triggering recovery")
-                needs_recovery = True
                 
             # Perform recovery if needed
             if needs_recovery:
                 print(f"Performing graphics recovery for {self.caption}")
-                # Fixed: use existing methods instead of non-existent force_redraw
+                # Clear all graphics first to prevent mixing between windows
+                self.clear_track_graphics()
+                
+                # Recreate track data structures if needed
+                self.update_tracks()
+                
+                # Redraw everything for this window only
+                self.draw_tracks_safe()
+                self.change_marker()
+                
+                # Mark for redraw
                 self.changed = True
-                self.update_drawings()
-                self.updateSelf()
                 print(f"Graphics recovery completed for {self.caption}")
                     
         except Exception as e:
@@ -1585,9 +1683,11 @@ class ClickerWindow(pyglet.window.Window):
             # Fallback: try a simple redraw using existing methods
             try:
                 if self.safe_switch_to():
+                    self.clear_track_graphics()
+                    self.update_tracks()
+                    self.draw_tracks_safe()
+                    self.change_marker()
                     self.changed = True
-                    self.update_drawings()
-                    self.updateSelf()
                     print(f"Fallback recovery completed for {self.caption}")
             except Exception as fallback_error:
                 print(f"Fallback recovery also failed for {self.caption}: {fallback_error}")
