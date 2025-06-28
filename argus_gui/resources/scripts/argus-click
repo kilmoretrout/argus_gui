@@ -5,6 +5,7 @@ from __future__ import absolute_import
 import yaml
 import os
 import sys
+import cv2
 
 import pyglet
 from pyglet.gl import Config
@@ -2126,7 +2127,7 @@ class ClickerWindow(pyglet.window.Window):
         # skip to previously marked point
         elif symbol == key.LEFT:
             for k in range(2, self.current_point_index):
-                if np.all(self.points[currentTrack_global][self.current_point_index - k].toarray()[0] != 0):
+                if np.all(self.points[current_track_global][self.current_point_index - k].toarray()[0] != 0):
                     self.current_point_index = self.current_point_index - k + 1
                     current_frame = self.current_point_index
                     self.change_marker()
@@ -2474,49 +2475,67 @@ def load_from_config(path):
     global DLTCoefficients
     global dlt_filename
 
-    with open(path) as f:
-        project = yaml.load(f, Loader=yaml.FullLoader)
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            project = yaml.load(f, Loader=yaml.FullLoader)
+    except yaml.YAMLError as e:
+        print(f"Error loading YAML config file: {e}")
+        return
+    except Exception as e:
+        print(f"Error reading config file: {e}")
+        return
 
-    project_videos = project[0]
+    if not project or not isinstance(project, list) or len(project) < 8:
+        print("Invalid config file format. Expected a list with at least 8 elements.")
+        return
 
-    project_points = project[1]
-    if not check_if_file(project_points["points"]): return
+    try:
+        project_videos = project[0]
+        project_points = project[1]
+        if not check_if_file(project_points["points"]): 
+            return
 
-    project_resultion = project[2]
-    project_last_frame = project[3]
+        project_resultion = project[2]
+        project_last_frame = project[3]
 
-    project_offsets = project[4]
-    if not check_if_file(project_offsets["offsets"]): return
-    loaded_offsets = project_offsets["offsets"]
+        project_offsets = project[4]
+        if not check_if_file(project_offsets["offsets"]): 
+            return
+            
+        loaded_offsets = project_offsets["offsets"]
+        frame_number = project_last_frame["last_frame"]
+        loaded_res = project_resultion["resolution"]
+        loaded_movies = project_videos["videos"]
+        movies_global = loaded_movies
 
-    frame_number = project_last_frame["last_frame"]
-    loaded_res = project_resultion["resolution"]
+        loaded_offsets = parse_csv(loaded_offsets)
+        useable_offsets = []
 
-    loaded_movies = project_videos["videos"]
-    movies_global = loaded_movies
+        dlt_coeff = project[5]
+        dlt_path = dlt_coeff["dlt_coefficents"]
+        if check_if_file(dlt_path):
+            DLTCoefficients = np.loadtxt(dlt_path, delimiter=',')
+            DLTCoefficients = DLTCoefficients.T
+            dlt_filename = dlt_path
 
-    loaded_offsets = parse_csv(loaded_offsets)
-    useable_offsets = []
+        camera_profile = project[6]
+        camera_profile_path = camera_profile["camera_profile"]
+        if check_if_file(camera_profile_path):
+            load_camera(camera_profile_path)
 
-    dlt_coeff = project[5]
-    dlt_path = dlt_coeff["dlt_coefficents"]
-    if check_if_file(dlt_path):
-        DLTCoefficients = np.loadtxt(dlt_path, delimiter=',')
-        DLTCoefficients = DLTCoefficients.T
-        dlt_filename = dlt_path
+        for camera_index in range(0, len(loaded_movies)):
+            offset = loaded_offsets[frame_number - 2][camera_index]
+            if np.isnan(offset):
+                offset = 0
+            useable_offsets.append(offset)
 
-    camera_profile = project[6]
-    camera_profile_path = camera_profile["camera_profile"]
-    if check_if_file(camera_profile_path):
-        load_camera(camera_profile_path)
-
-    for camera_index in range(0, len(loaded_movies)):
-        offset = loaded_offsets[frame_number - 2][camera_index]
-        if np.isnan(offset):
-            offset = 0
-        useable_offsets.append(offset)
-
-    loaded_end = int(cv2.VideoCapture(loaded_movies[0]).get(cv2.CAP_PROP_FRAME_COUNT))
+        loaded_end = int(cv2.VideoCapture(loaded_movies[0]).get(cv2.CAP_PROP_FRAME_COUNT))
+    except (KeyError, IndexError, TypeError) as e:
+        print(f"Error parsing config file structure: {e}")
+        return
+    except Exception as e:
+        print(f"Error processing config file: {e}")
+        return
 
     windows = []
     for index, movie in enumerate(loaded_movies):
@@ -2578,21 +2597,25 @@ def load_from_config(path):
 
 if __name__ == '__main__':
     movies_global = None
-    # start a QT app for warning dialogs at least
-    app = QtWidgets.QApplication.instance()
-    if app is None:
-        app = QtWidgets.QApplication([])
     
     # Fix for Windows multi-window OpenGL context issues
     if sys.platform.startswith('win'):
-        # Enable shared OpenGL contexts on Windows
+        # Enable shared OpenGL contexts on Windows BEFORE creating QApplication
         QtWidgets.QApplication.setAttribute(Qt.AA_ShareOpenGLContexts)
         # Force single threaded OpenGL
         import os
         os.environ['PYGLET_SHADOW_WINDOW'] = '0'
+    
+    # start a QT app for warning dialogs at least
+    app = QtWidgets.QApplication.instance()
+    if app is None:
+        app = QtWidgets.QApplication([])
         
     if sys.argv[1].startswith("configload@"):
-        load_from_config(sys.argv[1].split("@")[1])
+        config_path = sys.argv[1].split("@")[1]
+        # Normalize the path for Windows compatibility
+        config_path = os.path.normpath(config_path)
+        load_from_config(config_path)
 
     else:
         end = int(sys.argv[2])
