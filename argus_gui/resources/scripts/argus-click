@@ -30,7 +30,8 @@ from argus_gui.tools import *
 import pandas
 import argus.ocam
 from PySide6.QtCore import Qt
-import pyqtgraph.opengl as pyqt_gl
+# Delay pyqtgraph.opengl import to avoid OpenGL conflicts
+# import pyqtgraph.opengl as pyqt_gl  # Will be imported later when needed
 from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
@@ -2606,6 +2607,7 @@ class TrackPlotter(QtWidgets.QWidget):
         self.xyzss = self.calculate_xyzs()
         
     def init_UI(self):
+        import pyqtgraph.opengl as pyqt_gl  # Local import to avoid early OpenGL initialization
         main_layout = QtWidgets.QVBoxLayout()
         self.view = pyqt_gl.GLViewWidget()
         self.view.setWindowTitle('3D Graph')
@@ -2635,6 +2637,7 @@ class TrackPlotter(QtWidgets.QWidget):
         return xyzss
         
     def updateGraph(self):
+        import pyqtgraph.opengl as pyqt_gl  # Local import to avoid early OpenGL initialization
         self.view.clear()
         # Re-add grid and axes
         self.view.addItem(self.grid)
