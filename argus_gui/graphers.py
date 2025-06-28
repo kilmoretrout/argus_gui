@@ -104,6 +104,8 @@ class Shower():
         plot.setLabel('bottom', 'Minutes')
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
+        # Enable auto-range to help with visualization
+        plot.enableAutoRange()
 
         legend = plot.addLegend(offset=(70, 30))
         
@@ -132,7 +134,14 @@ class Shower():
         # Clamp the max_range to prevent extremely large offsets
         if max_range > 1e6:
             max_range = 1e6
-        vertical_offset = float(max_range * 1.5)  # 50% padding between signals
+        
+        # Use a more reasonable vertical separation - normalize to a reasonable scale
+        # Rather than using the full signal range, use a smaller multiplier for better visualization
+        if max_range > 10000:
+            # For large audio ranges, use a smaller multiplier 
+            vertical_offset = float(max_range * 0.3)  # 30% padding for large ranges
+        else:
+            vertical_offset = float(max_range * 1.5)  # 50% padding for smaller ranges
         
         # Debug output for Windows troubleshooting
         print(f"Signal ranges: {signal_ranges}")
