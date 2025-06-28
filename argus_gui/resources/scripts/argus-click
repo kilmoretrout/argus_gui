@@ -1147,26 +1147,55 @@ class ClickerWindow(pyglet.window.Window):
         for k in non_zero_points:
             # print(x, y)
             tx_x, tx_y = self.world_to_window(positions[k])
-            if self.drawn_points[track][k] is not None:
-                self.drawn_points[track][k].x = tx_x
-                self.drawn_points[track][k].y = tx_y
+            if track in self.drawn_points and self.drawn_points[track][k] is not None:
+                try:
+                    self.drawn_points[track][k].x = tx_x
+                    self.drawn_points[track][k].y = tx_y
+                except Exception as e:
+                    print(f"Error updating point position for {self.caption}: {e}")
+                    # Clear the point if we can't update it
+                    try:
+                        self.drawn_points[track][k].delete()
+                    except Exception:
+                        pass
+                    self.drawn_points[track][k] = None
 
         #update current marker
         if new_point_index in non_zero_points:
-            tx_x, tx_y = self.world_to_window(positions[new_point_index])
-            self.current_marker.x = tx_x
-            self.current_marker.y = tx_y
+            if self.current_marker is not None:
+                try:
+                    tx_x, tx_y = self.world_to_window(positions[new_point_index])
+                    self.current_marker.x = tx_x
+                    self.current_marker.y = tx_y
+                except Exception as e:
+                    print(f"Error updating marker position for {self.caption}: {e}")
+                    # Clear the marker if we can't update it
+                    try:
+                        self.current_marker.delete()
+                    except Exception:
+                        pass
+                    self.current_marker = None
         
                     
         for k in non_zero_points:
             if k + 1 in non_zero_points:
-                x1, y1 = self.world_to_window(positions[k])
-                x2, y2 = self.world_to_window(positions[k+1])
-                
-                self.drawn_lines[track][k].x = x1
-                self.drawn_lines[track][k].y = y1
-                self.drawn_lines[track][k].x2 = x2
-                self.drawn_lines[track][k].y2 = y2
+                if track in self.drawn_lines and self.drawn_lines[track][k] is not None:
+                    try:
+                        x1, y1 = self.world_to_window(positions[k])
+                        x2, y2 = self.world_to_window(positions[k+1])
+                        
+                        self.drawn_lines[track][k].x = x1
+                        self.drawn_lines[track][k].y = y1
+                        self.drawn_lines[track][k].x2 = x2
+                        self.drawn_lines[track][k].y2 = y2
+                    except Exception as e:
+                        print(f"Error updating line position for {self.caption}: {e}")
+                        # Clear the line if we can't update it
+                        try:
+                            self.drawn_lines[track][k].delete()
+                        except Exception:
+                            pass
+                        self.drawn_lines[track][k] = None
                     
         #update all track lines if needed
         if self.draw_all_tracks:
@@ -1302,20 +1331,39 @@ class ClickerWindow(pyglet.window.Window):
         if not self.safe_switch_to():
             return
 
+        # Guard against calling this before track data is loaded
+        if track not in self.points:
+            # Clear any existing marker when track doesn't exist
+            if self.current_marker is not None:
+                try:
+                    self.current_marker.delete()
+                except Exception:
+                    pass  # Ignore errors if object already deleted
+                self.current_marker = None
+            return
+
         positions = self.points[track]
         non_zero_points = list(set(self.points[track].nonzero()[0]))
 
         if self.current_marker is not None:
-            self.current_marker.delete()
+            try:
+                self.current_marker.delete()
+            except Exception:
+                pass  # Ignore errors if object already deleted
             self.current_marker = None
 
         if self.current_point_index - 1 in non_zero_points:
-            x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
-            self.current_marker = draw_circle(
-                (x, y), radius + 4, 
-                color = MARKER_COLOR, 
-                batch = self.track_batch
-            )
+            try:
+                x, y = self.world_to_window(positions[self.current_point_index - 1].toarray()[0])
+                self.current_marker = draw_circle(
+                    (x, y), radius + 4, 
+                    color = MARKER_COLOR, 
+                    batch = self.track_batch
+                )
+            except Exception as e:
+                print(f"Error creating marker for {self.caption}: {e}")
+                self.current_marker = None
+                
         self.changed = True
 
 
@@ -1324,23 +1372,47 @@ class ClickerWindow(pyglet.window.Window):
 
         track = current_track_global
 
+        # Guard against calling this before track data is loaded
+        if track not in self.points:
+            return
+
         last_added_index = self.current_point_index - 1
         second_most_recent_index = self.current_point_index - 2
 
         # Reset the current marker
         if self.current_marker is not None:
-            self.current_marker.delete()
+            try:
+                self.current_marker.delete()
+            except Exception:
+                pass  # Ignore errors if object already deleted
             self.current_marker = None
 
-        if self.drawn_points[track][last_added_index] is not None:
-            self.drawn_points[track][last_added_index].delete()
-            self.drawn_points[track][last_added_index] = None
-        if self.drawn_lines[track][second_most_recent_index] is not None:
-            self.drawn_lines[track][second_most_recent_index].delete()
-            self.drawn_lines[track][second_most_recent_index] = None
-        if self.drawn_lines[track][last_added_index] is not None:
-            self.drawn_lines[track][last_added_index].delete()
-            self.drawn_lines[track][last_added_index] = None
+        # Check if drawn_points dict exists for this track
+        if track in self.drawn_points and last_added_index < len(self.drawn_points[track]):
+            if self.drawn_points[track][last_added_index] is not None:
+                try:
+                    self.drawn_points[track][last_added_index].delete()
+                except Exception:
+                    pass  # Ignore errors if object already deleted
+                self.drawn_points[track][last_added_index] = None
+                
+        # Check if drawn_lines dict exists for this track
+        if track in self.drawn_lines:
+            if (second_most_recent_index < len(self.drawn_lines[track]) and 
+                self.drawn_lines[track][second_most_recent_index] is not None):
+                try:
+                    self.drawn_lines[track][second_most_recent_index].delete()
+                except Exception:
+                    pass  # Ignore errors if object already deleted
+                self.drawn_lines[track][second_most_recent_index] = None
+                
+            if (last_added_index < len(self.drawn_lines[track]) and 
+                self.drawn_lines[track][last_added_index] is not None):
+                try:
+                    self.drawn_lines[track][last_added_index].delete()
+                except Exception:
+                    pass  # Ignore errors if object already deleted
+                self.drawn_lines[track][last_added_index] = None
 
     # uses Hedrick's function to get a slope and intercept for the Epipolar lines
     def get_epipolar_lines(self):
