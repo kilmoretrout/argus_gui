@@ -25,6 +25,7 @@ import pandas
 import sys
 
 from numpy import *
+import numpy as np
 import scipy.signal
 import scipy.io.wavfile
 import scipy.spatial
@@ -106,7 +107,31 @@ class Shower():
 
         legend = plot.addLegend(offset=(70, 30))
         
-        a = 0
+        # Calculate signal ranges and vertical offsets to avoid overflow
+        signal_ranges = []
+        for signal in signals:
+            # Handle edge cases with NaN or infinite values
+            finite_signal = signal[np.isfinite(signal)]
+            if len(finite_signal) > 0:
+                signal_min = np.min(finite_signal)
+                signal_max = np.max(finite_signal)
+                signal_ranges.append(signal_max - signal_min)
+            else:
+                signal_ranges.append(1.0)  # fallback for all NaN/inf signals
+        
+        # Use float64 to avoid overflow and calculate reasonable vertical separation
+        if signal_ranges:
+            max_range = signal_ranges[0]
+            for sr in signal_ranges[1:]:
+                if sr > max_range:
+                    max_range = sr
+        else:
+            max_range = 1.0
+        # Clamp the max_range to prevent extremely large offsets
+        if max_range > 1e6:
+            max_range = 1e6
+        vertical_offset = float(max_range * 1.5)  # 50% padding between signals
+        
         for k in range(len(signals)):
             color = colors[k % len(colors)]
             #convert tuple of [0,1] to tuple of [0,255] for pyqtgraph
@@ -114,9 +139,15 @@ class Shower():
             print(f"Plotting signal {k} with color {color}")  # Debugging statement
             sys.stdout.flush()
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
-            curve = plot.plot(t, signals[k] - float(a), pen=pg.mkPen(color=color, width=2))
+            # Use the signal's offset from its center, then apply vertical separation
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                signal_center = (np.max(finite_signal) + np.min(finite_signal)) / 2.0
+            else:
+                signal_center = 0.0  # fallback for all NaN/inf signals
+            y_offset = k * vertical_offset
+            curve = plot.plot(t, signals[k] - signal_center - y_offset, pen=pg.mkPen(color=color, width=2))
             legend.addItem(curve, self.files[k].split('/')[-1])
-            a += np.nanmax(signals[k]) * 2
 
         app.exec_()
         signals_ = None
