@@ -1837,7 +1837,7 @@ class ClickerProject:
             {"videos": video_paths},
             {"points": points},
             {"resolution": resolution},
-            {"last_frame": last_frame},
+            {"last_frame": int(last_frame)},
             {"offsets": offsets},
             {"dlt_coefficents": dlt_coefficents},
             {"camera_profile": camera_profile},
