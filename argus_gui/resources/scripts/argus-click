@@ -36,6 +36,7 @@ from scipy.sparse import csc_matrix, lil_matrix
 import time
 import numpy as np
 import copy
+import threading
 
 from PySide6 import QtWidgets, QtCore
 
@@ -47,6 +48,10 @@ colors = [(u[0], u[1], u[2], 180) for u in colors]
 # Define the colors we will use in RGBA format
 CAROLINA_BLUE = (153, 186, 221, 255)  # Go Tar Heels!
 MARKER_COLOR = (255, 105, 180, 200)
+
+# Global OpenGL context lock for thread safety on Windows
+# This prevents context conflicts when multiple windows try to access OpenGL simultaneously
+gl_context_lock = threading.RLock() if sys.platform.startswith('win') else None
 
 
 class GoToPopupWindow(QtWidgets.QDialog):
@@ -763,12 +768,22 @@ class ClickerWindow(pyglet.window.Window):
         Returns True if successful, False otherwise.
         This helps prevent OpenGL context conflicts in multi-window scenarios on Windows.
         """
-        try:
-            self.switch_to()
-            return True
-        except Exception as e:
-            print(f"Failed to switch to context for {self.caption}: {e}")
-            return False
+        global gl_context_lock
+        if gl_context_lock:
+            with gl_context_lock:
+                try:
+                    self.switch_to()
+                    return True
+                except Exception as e:
+                    print(f"Failed to switch to context for {self.caption}: {e}")
+                    return False
+        else:
+            try:
+                self.switch_to()
+                return True
+            except Exception as e:
+                print(f"Failed to switch to context for {self.caption}: {e}")
+                return False
 
     def is_context_valid(self):
         """
@@ -806,6 +821,100 @@ class ClickerWindow(pyglet.window.Window):
                 return False
         
         return True
+
+    def clear_all_graphics_objects(self):
+        """
+        Clear all OpenGL graphics objects safely.
+        This is used when recovering from context loss.
+        """
+        try:
+            # Clear all drawn points
+            for track in self.drawn_points:
+                for i, point in enumerate(self.drawn_points[track]):
+                    if point is not None:
+                        try:
+                            point.delete()
+                        except Exception:
+                            pass  # Ignore errors if object already deleted
+                        self.drawn_points[track][i] = None
+            
+            # Clear all drawn lines
+            for track in self.drawn_lines:
+                for i, line in enumerate(self.drawn_lines[track]):
+                    if line is not None:
+                        try:
+                            line.delete()
+                        except Exception:
+                            pass  # Ignore errors if object already deleted
+                        self.drawn_lines[track][i] = None
+            
+            # Clear DLT lines
+            for dlt_line in self.drawn_dlt:
+                if dlt_line is not None:
+                    try:
+                        dlt_line.delete()
+                    except Exception:
+                        pass  # Ignore errors if object already deleted
+            self.drawn_dlt = []
+            
+            # Clear current marker
+            if self.current_marker is not None:
+                try:
+                    self.current_marker.delete()
+                except Exception:
+                    pass  # Ignore errors if object already deleted
+                self.current_marker = None
+                
+            print(f"Cleared all graphics objects for {self.caption}")
+        except Exception as e:
+            print(f"Error clearing graphics objects for {self.caption}: {e}")
+
+    def recreate_graphics_batches(self):
+        """
+        Recreate all graphics batches after context loss.
+        """
+        try:
+            # Ensure valid context before recreating
+            if not self.ensure_valid_context():
+                return False
+                
+            # Clear existing objects first
+            self.clear_all_graphics_objects()
+            
+            # Recreate batches
+            self.main_batch = pyglet.graphics.Batch()
+            self.track_batch = pyglet.graphics.Batch()
+            self.dlt_batch = pyglet.graphics.Batch()
+            
+            # Redraw tracks if data exists
+            if hasattr(self, 'points') and self.points:
+                self.draw_tracks()
+                
+            print(f"Successfully recreated graphics batches for {self.caption}")
+            return True
+        except Exception as e:
+            print(f"Failed to recreate graphics batches for {self.caption}: {e}")
+            return False
+
+    def safe_batch_draw(self, batch, batch_name="unknown"):
+        """
+        Safely draw a graphics batch with proper error handling.
+        """
+        global gl_context_lock
+        try:
+            if gl_context_lock:
+                with gl_context_lock:
+                    if not self.ensure_valid_context():
+                        return False
+                    batch.draw()
+            else:
+                if not self.ensure_valid_context():
+                    return False
+                batch.draw()
+            return True
+        except Exception as e:
+            print(f"Failed to draw {batch_name} batch on {self.caption}: {e}")
+            return False
 
     # convert numpy array to pyglet image format
     def numpy_to_pyglet_image(self, frame, viewfinder=False):
@@ -1089,7 +1198,8 @@ class ClickerWindow(pyglet.window.Window):
                 if window.current_point_index == self.current_point_index:
                     print(f"updating epipolar lines on {window.caption}")
                     try:
-                        window.switch_to()
+                        if not window.safe_switch_to():
+                            continue
                         # Clear existing epipolar lines and recalculate
                         window.dlt_batch = pyglet.graphics.Batch()
                         window.drawn_dlt = []
@@ -1100,7 +1210,8 @@ class ClickerWindow(pyglet.window.Window):
                         print(f"Failed to update epipolar lines on {window.caption}: {e}")
         # Switch back to the original window
         try:
-            original_window.switch_to()
+            if not original_window.safe_switch_to():
+                print("Failed to switch back to original window")
         except Exception as e:
             print(f"Failed to switch back to original window: {e}")
 
@@ -1462,11 +1573,43 @@ class ClickerWindow(pyglet.window.Window):
         self.activate()
         
     def on_activate(self):
-        self.switch_to()
+        self.safe_switch_to()
         
     def on_draw(self):
+        """
+        Main drawing method with proper OpenGL context locking for Windows.
+        Delegates actual drawing to _perform_draw for better error handling.
+        """
+        global gl_context_lock
+        
+        if gl_context_lock:
+            try:
+                with gl_context_lock:
+                    self._perform_draw()
+            except Exception as e:
+                print(f"OpenGL draw error on {self.caption}: {e}")
+                # Try to recover by recreating graphics batches
+                try:
+                    self.recreate_graphics_batches()
+                except Exception as recovery_error:
+                    print(f"Failed to recover graphics on {self.caption}: {recovery_error}")
+        else:
+            # Non-Windows platforms or when lock is disabled
+            try:
+                self._perform_draw()
+            except Exception as e:
+                print(f"OpenGL draw error on {self.caption}: {e}")
+                try:
+                    self.recreate_graphics_batches()
+                except Exception as recovery_error:
+                    print(f"Failed to recover graphics on {self.caption}: {recovery_error}")
+    
+    def _perform_draw(self):
+        """
+        Performs the actual drawing operations.
+        This method assumes the OpenGL context is already properly set and locked.
+        """
         # Ensure this window's OpenGL context is valid before drawing
-        # This prevents context conflicts when multiple windows are drawing
         if not self.ensure_valid_context():
             return
             
@@ -1492,24 +1635,10 @@ class ClickerWindow(pyglet.window.Window):
             
         # if DLT coefficients are present, draw epipolar lines in Carolina Blue
         if DLTCoefficients is not None:
-            try:
-                self.dlt_batch.draw()
-            except Exception as e:
-                print(f"DLT batch draw failed on {self.caption}: {e}")
+            self.safe_batch_draw(self.dlt_batch, "DLT")
         
-        # Draw track batch without switching context mid-draw
-        try:
-            self.track_batch.draw()
-        except Exception as e:
-            print(f"Track batch draw failed on {self.caption} with error: {e}")
-            # Try to recreate the batch if it failed
-            try:
-                self.track_batch = pyglet.graphics.Batch()
-                self.draw_tracks()
-                self.track_batch.draw()
-            except Exception as e2:
-                print(f"Failed to recreate and draw batch on {self.caption}: {e2}")
-            pass
+        # Draw track batch using safe method
+        self.safe_batch_draw(self.track_batch, "track")
             
         if not busy:
             # if not self.base:
@@ -1524,7 +1653,8 @@ class ClickerWindow(pyglet.window.Window):
             if self.x != 0 and self.y != 0:
                 try: 
                     self.update_viewfinder()
-                except: self.view_sprite = None
+                except Exception:
+                    self.view_sprite = None
                 if self.view_sprite is not None:
                     self.view_sprite.draw()
                 
@@ -1582,7 +1712,8 @@ class ClickerWindow(pyglet.window.Window):
                 if self is not window:
                     print(f"updating {window.caption}")
                     try:
-                        window.switch_to()
+                        if not window.safe_switch_to():
+                            continue
                         window.update_tracks()
                         window.dispatch_events()
                         # Mark window as changed instead of forcing immediate redraw
@@ -1592,31 +1723,8 @@ class ClickerWindow(pyglet.window.Window):
                         print(f"Failed to update window {window.caption}: {e}")
         # Switch back to the original window
         try:
-            original_window.switch_to()
-        except Exception as e:
-            print(f"Failed to switch back to original window: {e}")
-
-    # called to update epipolar lines on all windows when a new point is added
-    def update_all_windows_epipolar(self):
-        original_window = self
-        for window in pyglet.app.windows:
-            if isinstance(window, ClickerWindow) and window != self:
-                # Only update windows that are on the same frame as this window
-                if window.current_point_index == self.current_point_index:
-                    print(f"updating epipolar lines on {window.caption}")
-                    try:
-                        window.switch_to()
-                        # Clear existing epipolar lines and recalculate
-                        window.dlt_batch = pyglet.graphics.Batch()
-                        window.drawn_dlt = []
-                        window.get_epipolar_lines()
-                        # Mark window as changed instead of forcing immediate redraw
-                        window.changed = True
-                    except Exception as e:
-                        print(f"Failed to update epipolar lines on {window.caption}: {e}")
-        # Switch back to the original window
-        try:
-            original_window.switch_to()
+            if not original_window.safe_switch_to():
+                print("Failed to switch back to original window")
         except Exception as e:
             print(f"Failed to switch back to original window: {e}")
 
@@ -1903,7 +2011,8 @@ class ClickerWindow(pyglet.window.Window):
 
     # pretty self explanatory
     def updateSelf(self):
-        self.switch_to()
+        if not self.safe_switch_to():
+            return
         self.update_tracks()
         self.dispatch_events()
         self.dispatch_event('on_draw')
@@ -2500,7 +2609,8 @@ class ClickerWindow(pyglet.window.Window):
         global current_frame
         
         # Ensure this window's OpenGL context is active
-        self.switch_to()
+        if not self.safe_switch_to():
+            return
         
         if buttons & mouse.LEFT:
             if current_track_global != '' and (modifiers == 16 or modifiers == 0):
@@ -2813,7 +2923,8 @@ def load_from_config(path):
         for window in indexable_windows:
             # Critical: Activate each window properly on Windows
             window.activate()
-            window.switch_to()
+            if not window.safe_switch_to():
+                continue
             window.update_tracks()
             window.dispatch_events()
             window.dispatch_event('on_draw')
