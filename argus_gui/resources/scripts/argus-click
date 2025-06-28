@@ -1542,7 +1542,7 @@ class ClickerWindow(pyglet.window.Window):
         try:
             # Check if we have valid data for the current track at current frame
             track = current_track_global
-            frame = current_frame_global
+            frame = current_frame  # Fixed: use current_frame instead of current_frame_global
             
             needs_recovery = False
             
@@ -1574,17 +1574,21 @@ class ClickerWindow(pyglet.window.Window):
             # Perform recovery if needed
             if needs_recovery:
                 print(f"Performing graphics recovery for {self.caption}")
-                success = self.force_redraw()
-                if success:
-                    print(f"Graphics recovery successful for {self.caption}")
-                else:
-                    print(f"Graphics recovery failed for {self.caption}")
+                # Fixed: use existing methods instead of non-existent force_redraw
+                self.changed = True
+                self.update_drawings()
+                self.updateSelf()
+                print(f"Graphics recovery completed for {self.caption}")
                     
         except Exception as e:
             print(f"Error in recover_graphics_if_needed for {self.caption}: {e}")
-            # Fallback: try a simple force redraw
+            # Fallback: try a simple redraw using existing methods
             try:
-                self.force_redraw()
+                if self.safe_switch_to():
+                    self.changed = True
+                    self.update_drawings()
+                    self.updateSelf()
+                    print(f"Fallback recovery completed for {self.caption}")
             except Exception as fallback_error:
                 print(f"Fallback recovery also failed for {self.caption}: {fallback_error}")
 
