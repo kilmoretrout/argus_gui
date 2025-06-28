@@ -166,7 +166,8 @@ class Shower():
                 signal_center = 0.0  # fallback for all NaN/inf signals
             y_offset = k * vertical_offset
             # Debug output for Windows troubleshooting
-            adjusted_signal = signals[k] - signal_center - y_offset
+            # Center the signal around zero, then add vertical offset for separation
+            adjusted_signal = signals[k] - signal_center + y_offset
             print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
             sys.stdout.flush()
             curve = plot.plot(t, adjusted_signal, pen=pg.mkPen(color=color, width=2))
