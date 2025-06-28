@@ -420,7 +420,7 @@ def draw_line(pt1, pt2, color=(255, 255, 255, 255), width = None, batch=None):
 track_list_global = ['Track 1']
 current_track_global = 'Track 1'
 auto_advance = True
-sync = False
+sync = True
 displaying_all_tracks = False
 current_frame = 1
 common = dict()
