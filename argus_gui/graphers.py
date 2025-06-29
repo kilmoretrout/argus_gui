@@ -44,7 +44,7 @@ matplotlib.use('QtAgg')  # Use QtAgg for automatic Qt version detection, compati
 # from mpl_toolkits.mplot3d import Axes3D
 # from matplotlib.patches import FancyArrowPatch
 # from mpl_toolkits.mplot3d import proj3d
-from PySide6.QtWidgets import QApplication, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QVBoxLayout, QWidget
 from PySide6.QtGui import QFont
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
@@ -127,6 +127,10 @@ class Shower():
             signals.append(np.asarray(t))
             
         # Platform-specific rendering fixes - MUST be set before QApplication creation
+        # Import Qt classes needed for all platforms
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        
         # Windows-specific PyQtGraph configuration - BEFORE QApplication
         if sys.platform.startswith('win'):
             # Force software rendering to avoid GPU driver issues on Windows
@@ -142,9 +146,6 @@ class Shower():
             
             # Set Qt application attributes BEFORE creating QApplication
             try:
-                from PySide6.QtCore import Qt
-                from PySide6.QtWidgets import QApplication
-                
                 # Set attributes before QApplication creation
                 if hasattr(Qt, 'AA_UseDesktopOpenGL'):
                     QApplication.setAttribute(Qt.AA_UseDesktopOpenGL, False)
@@ -157,11 +158,21 @@ class Shower():
             except Exception:
                 pass  # Silent fallback
         else:
-            # Standard configuration for Mac/Linux
-            pg.setConfigOption('useOpenGL', False)
+            # Conservative configuration for Mac/Linux - Disable OpenGL to avoid hanging
+            pg.setConfigOption('useOpenGL', False)  # Disable OpenGL to prevent Mac hanging
             pg.setConfigOption('antialias', True)
             pg.setConfigOption('background', 'w')
             pg.setConfigOption('foreground', 'k')
+            pg.setConfigOption('enableExperimental', False)
+            
+            # Mac-specific Qt application attributes to prevent hanging
+            try:
+                if hasattr(Qt, 'AA_DisableWindowContextHelpButton'):
+                    QApplication.setAttribute(Qt.AA_DisableWindowContextHelpButton, True)
+                if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+                    QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings, True)
+            except Exception:
+                pass  # Silent fallback
         
         # NOW create QApplication
         app = QApplication([])
@@ -199,17 +210,41 @@ class Shower():
                 plot.setMenuEnabled(enableMenu=False)
         else:
             try:
+                # Mac/Linux: Optimized setup with hardware acceleration
                 win = pg.PlotWidget(title="Audio Streams")
                 win.resize(1000, 600)
                 win.setWindowTitle('Audio Streams - PlotWidget')
                 win.setBackground('w')
                 plot = win.getPlotItem()
+                
+                # Enable better mouse interaction for Mac
+                plot.setMouseEnabled(x=True, y=True)
+                plot.setMenuEnabled(enableMenu=True)  # Enable context menu for Mac
+                
+                # Configure ViewBox for better responsiveness on Mac (software rendering)
+                view_box = plot.getViewBox()
+                if view_box:
+                    # Use conservative settings to prevent hanging
+                    view_box.setMouseEnabled(x=True, y=True)
+                    view_box.setDefaultPadding(0.05)  # Slightly more padding for stability
+                    # Use standard wheel zoom without custom scaling to avoid issues
+                    view_box.aspectLocked = False  # Allow independent x/y zoom
+                    
             except Exception:
                 win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
                 win.resize(1000, 600)
                 win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
                 win.setBackground('w')
                 plot = win.addPlot()
+                
+                # Configure for Mac stability (software rendering)
+                plot.setMouseEnabled(x=True, y=True)
+                view_box = plot.getViewBox()
+                if view_box:
+                    view_box.setMouseEnabled(x=True, y=True)
+                    view_box.setDefaultPadding(0.05)  # Conservative padding for stability
+                    # Use standard wheel zoom without custom scaling
+                    view_box.aspectLocked = False  # Allow independent x/y zoom
         
         plot.showGrid(x=True, y=True)
         plot.setLabel('bottom', 'Minutes')
@@ -313,7 +348,6 @@ class Shower():
             # Try matplotlib as a backup for Windows - create ONE plot for ALL signals
             try:
                 import matplotlib.pyplot as plt
-                import matplotlib.patches as mpatches
                 
                 # Create matplotlib plot ONCE for all signals
                 fig, ax = plt.subplots(figsize=(12, 8))
@@ -363,13 +397,13 @@ class Shower():
             
             # Original PyQtGraph plotting (for non-Windows or if matplotlib fails)
             if not matplotlib_plot_created or not sys.platform.startswith('win'):
-                # Simplified plotting approach for better Windows compatibility
+                # Optimized plotting approach - thin lines for better Mac performance
                 if sys.platform.startswith('win'):
                     # Windows: Use thicker, simpler pen
                     pen = pg.mkPen(color=color, width=10)
                 else:
-                    # Mac/Linux: Standard pen
-                    pen = pg.mkPen(color=color, width=5)
+                    # Mac/Linux: Use thin lines for better performance and appearance
+                    pen = pg.mkPen(color=color, width=1)
                 
                 # Plot the audio signal
                 curve = plot.plot(t, adjusted_signal, pen=pen)
@@ -434,10 +468,16 @@ class Shower():
             except Exception:
                 pass  # Silent fallback
         else:
-            # Standard display for Mac/Linux
+            # Optimized display for Mac/Linux with hardware acceleration
             win.show()
             win.raise_()
             win.activateWindow()
+            
+            # Force OpenGL context refresh for better performance on Mac
+            if hasattr(win, 'getViewBox'):
+                view_box = win.getViewBox() if hasattr(win, 'getViewBox') else plot.getViewBox()
+                if view_box and hasattr(view_box, 'update'):
+                    view_box.update()
         
         # Final event processing
         app.processEvents()
