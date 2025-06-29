@@ -194,6 +194,18 @@ class Shower():
             # Print a sample of the actual data values
             print(f"  Sample t values: {t[:5]} ... {t[-5:]}")
             print(f"  Sample signal values: {adjusted_signal[:5]} ... {adjusted_signal[-5:]}")
+            
+            # Check if the plot item is actually visible
+            print(f"  Curve visible: {curve.isVisible()}")
+            print(f"  Test curve visible: {test_curve.isVisible()}")
+            print(f"  Curve data bounds: x=[{np.min(t):.4f}, {np.max(t):.4f}], y=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
+            print(f"  Test curve data bounds: x=[{np.min(test_t):.4f}, {np.max(test_t):.4f}], y=[{np.min(test_y):.2f}, {np.max(test_y):.2f}]")
+            
+            # Force an update/refresh of the plot
+            plot.update()
+            curve.update()
+            test_curve.update()
+            print(f"  Plot items updated")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
