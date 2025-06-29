@@ -110,15 +110,32 @@ class Shower():
             pg.setConfigOption('foreground', 'k')
             pg.setConfigOption('crashWarning', True)
             
+            # Additional Windows-specific configurations
+            pg.setConfigOption('leftButtonPan', False)  # Disable problematic pan behavior
+            pg.setConfigOption('enableExperimental', False)  # Disable experimental features
+            
             # Set Qt application attributes for better Windows compatibility
             try:
                 from PySide6.QtCore import Qt
-                app.setAttribute(Qt.AA_DisableWindowContextHelpButton, True)
-                app.setAttribute(Qt.AA_UseDesktopOpenGL, False)
-                app.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+                # Only set attributes that exist in this PySide6 version
+                if hasattr(Qt, 'AA_UseDesktopOpenGL'):
+                    app.setAttribute(Qt.AA_UseDesktopOpenGL, False)
+                if hasattr(Qt, 'AA_UseSoftwareOpenGL'):
+                    app.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+                if hasattr(Qt, 'AA_ShareOpenGLContexts'):
+                    app.setAttribute(Qt.AA_ShareOpenGLContexts, False)
+                if hasattr(Qt, 'AA_DisableShaderDiskCache'):
+                    app.setAttribute(Qt.AA_DisableShaderDiskCache, True)
                 print("  Windows Qt attributes set")
             except Exception as e:
                 print(f"  Qt attributes warning: {e}")
+                
+            # Force immediate style refresh on Windows
+            try:
+                app.setStyle('Fusion')  # Use cross-platform Fusion style
+                print("  Windows style set to Fusion")
+            except Exception as e:
+                print(f"  Style warning: {e}")
         else:
             print("Applying standard PyQtGraph configuration...")
             # Standard configuration for Mac/Linux
@@ -285,15 +302,32 @@ class Shower():
             if sys.platform.startswith('win'):
                 # Windows-specific pen configuration for better visibility
                 pen = pg.mkPen(color=color, width=8, style=pg.QtCore.Qt.SolidLine, cosmetic=False)
-                print(f"  Using Windows-optimized pen: width=8, cosmetic=False")
+                print("  Using Windows-optimized pen: width=8, cosmetic=False")
             else:
                 # Standard pen for Mac/Linux
                 pen = pg.mkPen(color=color, width=5, style=pg.QtCore.Qt.SolidLine)
-                print(f"  Using standard pen: width=5")
+                print("  Using standard pen: width=5")
             
             curve = plot.plot(t, adjusted_signal, pen=pen)
             print(f"  Curve plotted successfully: {curve is not None}")
             print(f"  Curve object: {type(curve).__name__}")
+            
+            # Windows-specific rendering fixes - force immediate updates
+            if sys.platform.startswith('win'):
+                # Force the curve to be visible and update immediately
+                curve.setVisible(True)
+                curve.update()
+                
+                # Force the plot item to refresh its cache
+                if hasattr(plot, 'clearCache'):
+                    plot.clearCache()
+                if hasattr(plot, 'informViewBoundsChanged'):
+                    plot.informViewBoundsChanged()
+                
+                # Force application events processing
+                app.processEvents()
+                
+                print("  Windows rendering fixes applied to curve")
             
             # MULTIPLE TEST APPROACHES for Windows compatibility
             print("  === TESTING MULTIPLE PLOT APPROACHES ===")
@@ -368,6 +402,30 @@ class Shower():
             curve.update()
             simple_curve.update()
             scatter.update()
+            
+            # Additional Windows-specific refresh operations
+            if sys.platform.startswith('win'):
+                # Force PyQtGraph to regenerate its scene
+                if hasattr(plot, 'scene'):
+                    plot.scene().update()
+                if hasattr(plot, 'getViewWidget'):
+                    view_widget = plot.getViewWidget()
+                    if view_widget:
+                        view_widget.update()
+                        view_widget.repaint()
+                
+                # Force the entire plot widget to repaint
+                if hasattr(win, 'repaint'):
+                    win.repaint()
+                if hasattr(win, 'update'):
+                    win.update()
+                
+                # Process Qt events multiple times to ensure rendering
+                for _ in range(10):
+                    app.processEvents()
+                    
+                print("  Additional Windows rendering refresh applied")
+            
             print("  All plot items updated")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
@@ -379,6 +437,26 @@ class Shower():
         # Platform-specific window management and final display
         if sys.platform.startswith('win'):
             print("Applying Windows-specific display optimizations...")
+            
+            # Critical Windows fix: Force ViewBox to recalculate bounds and redraw
+            view_box = plot.getViewBox()
+            if view_box:
+                # Force recalculation of data bounds
+                view_box.updateAutoRange()
+                view_box.enableAutoRange()
+                view_box.disableAutoRange()  # Reset to our manual range
+                
+                # Set our range again to make sure it sticks
+                if all_t_values and all_y_values:
+                    view_box.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
+                    print(f"  Windows ViewBox range reset: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
+                
+                # Force ViewBox scene to update
+                if hasattr(view_box, 'scene'):
+                    view_box.scene().update()
+                
+                print("  Windows ViewBox refresh applied")
+            
             # Force immediate processing of Qt events on Windows
             for _ in range(5):
                 app.processEvents()
