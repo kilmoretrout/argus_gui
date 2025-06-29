@@ -4,8 +4,8 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-# import matplotlib
-# matplotlib.use('Qt5Agg')
+import matplotlib
+matplotlib.use('Qt5Agg')
 
 # commented for pyqtgraph
 # from mpl_toolkits.mplot3d import Axes3D
@@ -157,21 +157,29 @@ class Shower():
         if sys.platform.startswith('win'):
             print("Creating Windows-optimized plot widget...")
             try:
-                # For Windows, try the simplest approach first
-                win = pg.PlotWidget(title="Audio Streams")
+                # For Windows, try the most basic approach possible
+                win = pg.PlotWidget()
                 win.resize(1000, 600)
-                win.setWindowTitle('Audio Streams - Windows Simple')
-                win.setBackground('w')
+                win.setWindowTitle('Audio Streams - Windows Basic')
+                win.setBackground('white')  # Use string instead of 'w'
                 plot = win.getPlotItem()
-                print("Using PlotWidget for Windows")
+                
+                # Force basic Windows-compatible settings
+                plot.setMenuEnabled(enableMenu=False)
+                plot.setMouseEnabled(x=True, y=True)
+                plot.enableAutoRange('xy', False)
+                plot.setAutoVisible(y=False)
+                
+                print("Using basic PlotWidget for Windows")
             except Exception as e:
-                print(f"PlotWidget failed: {e}, trying GraphicsLayoutWidget")
+                print(f"Basic PlotWidget failed: {e}, trying minimal GraphicsLayoutWidget")
                 win = pg.GraphicsLayoutWidget()
                 win.resize(1000, 600)
-                win.setWindowTitle('Audio Streams - Windows Fallback')
-                win.setBackground('w')
+                win.setWindowTitle('Audio Streams - Windows Minimal')
+                win.setBackground('white')
                 plot = win.addPlot()
-                print("Using GraphicsLayoutWidget fallback")
+                plot.setMenuEnabled(enableMenu=False)
+                print("Using minimal GraphicsLayoutWidget fallback")
         else:
             print("Creating standard plot widget...")
             try:
@@ -303,6 +311,49 @@ class Shower():
             print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
             sys.stdout.flush()
             
+            # CRITICAL WINDOWS FIX: Use matplotlib as fallback if PyQtGraph fails
+            if sys.platform.startswith('win'):
+                # Try matplotlib as a backup for Windows
+                print("  Attempting matplotlib fallback for Windows...")
+                try:
+                    import matplotlib.pyplot as plt
+                    import matplotlib.patches as mpatches
+                    
+                    # Create matplotlib plot
+                    fig, ax = plt.subplots(figsize=(12, 8))
+                    ax.set_title('Audio Streams - Matplotlib Windows Fallback')
+                    ax.set_xlabel('Minutes')
+                    ax.grid(True)
+                    
+                    # Plot with matplotlib using the same data
+                    bright_colors_mpl = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan']
+                    color_mpl = bright_colors_mpl[k % len(bright_colors_mpl)]
+                    
+                    # Plot the audio waveform with matplotlib
+                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=3, label=self.files[k].split('/')[-1])
+                    
+                    # Add the test triangle to matplotlib
+                    test_x_mpl = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
+                    test_y_mpl = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
+                    ax.plot(test_x_mpl, test_y_mpl, color='purple', linewidth=5, linestyle='--', label='Test Triangle')
+                    
+                    # Set the same ranges as PyQtGraph
+                    ax.set_xlim(plot_x_min, plot_x_max)
+                    ax.set_ylim(plot_y_min, plot_y_max)
+                    
+                    ax.legend()
+                    
+                    print("  Matplotlib plot created successfully - this should definitely be visible!")
+                    plt.show()
+                    
+                    # Skip the rest of the PyQtGraph plotting since matplotlib worked
+                    continue
+                    
+                except Exception as mpl_error:
+                    print(f"  Matplotlib fallback failed: {mpl_error}")
+                    print("  Continuing with PyQtGraph...")
+            
+            # Original PyQtGraph plotting (for non-Windows or if matplotlib fails)
             # Simplified plotting approach for better Windows compatibility
             if sys.platform.startswith('win'):
                 # Windows: Use thicker, simpler pen
