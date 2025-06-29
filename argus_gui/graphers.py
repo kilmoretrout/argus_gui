@@ -178,6 +178,41 @@ class Shower():
         print(f"Max range: {max_range}, Vertical offset: {vertical_offset}")
         sys.stdout.flush()
         
+        # CRITICAL: Calculate plot ranges BEFORE plotting anything
+        # Calculate the overall coordinate bounds for all signals first
+        all_t_values = []
+        all_y_values = []
+        for k in range(len(signals)):
+            t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0
+            y_offset = k * vertical_offset
+            adjusted_signal = signals[k] - signal_center + y_offset
+            
+            all_t_values.extend([np.min(t), np.max(t)])
+            all_y_values.extend([np.min(adjusted_signal), np.max(adjusted_signal)])
+        
+        # Set plot ranges BEFORE creating any plot items
+        if all_t_values and all_y_values:
+            x_min, x_max = min(all_t_values), max(all_t_values)
+            y_min, y_max = min(all_y_values), max(all_y_values)
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            plot_x_min = x_min - x_padding
+            plot_x_max = x_max + x_padding  
+            plot_y_min = y_min - y_padding
+            plot_y_max = y_max + y_padding
+            
+            plot.setXRange(plot_x_min, plot_x_max, padding=0)
+            plot.setYRange(plot_y_min, plot_y_max, padding=0)
+            print(f"PRE-PLOTTING: Set ranges X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
+            sys.stdout.flush()
+        
         for k in range(len(signals)):
             # Use bright, contrasting colors for better visibility
             bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
@@ -234,17 +269,17 @@ class Shower():
             print(f"  Scatter plot (in audio range): {scatter is not None}")
             print(f"    Scatter coords: X=[{np.min(scatter_x):.4f}, {np.max(scatter_x):.4f}], Y=[{np.min(scatter_y):.2f}, {np.max(scatter_y):.2f}]")
             
-            # Set plot range to encompass our audio data BEFORE plotting
+            # Set plot range to encompass our audio data AFTER we've already set it globally
+            # This is redundant now but kept for debugging
             x_padding = (audio_x_max - audio_x_min) * 0.1
             y_padding = (audio_y_max - audio_y_min) * 0.1
-            plot_x_min = audio_x_min - x_padding
-            plot_x_max = audio_x_max + x_padding  
-            plot_y_min = audio_y_min - y_padding
-            plot_y_max = audio_y_max + y_padding
+            plot_x_min_local = audio_x_min - x_padding
+            plot_x_max_local = audio_x_max + x_padding  
+            plot_y_min_local = audio_y_min - y_padding
+            plot_y_max_local = audio_y_max + y_padding
             
-            plot.setXRange(plot_x_min, plot_x_max, padding=0)
-            plot.setYRange(plot_y_min, plot_y_max, padding=0)
-            print(f"  Set plot ranges BEFORE plotting: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
+            # Don't set range again - it was already set before plotting
+            print(f"  LOCAL ranges would be: X=[{plot_x_min_local:.4f}, {plot_x_max_local:.4f}], Y=[{plot_y_min_local:.2f}, {plot_y_max_local:.2f}]")
             
             # Test 3: Check pyqtgraph version and rendering info
             print(f"  PyQtGraph version: {pg.__version__ if hasattr(pg, '__version__') else 'unknown'}")
