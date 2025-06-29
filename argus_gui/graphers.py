@@ -394,18 +394,57 @@ class Shower():
         view_range = plot.viewRange()
         print(f"  Current view range after forcing: {view_range}")
         
-        # Test 7: If range is still wrong, try one more time
-        if view_range[0][1] - view_range[0][0] < 0.1 or abs(view_range[1][1] - view_range[1][0]) > 100000:
-            print("  Range still corrupted, forcing again...")
-            plot.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
-            app.processEvents()
-            view_range = plot.viewRange()
-            print(f"  Final view range: {view_range}")
+        # Test 7: Advanced rendering diagnostics and fixes
+        print("Test 7: Advanced rendering diagnostics")
         
-        # Show the window explicitly
+        # Check if items are actually in the plot
+        plot_items = plot.listDataItems()
+        print(f"  Plot has {len(plot_items)} data items")
+        
+        # Try clearing and re-adding a simple test
+        print("  Clearing plot and adding simple test...")
+        plot.clear()
+        
+        # Add the most basic possible plot item
+        test_x = np.array([0.0, 0.5])
+        test_y = np.array([0.0, 1000.0])
+        basic_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color=(255, 0, 0), width=10))
+        print(f"  Basic curve added: {basic_curve is not None}")
+        
+        # Force the correct range for this simple test
+        plot.setRange(xRange=[-0.1, 0.6], yRange=[-100, 1100], padding=0)
+        app.processEvents()
+        
+        # Try different rendering backends
+        print("  Testing different rendering approaches...")
+        
+        # Force immediate scene update
+        if hasattr(plot.scene(), 'update'):
+            plot.scene().update()
+            print("  Scene update called")
+        
+        # Try alternative plot widget
+        print("  Creating backup plot widget...")
+        try:
+            backup_win = pg.plot()
+            backup_win.setWindowTitle('Backup Audio Plot')
+            backup_win.resize(800, 400)
+            backup_curve = backup_win.plot(test_x, test_y, pen=pg.mkPen(color=(0, 255, 0), width=8))
+            backup_win.show()
+            print("  Backup plot created - check if this one is visible!")
+        except Exception as e:
+            print(f"  Backup plot failed: {e}")
+        
+        # Show the main window explicitly
         win.show()
         win.raise_()  # Bring window to front
         win.activateWindow()  # Make sure it's active
+        
+        # Try forcing window to front multiple times
+        for i in range(3):
+            app.processEvents()
+            win.raise_()
+            win.activateWindow()
         
         print("=== WINDOW DISPLAYED - CHECK FOR VISIBILITY ===")
         print("You should see:")
