@@ -173,6 +173,38 @@ class Shower():
             curve = plot.plot(t, adjusted_signal, pen=pg.mkPen(color=color, width=2))
             legend.addItem(curve, self.files[k].split('/')[-1])
 
+        # Force the plot to show all signals by setting explicit range
+        # Calculate the overall y-range to show all signals
+        all_y_values = []
+        for k in range(len(signals)):
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0
+            y_offset = k * vertical_offset
+            adjusted_signal = signals[k] - signal_center + y_offset
+            all_y_values.extend([np.min(adjusted_signal), np.max(adjusted_signal)])
+        
+        if all_y_values:
+            y_min = min(all_y_values)
+            y_max = max(all_y_values)
+            y_padding = (y_max - y_min) * 0.1  # 10% padding
+            plot.setYRange(y_min - y_padding, y_max + y_padding)
+            print(f"Set plot Y range: [{y_min - y_padding:.2f}, {y_max + y_padding:.2f}]")
+            sys.stdout.flush()
+
+        print("Plot window should now be visible with all signals!")
+        sys.stdout.flush()
+        
+        # Show the window explicitly
+        win.show()
+        win.raise_()  # Bring window to front
+        win.activateWindow()  # Make sure it's active
+        
+        # Start the application event loop
         app.exec_()
         signals_ = None
         # a = 0
