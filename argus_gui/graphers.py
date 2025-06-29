@@ -327,10 +327,69 @@ class Shower():
         print("If signals are not visible, try zooming out or check the debug output above.")
         sys.stdout.flush()
         
+        # CRITICAL: Try forcing a complete refresh and different approaches
+        print("=== FINAL VISIBILITY TESTS ===")
+        
+        # Test 1: Manually set a very simple, guaranteed visible range
+        print("Test 1: Setting ultra-simple range")
+        plot.setXRange(-1, 1, padding=0)
+        plot.setYRange(-1, 1, padding=0)
+        
+        # Add a simple test point that should definitely be visible
+        simple_test = plot.plot([0], [0], pen=None, symbol='o', symbolBrush='red', symbolSize=50)
+        print(f"  Center point plotted: {simple_test is not None}")
+        
+        # Test 2: Force immediate processing of all Qt events
+        print("Test 2: Processing Qt events")
+        app.processEvents()
+        
+        # Test 3: Set our actual range again
+        print("Test 3: Restoring actual data range")
+        if all_t_values and all_y_values:
+            x_min, x_max = min(all_t_values), max(all_t_values)
+            y_min, y_max = min(all_y_values), max(all_y_values)
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            plot_x_min = x_min - x_padding
+            plot_x_max = x_max + x_padding  
+            plot_y_min = y_min - y_padding
+            plot_y_max = y_max + y_padding
+            
+            plot.setXRange(plot_x_min, plot_x_max, padding=0)
+            plot.setYRange(plot_y_min, plot_y_max, padding=0)
+            print(f"  Final range set: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
+        
+        # Test 4: Try auto-range as a last resort
+        print("Test 4: Trying auto-range")
+        plot.autoRange()
+        
+        # Test 5: Force complete window update
+        print("Test 5: Force complete update")
+        win.update()
+        plot.update()
+        app.processEvents()
+        
+        # Test 6: Check plot view state
+        view_range = plot.viewRange()
+        print(f"  Current view range: {view_range}")
+        
+        # Test 7: Try explicit render
+        if hasattr(plot, 'render'):
+            plot.render()
+            print("  Plot render() called")
+        
         # Show the window explicitly
         win.show()
         win.raise_()  # Bring window to front
         win.activateWindow()  # Make sure it's active
+        
+        print("=== WINDOW DISPLAYED - CHECK FOR VISIBILITY ===")
+        print("You should see:")
+        print("1. A red center dot at (0,0)")
+        print("2. A thick red audio waveform") 
+        print("3. A red triangle test plot")
+        print("4. Magenta scatter points")
+        print("If you see NOTHING, this may be a PyQt/platform-specific rendering issue")
         
         # Start the application event loop
         app.exec_()
