@@ -149,10 +149,10 @@ class Shower():
         sys.stdout.flush()
         
         for k in range(len(signals)):
-            color = colors[k % len(colors)]
-            #convert tuple of [0,1] to tuple of [0,255] for pyqtgraph
-            color = tuple(int(c * 255) for c in color)
-            print(f"Plotting signal {k} with color {color}")  # Debugging statement
+            # Use bright, contrasting colors for better visibility
+            bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            color = bright_colors[k % len(bright_colors)]
+            print(f"Plotting signal {k} with BRIGHT color {color}")  # Debugging statement
             sys.stdout.flush()
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
             # Use the signal's offset from its center, then apply vertical separation
@@ -171,9 +171,14 @@ class Shower():
             print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
             print(f"  Time array t: length={len(t)}, range=[{np.min(t):.4f}, {np.max(t):.4f}]")
             print(f"  Adjusted signal: length={len(adjusted_signal)}, min={np.min(adjusted_signal):.2f}, max={np.max(adjusted_signal):.2f}")
+            print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
             sys.stdout.flush()
-            curve = plot.plot(t, adjusted_signal, pen=pg.mkPen(color=color, width=2))
+            
+            # Use a much thicker line with bright color
+            pen = pg.mkPen(color=color, width=5, style=pg.QtCore.Qt.SolidLine)
+            curve = plot.plot(t, adjusted_signal, pen=pen)
             print(f"  Curve plotted successfully: {curve is not None}")
+            print(f"  Curve object: {type(curve).__name__}")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
