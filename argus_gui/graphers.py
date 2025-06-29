@@ -179,6 +179,21 @@ class Shower():
             curve = plot.plot(t, adjusted_signal, pen=pen)
             print(f"  Curve plotted successfully: {curve is not None}")
             print(f"  Curve object: {type(curve).__name__}")
+            
+            # Add a simple test plot to verify pyqtgraph is working
+            test_t = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5])
+            test_y = np.array([0, 1000, -1000, 2000, -2000, 0])
+            test_curve = plot.plot(test_t, test_y, pen=pg.mkPen(color=(0, 255, 255), width=10))
+            print(f"  Test curve plotted: {test_curve is not None}")
+            
+            # Check for NaN or infinite values in our data
+            nan_count_t = np.sum(~np.isfinite(t))
+            nan_count_signal = np.sum(~np.isfinite(adjusted_signal))
+            print(f"  NaN/Inf count - t: {nan_count_t}, signal: {nan_count_signal}")
+            
+            # Print a sample of the actual data values
+            print(f"  Sample t values: {t[:5]} ... {t[-5:]}")
+            print(f"  Sample signal values: {adjusted_signal[:5]} ... {adjusted_signal[-5:]}")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
