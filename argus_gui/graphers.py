@@ -104,12 +104,8 @@ class Shower():
         plot.setLabel('bottom', 'Minutes')
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
-        # Disable auto-range to prevent erratic zooming behavior
-        plot.disableAutoRange()
-        
-        # Disable mouse interaction to prevent accidental zooming/panning
-        plot.setMouseEnabled(x=False, y=False)
-        plot.setMenuEnabled(False)
+        # Enable auto-range to ensure signals are visible
+        plot.enableAutoRange()
 
         legend = plot.addLegend(offset=(70, 30))
         
@@ -173,8 +169,12 @@ class Shower():
             # Center the signal around zero, then add vertical offset for separation
             adjusted_signal = signals[k] - signal_center + y_offset
             print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
+            print(f"  Time array t: length={len(t)}, range=[{np.min(t):.4f}, {np.max(t):.4f}]")
+            print(f"  Adjusted signal: length={len(adjusted_signal)}, min={np.min(adjusted_signal):.2f}, max={np.max(adjusted_signal):.2f}")
             sys.stdout.flush()
             curve = plot.plot(t, adjusted_signal, pen=pg.mkPen(color=color, width=2))
+            print(f"  Curve plotted successfully: {curve is not None}")
+            sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
         # Force the plot to show all signals by setting explicit range
