@@ -93,14 +93,12 @@ class Shower():
                 a += 100
             signals.append(np.asarray(t))
             
-        app = QApplication([])
-        
-        # Platform-specific rendering fixes
+        # Platform-specific rendering fixes - MUST be set before QApplication creation
         print("Testing different pyqtgraph configurations...")
         print(f"Platform detected: {sys.platform}")
         sys.stdout.flush()
         
-        # Windows-specific rendering fixes
+        # Windows-specific PyQtGraph configuration - BEFORE QApplication
         if sys.platform.startswith('win'):
             print("Applying Windows-specific PyQtGraph fixes...")
             # Force software rendering to avoid GPU driver issues on Windows
@@ -114,28 +112,23 @@ class Shower():
             pg.setConfigOption('leftButtonPan', False)  # Disable problematic pan behavior
             pg.setConfigOption('enableExperimental', False)  # Disable experimental features
             
-            # Set Qt application attributes for better Windows compatibility
+            # Set Qt application attributes BEFORE creating QApplication
             try:
                 from PySide6.QtCore import Qt
-                # Only set attributes that exist in this PySide6 version
+                from PySide6.QtWidgets import QApplication
+                
+                # Set attributes before QApplication creation
                 if hasattr(Qt, 'AA_UseDesktopOpenGL'):
-                    app.setAttribute(Qt.AA_UseDesktopOpenGL, False)
+                    QApplication.setAttribute(Qt.AA_UseDesktopOpenGL, False)
                 if hasattr(Qt, 'AA_UseSoftwareOpenGL'):
-                    app.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+                    QApplication.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
                 if hasattr(Qt, 'AA_ShareOpenGLContexts'):
-                    app.setAttribute(Qt.AA_ShareOpenGLContexts, False)
+                    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, False)
                 if hasattr(Qt, 'AA_DisableShaderDiskCache'):
-                    app.setAttribute(Qt.AA_DisableShaderDiskCache, True)
-                print("  Windows Qt attributes set")
+                    QApplication.setAttribute(Qt.AA_DisableShaderDiskCache, True)
+                print("  Windows Qt attributes set before QApplication creation")
             except Exception as e:
                 print(f"  Qt attributes warning: {e}")
-                
-            # Force immediate style refresh on Windows
-            try:
-                app.setStyle('Fusion')  # Use cross-platform Fusion style
-                print("  Windows style set to Fusion")
-            except Exception as e:
-                print(f"  Style warning: {e}")
         else:
             print("Applying standard PyQtGraph configuration...")
             # Standard configuration for Mac/Linux
@@ -144,29 +137,41 @@ class Shower():
             pg.setConfigOption('background', 'w')
             pg.setConfigOption('foreground', 'k')
         
+        # NOW create QApplication
+        app = QApplication([])
+        
+        # Post-application Windows setup
+        if sys.platform.startswith('win'):
+            # Force immediate style refresh on Windows
+            try:
+                app.setStyle('Fusion')  # Use cross-platform Fusion style
+                print("  Windows style set to Fusion")
+            except Exception as e:
+                print(f"  Style warning: {e}")
+        
         print(f"PyQtGraph config - OpenGL: {pg.getConfigOption('useOpenGL')}")
         print(f"PyQtGraph config - Antialias: {pg.getConfigOption('antialias')}")
         sys.stdout.flush()
         
-        # Platform-specific widget creation
+        # Platform-specific widget creation - SIMPLIFIED Windows approach
         if sys.platform.startswith('win'):
             print("Creating Windows-optimized plot widget...")
             try:
-                # For Windows, try the most compatible approach
-                win = pg.GraphicsLayoutWidget()
-                win.resize(1000, 600)
-                win.setWindowTitle('Audio Streams - Windows Mode')
-                win.setBackground('w')
-                plot = win.addPlot()
-                print("Using GraphicsLayoutWidget for Windows compatibility")
-            except Exception as e:
-                print(f"GraphicsLayoutWidget failed: {e}, trying PlotWidget")
+                # For Windows, try the simplest approach first
                 win = pg.PlotWidget(title="Audio Streams")
                 win.resize(1000, 600)
-                win.setWindowTitle('Audio Streams - Fallback')
+                win.setWindowTitle('Audio Streams - Windows Simple')
                 win.setBackground('w')
                 plot = win.getPlotItem()
-                print("Using PlotWidget fallback")
+                print("Using PlotWidget for Windows")
+            except Exception as e:
+                print(f"PlotWidget failed: {e}, trying GraphicsLayoutWidget")
+                win = pg.GraphicsLayoutWidget()
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - Windows Fallback')
+                win.setBackground('w')
+                plot = win.addPlot()
+                print("Using GraphicsLayoutWidget fallback")
         else:
             print("Creating standard plot widget...")
             try:
@@ -298,136 +303,38 @@ class Shower():
             print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
             sys.stdout.flush()
             
-            # Use a much thicker line with bright color - Windows-optimized
+            # Simplified plotting approach for better Windows compatibility
             if sys.platform.startswith('win'):
-                # Windows-specific pen configuration for better visibility
-                pen = pg.mkPen(color=color, width=8, style=pg.QtCore.Qt.SolidLine, cosmetic=False)
-                print("  Using Windows-optimized pen: width=8, cosmetic=False")
+                # Windows: Use thicker, simpler pen
+                pen = pg.mkPen(color=color, width=10)
+                print("  Using Windows-optimized thick pen")
             else:
-                # Standard pen for Mac/Linux
-                pen = pg.mkPen(color=color, width=5, style=pg.QtCore.Qt.SolidLine)
-                print("  Using standard pen: width=5")
+                # Mac/Linux: Standard pen
+                pen = pg.mkPen(color=color, width=5)
+                print("  Using standard pen")
             
+            # Plot the audio signal
             curve = plot.plot(t, adjusted_signal, pen=pen)
-            print(f"  Curve plotted successfully: {curve is not None}")
-            print(f"  Curve object: {type(curve).__name__}")
+            print(f"  Audio curve plotted: {curve is not None}")
             
-            # Windows-specific rendering fixes - force immediate updates
+            # Windows-specific: Add a simple test curve for visibility verification
             if sys.platform.startswith('win'):
-                # Force the curve to be visible and update immediately
-                curve.setVisible(True)
-                curve.update()
-                
-                # Force the plot item to refresh its cache
-                if hasattr(plot, 'clearCache'):
-                    plot.clearCache()
-                if hasattr(plot, 'informViewBoundsChanged'):
-                    plot.informViewBoundsChanged()
-                
-                # Force application events processing
-                app.processEvents()
-                
-                print("  Windows rendering fixes applied to curve")
+                # Add a simple triangle as a test
+                test_x = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
+                test_y = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
+                test_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color='magenta', width=12))
+                print(f"  Windows test triangle plotted: {test_curve is not None}")
             
-            # MULTIPLE TEST APPROACHES for Windows compatibility
-            print("  === TESTING MULTIPLE PLOT APPROACHES ===")
-            
-            # Calculate proper coordinate ranges first
-            audio_x_min, audio_x_max = 0, len(signals_[k]) / 48000. / 60.
-            audio_y_min, audio_y_max = np.min(adjusted_signal), np.max(adjusted_signal)
-            print(f"  Audio coordinate ranges: X=[{audio_x_min:.4f}, {audio_x_max:.4f}], Y=[{audio_y_min:.2f}, {audio_y_max:.2f}]")
-            
-            # Test 1: Simple plot using the SAME coordinate range as our audio
-            simple_x = np.array([audio_x_min, audio_x_max * 0.5, audio_x_max])
-            simple_y = np.array([0, audio_y_max * 0.5, 0])  # Triangle within audio range
-            simple_curve = plot.plot(simple_x, simple_y, pen=pg.mkPen(color='red', width=8))
-            print(f"  Simple test curve (in audio range): {simple_curve is not None}")
-            print(f"    Simple curve coords: X=[{np.min(simple_x):.4f}, {np.max(simple_x):.4f}], Y=[{np.min(simple_y):.2f}, {np.max(simple_y):.2f}]")
-            
-            # Test 2: Scatter plot using coordinates within audio range  
-            scatter_x = np.linspace(audio_x_min, audio_x_max, 6)
-            scatter_y = np.linspace(audio_y_min, audio_y_max, 6)
-            scatter = pg.ScatterPlotItem(pos=np.column_stack([scatter_x, scatter_y]), 
-                                       brush=pg.mkBrush(255, 0, 255, 255), size=20)
-            plot.addItem(scatter)
-            print(f"  Scatter plot (in audio range): {scatter is not None}")
-            print(f"    Scatter coords: X=[{np.min(scatter_x):.4f}, {np.max(scatter_x):.4f}], Y=[{np.min(scatter_y):.2f}, {np.max(scatter_y):.2f}]")
-            
-            # Set plot range to encompass our audio data AFTER we've already set it globally
-            # This is redundant now but kept for debugging
-            x_padding = (audio_x_max - audio_x_min) * 0.1
-            y_padding = (audio_y_max - audio_y_min) * 0.1
-            plot_x_min_local = audio_x_min - x_padding
-            plot_x_max_local = audio_x_max + x_padding  
-            plot_y_min_local = audio_y_min - y_padding
-            plot_y_max_local = audio_y_max + y_padding
-            
-            # Don't set range again - it was already set before plotting
-            print(f"  LOCAL ranges would be: X=[{plot_x_min_local:.4f}, {plot_x_max_local:.4f}], Y=[{plot_y_min_local:.2f}, {plot_y_max_local:.2f}]")
-            
-            # Test 3: Check pyqtgraph version and rendering info
-            print(f"  PyQtGraph version: {pg.__version__ if hasattr(pg, '__version__') else 'unknown'}")
-            print(f"  Plot view widget type: {type(plot).__name__}")
-            print(f"  Window type: {type(win).__name__}")
-            
-            # Test 4: Force immediate repaint
-            if hasattr(plot, 'repaint'):
-                plot.repaint()
-                print("  Plot repaint called")
-            if hasattr(win, 'repaint'):
+            # Force updates for Windows
+            if sys.platform.startswith('win'):
+                plot.update()
+                curve.update() 
+                if 'test_curve' in locals():
+                    test_curve.update()
                 win.repaint()
-                print("  Window repaint called")
+                app.processEvents()
+                print("  Windows plot updates applied")
             
-            # Now try the original audio signal
-            print("  === PLOTTING AUDIO SIGNAL ===")
-            
-            # Check for NaN or infinite values in our data
-            nan_count_t = np.sum(~np.isfinite(t))
-            nan_count_signal = np.sum(~np.isfinite(adjusted_signal))
-            print(f"  NaN/Inf count - t: {nan_count_t}, signal: {nan_count_signal}")
-            
-            # Print a sample of the actual data values
-            print(f"  Sample t values: {t[:5]} ... {t[-5:]}")
-            print(f"  Sample signal values: {adjusted_signal[:5]} ... {adjusted_signal[-5:]}")
-            
-            # Check if the plot item is actually visible
-            print(f"  Audio curve visible: {curve.isVisible()}")
-            print(f"  Simple test visible: {simple_curve.isVisible()}")
-            print(f"  Scatter visible: {scatter.isVisible()}")
-            
-            print(f"  Audio data bounds: x=[{np.min(t):.4f}, {np.max(t):.4f}], y=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
-            
-            # Force an update/refresh of everything
-            plot.update()
-            curve.update()
-            simple_curve.update()
-            scatter.update()
-            
-            # Additional Windows-specific refresh operations
-            if sys.platform.startswith('win'):
-                # Force PyQtGraph to regenerate its scene
-                if hasattr(plot, 'scene'):
-                    plot.scene().update()
-                if hasattr(plot, 'getViewWidget'):
-                    view_widget = plot.getViewWidget()
-                    if view_widget:
-                        view_widget.update()
-                        view_widget.repaint()
-                
-                # Force the entire plot widget to repaint
-                if hasattr(win, 'repaint'):
-                    win.repaint()
-                if hasattr(win, 'update'):
-                    win.update()
-                
-                # Process Qt events multiple times to ensure rendering
-                for _ in range(10):
-                    app.processEvents()
-                    
-                print("  Additional Windows rendering refresh applied")
-            
-            print("  All plot items updated")
-            sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
         print("Plot window should now be visible with all signals!")
@@ -495,9 +402,38 @@ class Shower():
         print("3. Look for thick colored lines representing the audio signals")
         if sys.platform.startswith('win'):
             print("4. On Windows, try moving/resizing the window to trigger a refresh")
+            print("5. Close the window to continue - press Alt+F4 or click the X button")
         
-        # Start the application event loop
-        app.exec_()
+        # Platform-specific event loop handling
+        if sys.platform.startswith('win'):
+            # Windows-specific event loop with timeout to prevent hanging
+            print("Starting Windows-compatible event loop...")
+            try:
+                # Add a timer to prevent infinite hanging
+                from PySide6.QtCore import QTimer
+                
+                # Create a timer that will allow the app to be responsive
+                timer = QTimer()
+                timer.timeout.connect(lambda: None)  # Empty callback
+                timer.start(100)  # Process events every 100ms
+                
+                # Set a flag to allow graceful shutdown
+                win.closeEvent = lambda event: app.quit()
+                
+                # Start the application event loop with timeout handling
+                app.exec_()
+                print("Windows event loop completed")
+            except Exception as e:
+                print(f"Windows event loop error: {e}")
+                try:
+                    app.quit()
+                except:
+                    pass
+        else:
+            # Standard event loop for Mac/Linux
+            app.exec_()
+            
+        # Cleanup
         signals_ = None
         # a = 0
         # patches = list()
