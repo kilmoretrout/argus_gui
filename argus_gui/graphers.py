@@ -95,36 +95,78 @@ class Shower():
             
         app = QApplication([])
         
-        # Try different backend/rendering approaches for Windows compatibility
+        # Platform-specific rendering fixes
         print("Testing different pyqtgraph configurations...")
+        print(f"Platform detected: {sys.platform}")
         sys.stdout.flush()
         
-        # Force software rendering to avoid GPU driver issues
-        pg.setConfigOption('useOpenGL', False)
-        pg.setConfigOption('antialias', True)
-        pg.setConfigOption('background', 'w')
-        pg.setConfigOption('foreground', 'k')
+        # Windows-specific rendering fixes
+        if sys.platform.startswith('win'):
+            print("Applying Windows-specific PyQtGraph fixes...")
+            # Force software rendering to avoid GPU driver issues on Windows
+            pg.setConfigOption('useOpenGL', False)
+            pg.setConfigOption('antialias', False)  # Disable antialiasing on Windows
+            pg.setConfigOption('background', 'w')
+            pg.setConfigOption('foreground', 'k')
+            pg.setConfigOption('crashWarning', True)
+            
+            # Set Qt application attributes for better Windows compatibility
+            try:
+                from PySide6.QtCore import Qt
+                app.setAttribute(Qt.AA_DisableWindowContextHelpButton, True)
+                app.setAttribute(Qt.AA_UseDesktopOpenGL, False)
+                app.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+                print("  Windows Qt attributes set")
+            except Exception as e:
+                print(f"  Qt attributes warning: {e}")
+        else:
+            print("Applying standard PyQtGraph configuration...")
+            # Standard configuration for Mac/Linux
+            pg.setConfigOption('useOpenGL', False)
+            pg.setConfigOption('antialias', True)
+            pg.setConfigOption('background', 'w')
+            pg.setConfigOption('foreground', 'k')
         
         print(f"PyQtGraph config - OpenGL: {pg.getConfigOption('useOpenGL')}")
         print(f"PyQtGraph config - Antialias: {pg.getConfigOption('antialias')}")
         sys.stdout.flush()
         
-        # Try a simpler PlotWidget instead of GraphicsLayoutWidget
-        try:
-            win = pg.PlotWidget(title="Audio Streams")
-            win.resize(1000, 600)
-            win.setWindowTitle('Audio Streams - PlotWidget')
-            win.setBackground('w')
-            plot = win.getPlotItem()
-            print("Using PlotWidget successfully")
-        except Exception as e:
-            print(f"PlotWidget failed: {e}, falling back to GraphicsLayoutWidget")
-            win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
-            win.resize(1000, 600)
-            win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
-            win.setBackground('w')
-            plot = win.addPlot()
-            print("Using GraphicsLayoutWidget fallback")
+        # Platform-specific widget creation
+        if sys.platform.startswith('win'):
+            print("Creating Windows-optimized plot widget...")
+            try:
+                # For Windows, try the most compatible approach
+                win = pg.GraphicsLayoutWidget()
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - Windows Mode')
+                win.setBackground('w')
+                plot = win.addPlot()
+                print("Using GraphicsLayoutWidget for Windows compatibility")
+            except Exception as e:
+                print(f"GraphicsLayoutWidget failed: {e}, trying PlotWidget")
+                win = pg.PlotWidget(title="Audio Streams")
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - Fallback')
+                win.setBackground('w')
+                plot = win.getPlotItem()
+                print("Using PlotWidget fallback")
+        else:
+            print("Creating standard plot widget...")
+            try:
+                win = pg.PlotWidget(title="Audio Streams")
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - PlotWidget')
+                win.setBackground('w')
+                plot = win.getPlotItem()
+                print("Using PlotWidget successfully")
+            except Exception as e:
+                print(f"PlotWidget failed: {e}, falling back to GraphicsLayoutWidget")
+                win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
+                win.setBackground('w')
+                plot = win.addPlot()
+                print("Using GraphicsLayoutWidget fallback")
         
         sys.stdout.flush()
         
@@ -239,8 +281,16 @@ class Shower():
             print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
             sys.stdout.flush()
             
-            # Use a much thicker line with bright color
-            pen = pg.mkPen(color=color, width=5, style=pg.QtCore.Qt.SolidLine)
+            # Use a much thicker line with bright color - Windows-optimized
+            if sys.platform.startswith('win'):
+                # Windows-specific pen configuration for better visibility
+                pen = pg.mkPen(color=color, width=8, style=pg.QtCore.Qt.SolidLine, cosmetic=False)
+                print(f"  Using Windows-optimized pen: width=8, cosmetic=False")
+            else:
+                # Standard pen for Mac/Linux
+                pen = pg.mkPen(color=color, width=5, style=pg.QtCore.Qt.SolidLine)
+                print(f"  Using standard pen: width=5")
+            
             curve = plot.plot(t, adjusted_signal, pen=pen)
             print(f"  Curve plotted successfully: {curve is not None}")
             print(f"  Curve object: {type(curve).__name__}")
@@ -324,135 +374,49 @@ class Shower():
 
         print("Plot window should now be visible with all signals!")
         print(f"Total curves plotted: {len(signals)}")
-        print("If signals are not visible, try zooming out or check the debug output above.")
         sys.stdout.flush()
         
-        # CRITICAL: Try forcing a complete refresh and different approaches
-        print("=== FINAL VISIBILITY TESTS ===")
-        
-        # Test 1: Manually set a very simple, guaranteed visible range
-        print("Test 1: Setting ultra-simple range")
-        plot.setXRange(-1, 1, padding=0)
-        plot.setYRange(-1, 1, padding=0)
-        
-        # Add a simple test point that should definitely be visible
-        simple_test = plot.plot([0], [0], pen=None, symbol='o', symbolBrush='red', symbolSize=50)
-        print(f"  Center point plotted: {simple_test is not None}")
-        
-        # Test 2: Force immediate processing of all Qt events
-        print("Test 2: Processing Qt events")
-        app.processEvents()
-        
-        # Test 3: Set our actual range again
-        print("Test 3: Restoring actual data range")
-        if all_t_values and all_y_values:
-            x_min, x_max = min(all_t_values), max(all_t_values)
-            y_min, y_max = min(all_y_values), max(all_y_values)
-            x_padding = (x_max - x_min) * 0.1
-            y_padding = (y_max - y_min) * 0.1
-            plot_x_min = x_min - x_padding
-            plot_x_max = x_max + x_padding  
-            plot_y_min = y_min - y_padding
-            plot_y_max = y_max + y_padding
+        # Platform-specific window management and final display
+        if sys.platform.startswith('win'):
+            print("Applying Windows-specific display optimizations...")
+            # Force immediate processing of Qt events on Windows
+            for _ in range(5):
+                app.processEvents()
             
-            plot.setXRange(plot_x_min, plot_x_max, padding=0)
-            plot.setYRange(plot_y_min, plot_y_max, padding=0)
-            print(f"  Final range set: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
-        
-        # Test 4: FORCE the correct view range and lock it
-        print("Test 4: Force correct view range")
-        if all_t_values and all_y_values:
-            # Use our known good ranges
-            x_min, x_max = min(all_t_values), max(all_t_values)
-            y_min, y_max = min(all_y_values), max(all_y_values)
-            x_padding = (x_max - x_min) * 0.1
-            y_padding = (y_max - y_min) * 0.1
-            plot_x_min = x_min - x_padding
-            plot_x_max = x_max + x_padding  
-            plot_y_min = y_min - y_padding
-            plot_y_max = y_max + y_padding
-            
-            # Force the range multiple times to ensure it sticks
-            plot.setXRange(plot_x_min, plot_x_max, padding=0)
-            plot.setYRange(plot_y_min, plot_y_max, padding=0)
-            plot.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
-            
-            # Disable all auto-ranging that might interfere
-            plot.enableAutoRange(enable=False)
-            plot.disableAutoRange()
-            
-            print(f"  FORCED view range to: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
-        
-        # Test 5: Force complete window update
-        print("Test 5: Force complete update")
-        app.processEvents()
-        win.update()
-        plot.update()
-        app.processEvents()
-        
-        # Test 6: Check plot view state
-        view_range = plot.viewRange()
-        print(f"  Current view range after forcing: {view_range}")
-        
-        # Test 7: Advanced rendering diagnostics and fixes
-        print("Test 7: Advanced rendering diagnostics")
-        
-        # Check if items are actually in the plot
-        plot_items = plot.listDataItems()
-        print(f"  Plot has {len(plot_items)} data items")
-        
-        # Try clearing and re-adding a simple test
-        print("  Clearing plot and adding simple test...")
-        plot.clear()
-        
-        # Add the most basic possible plot item
-        test_x = np.array([0.0, 0.5])
-        test_y = np.array([0.0, 1000.0])
-        basic_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color=(255, 0, 0), width=10))
-        print(f"  Basic curve added: {basic_curve is not None}")
-        
-        # Force the correct range for this simple test
-        plot.setRange(xRange=[-0.1, 0.6], yRange=[-100, 1100], padding=0)
-        app.processEvents()
-        
-        # Try different rendering backends
-        print("  Testing different rendering approaches...")
-        
-        # Force immediate scene update
-        if hasattr(plot.scene(), 'update'):
-            plot.scene().update()
-            print("  Scene update called")
-        
-        # Try alternative plot widget
-        print("  Creating backup plot widget...")
-        try:
-            backup_win = pg.plot()
-            backup_win.setWindowTitle('Backup Audio Plot')
-            backup_win.resize(800, 400)
-            backup_curve = backup_win.plot(test_x, test_y, pen=pg.mkPen(color=(0, 255, 0), width=8))
-            backup_win.show()
-            print("  Backup plot created - check if this one is visible!")
-        except Exception as e:
-            print(f"  Backup plot failed: {e}")
-        
-        # Show the main window explicitly
-        win.show()
-        win.raise_()  # Bring window to front
-        win.activateWindow()  # Make sure it's active
-        
-        # Try forcing window to front multiple times
-        for i in range(3):
-            app.processEvents()
+            # Show window with Windows-specific settings
+            win.show()
             win.raise_()
             win.activateWindow()
+            
+            # Force window to be topmost temporarily
+            try:
+                from PySide6.QtCore import Qt
+                win.setWindowFlags(win.windowFlags() | Qt.WindowStaysOnTopHint)
+                win.show()
+                app.processEvents()
+                # Remove topmost flag after a moment
+                win.setWindowFlags(win.windowFlags() & ~Qt.WindowStaysOnTopHint)
+                win.show()
+                print("  Windows window management applied")
+            except Exception as e:
+                print(f"  Windows flags warning: {e}")
+        else:
+            # Standard display for Mac/Linux
+            win.show()
+            win.raise_()
+            win.activateWindow()
+            print("Standard window display applied")
         
-        print("=== WINDOW DISPLAYED - CHECK FOR VISIBILITY ===")
-        print("You should see:")
-        print("1. A red center dot at (0,0)")
-        print("2. A thick red audio waveform") 
-        print("3. A red triangle test plot")
-        print("4. Magenta scatter points")
-        print("If you see NOTHING, this may be a PyQt/platform-specific rendering issue")
+        # Final event processing
+        app.processEvents()
+        
+        print("=== AUDIO PLOT DISPLAYED ===")
+        print("If you don't see the audio waveform:")
+        print("1. Check if the plot window opened")
+        print("2. Try zooming out in the plot (mouse wheel or right-click menu)")
+        print("3. Look for thick colored lines representing the audio signals")
+        if sys.platform.startswith('win'):
+            print("4. On Windows, try moving/resizing the window to trigger a refresh")
         
         # Start the application event loop
         app.exec_()
