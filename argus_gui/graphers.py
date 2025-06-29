@@ -359,24 +359,48 @@ class Shower():
             plot.setYRange(plot_y_min, plot_y_max, padding=0)
             print(f"  Final range set: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
         
-        # Test 4: Try auto-range as a last resort
-        print("Test 4: Trying auto-range")
-        plot.autoRange()
+        # Test 4: FORCE the correct view range and lock it
+        print("Test 4: Force correct view range")
+        if all_t_values and all_y_values:
+            # Use our known good ranges
+            x_min, x_max = min(all_t_values), max(all_t_values)
+            y_min, y_max = min(all_y_values), max(all_y_values)
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            plot_x_min = x_min - x_padding
+            plot_x_max = x_max + x_padding  
+            plot_y_min = y_min - y_padding
+            plot_y_max = y_max + y_padding
+            
+            # Force the range multiple times to ensure it sticks
+            plot.setXRange(plot_x_min, plot_x_max, padding=0)
+            plot.setYRange(plot_y_min, plot_y_max, padding=0)
+            plot.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
+            
+            # Disable all auto-ranging that might interfere
+            plot.enableAutoRange(enable=False)
+            plot.disableAutoRange()
+            
+            print(f"  FORCED view range to: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
         
         # Test 5: Force complete window update
         print("Test 5: Force complete update")
+        app.processEvents()
         win.update()
         plot.update()
         app.processEvents()
         
         # Test 6: Check plot view state
         view_range = plot.viewRange()
-        print(f"  Current view range: {view_range}")
+        print(f"  Current view range after forcing: {view_range}")
         
-        # Test 7: Try explicit render
-        if hasattr(plot, 'render'):
-            plot.render()
-            print("  Plot render() called")
+        # Test 7: If range is still wrong, try one more time
+        if view_range[0][1] - view_range[0][0] < 0.1 or abs(view_range[1][1] - view_range[1][0]) > 100000:
+            print("  Range still corrupted, forcing again...")
+            plot.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
+            app.processEvents()
+            view_range = plot.viewRange()
+            print(f"  Final view range: {view_range}")
         
         # Show the window explicitly
         win.show()
