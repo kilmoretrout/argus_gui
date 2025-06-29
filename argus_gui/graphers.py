@@ -101,6 +101,33 @@ class Shower():
         # Windows-specific PyQtGraph configuration - BEFORE QApplication
         if sys.platform.startswith('win'):
             print("Applying Windows-specific PyQtGraph fixes...")
+            
+            # Fix Qt platform plugin path for Windows
+            import os
+            try:
+                import PySide6
+                pyside6_path = os.path.dirname(PySide6.__file__)
+                qt_plugin_path = os.path.join(pyside6_path, 'Qt', 'plugins')
+                if os.path.exists(qt_plugin_path):
+                    os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
+                    print(f"  Set QT_PLUGIN_PATH to: {qt_plugin_path}")
+                else:
+                    # Try alternative path structure
+                    qt_plugin_path = os.path.join(pyside6_path, 'plugins')
+                    if os.path.exists(qt_plugin_path):
+                        os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
+                        print(f"  Set QT_PLUGIN_PATH to: {qt_plugin_path}")
+                    else:
+                        print("  Warning: Could not find Qt plugins directory")
+                
+                # Additional Qt environment variables for Windows
+                os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = qt_plugin_path
+                os.environ['QT_QPA_PLATFORM'] = 'windows'
+                print("  Set additional Qt platform environment variables")
+                
+            except Exception as e:
+                print(f"  Qt plugin path setup warning: {e}")
+            
             # Force software rendering to avoid GPU driver issues on Windows
             pg.setConfigOption('useOpenGL', False)
             pg.setConfigOption('antialias', False)  # Disable antialiasing on Windows
