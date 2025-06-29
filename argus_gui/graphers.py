@@ -8,7 +8,6 @@ from __future__ import print_function
 import sys
 import os
 if sys.platform.startswith('win'):
-    print("Setting up Windows Qt environment variables...")
     try:
         import PySide6
         pyside6_path = os.path.dirname(PySide6.__file__)
@@ -26,34 +25,17 @@ if sys.platform.startswith('win'):
         for path in possible_plugin_paths:
             if os.path.exists(path):
                 qt_plugin_path = path
-                print(f"  Found Qt plugins at: {path}")
                 break
         
         if qt_plugin_path:
             os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
             os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = qt_plugin_path
-            print(f"  Set QT_PLUGIN_PATH to: {qt_plugin_path}")
-            
-            # Check if the windows platform plugin specifically exists
-            windows_plugin = os.path.join(qt_plugin_path, 'platforms', 'qwindows.dll')
-            if os.path.exists(windows_plugin):
-                print(f"  [OK] Windows platform plugin found: {windows_plugin}")
-            else:
-                print(f"  [WARN] Windows platform plugin NOT found at: {windows_plugin}")
-                # List what's actually in the platforms directory
-                platforms_dir = os.path.join(qt_plugin_path, 'platforms')
-                if os.path.exists(platforms_dir):
-                    plugins_found = os.listdir(platforms_dir)
-                    print(f"  Available platform plugins: {plugins_found}")
-        else:
-            print("  [WARN] Could not find Qt plugins directory in any expected location")
             
         # Additional Qt environment variables for Windows
         os.environ['QT_QPA_PLATFORM'] = 'windows'
-        print("  Set QT_QPA_PLATFORM=windows")
         
     except Exception as e:
-        print(f"  Qt plugin path setup error: {e}")
+        pass  # Silent fallback if Qt plugin setup fails
 
 import matplotlib
 matplotlib.use('QtAgg')  # Use QtAgg for automatic Qt version detection, compatible with PySide6
@@ -145,14 +127,8 @@ class Shower():
             signals.append(np.asarray(t))
             
         # Platform-specific rendering fixes - MUST be set before QApplication creation
-        print("Testing different pyqtgraph configurations...")
-        print(f"Platform detected: {sys.platform}")
-        sys.stdout.flush()
-        
         # Windows-specific PyQtGraph configuration - BEFORE QApplication
         if sys.platform.startswith('win'):
-            print("Applying Windows-specific PyQtGraph fixes...")
-            
             # Force software rendering to avoid GPU driver issues on Windows
             pg.setConfigOption('useOpenGL', False)
             pg.setConfigOption('antialias', False)  # Disable antialiasing on Windows
@@ -178,11 +154,9 @@ class Shower():
                     QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, False)
                 if hasattr(Qt, 'AA_DisableShaderDiskCache'):
                     QApplication.setAttribute(Qt.AA_DisableShaderDiskCache, True)
-                print("  Windows Qt attributes set before QApplication creation")
-            except Exception as e:
-                print(f"  Qt attributes warning: {e}")
+            except Exception:
+                pass  # Silent fallback
         else:
-            print("Applying standard PyQtGraph configuration...")
             # Standard configuration for Mac/Linux
             pg.setConfigOption('useOpenGL', False)
             pg.setConfigOption('antialias', True)
@@ -197,17 +171,11 @@ class Shower():
             # Force immediate style refresh on Windows
             try:
                 app.setStyle('Fusion')  # Use cross-platform Fusion style
-                print("  Windows style set to Fusion")
-            except Exception as e:
-                print(f"  Style warning: {e}")
-        
-        print(f"PyQtGraph config - OpenGL: {pg.getConfigOption('useOpenGL')}")
-        print(f"PyQtGraph config - Antialias: {pg.getConfigOption('antialias')}")
-        sys.stdout.flush()
+            except Exception:
+                pass  # Silent fallback
         
         # Platform-specific widget creation - SIMPLIFIED Windows approach
         if sys.platform.startswith('win'):
-            print("Creating Windows-optimized plot widget...")
             try:
                 # For Windows, try the most basic approach possible
                 win = pg.PlotWidget()
@@ -222,35 +190,26 @@ class Shower():
                 plot.enableAutoRange('xy', False)
                 plot.setAutoVisible(y=False)
                 
-                print("Using basic PlotWidget for Windows")
-            except Exception as e:
-                print(f"Basic PlotWidget failed: {e}, trying minimal GraphicsLayoutWidget")
+            except Exception:
                 win = pg.GraphicsLayoutWidget()
                 win.resize(1000, 600)
                 win.setWindowTitle('Audio Streams - Windows Minimal')
                 win.setBackground('white')
                 plot = win.addPlot()
                 plot.setMenuEnabled(enableMenu=False)
-                print("Using minimal GraphicsLayoutWidget fallback")
         else:
-            print("Creating standard plot widget...")
             try:
                 win = pg.PlotWidget(title="Audio Streams")
                 win.resize(1000, 600)
                 win.setWindowTitle('Audio Streams - PlotWidget')
                 win.setBackground('w')
                 plot = win.getPlotItem()
-                print("Using PlotWidget successfully")
-            except Exception as e:
-                print(f"PlotWidget failed: {e}, falling back to GraphicsLayoutWidget")
+            except Exception:
                 win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
                 win.resize(1000, 600)
                 win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
                 win.setBackground('w')
                 plot = win.addPlot()
-                print("Using GraphicsLayoutWidget fallback")
-        
-        sys.stdout.flush()
         
         plot.showGrid(x=True, y=True)
         plot.setLabel('bottom', 'Minutes')
@@ -297,11 +256,6 @@ class Shower():
         else:
             vertical_offset = float(max_range * 2.5)  # 250% separation for smaller ranges
         
-        # Debug output for Windows troubleshooting
-        print(f"Signal ranges: {signal_ranges}")
-        print(f"Max range: {max_range}, Vertical offset: {vertical_offset}")
-        sys.stdout.flush()
-        
         # CRITICAL: Calculate plot ranges BEFORE plotting anything
         # Calculate the overall coordinate bounds for all signals first
         all_t_values = []
@@ -334,15 +288,11 @@ class Shower():
             
             plot.setXRange(plot_x_min, plot_x_max, padding=0)
             plot.setYRange(plot_y_min, plot_y_max, padding=0)
-            print(f"PRE-PLOTTING: Set ranges X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
-            sys.stdout.flush()
         
         for k in range(len(signals)):
             # Use bright, contrasting colors for better visibility
             bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
             color = bright_colors[k % len(bright_colors)]
-            print(f"Plotting signal {k} with BRIGHT color {color}")  # Debugging statement
-            sys.stdout.flush()
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
             # Use the signal's offset from its center, then apply vertical separation
             finite_signal = signals[k][np.isfinite(signals[k])]
@@ -354,20 +304,13 @@ class Shower():
             else:
                 signal_center = 0.0  # fallback for all NaN/inf signals
             y_offset = k * vertical_offset
-            # Debug output for Windows troubleshooting
             # Center the signal around zero, then add vertical offset for separation
             adjusted_signal = signals[k] - signal_center + y_offset
-            print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
-            print(f"  Time array t: length={len(t)}, range=[{np.min(t):.4f}, {np.max(t):.4f}]")
-            print(f"  Adjusted signal: length={len(adjusted_signal)}, min={np.min(adjusted_signal):.2f}, max={np.max(adjusted_signal):.2f}")
-            print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
-            sys.stdout.flush()
             
         # CRITICAL WINDOWS FIX: Use matplotlib as fallback if PyQtGraph fails
         matplotlib_plot_created = False
         if sys.platform.startswith('win'):
             # Try matplotlib as a backup for Windows - create ONE plot for ALL signals
-            print("  Creating matplotlib fallback for Windows...")
             try:
                 import matplotlib.pyplot as plt
                 import matplotlib.patches as mpatches
@@ -383,18 +326,14 @@ class Shower():
                 ax.set_ylim(plot_y_min, plot_y_max)
                 
                 matplotlib_plot_created = True
-                print("  Matplotlib plot window created successfully")
                 
-            except Exception as mpl_error:
-                print(f"  Matplotlib setup failed: {mpl_error}")
-                print("  Continuing with PyQtGraph...")
+            except Exception:
+                pass  # Silent fallback
         
         for k in range(len(signals)):
             # Use bright, contrasting colors for better visibility
             bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
             color = bright_colors[k % len(bright_colors)]
-            print(f"Plotting signal {k} with BRIGHT color {color}")  # Debugging statement
-            sys.stdout.flush()
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
             # Use the signal's offset from its center, then apply vertical separation
             finite_signal = signals[k][np.isfinite(signals[k])]
@@ -406,14 +345,8 @@ class Shower():
             else:
                 signal_center = 0.0  # fallback for all NaN/inf signals
             y_offset = k * vertical_offset
-            # Debug output for Windows troubleshooting
             # Center the signal around zero, then add vertical offset for separation
             adjusted_signal = signals[k] - signal_center + y_offset
-            print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
-            print(f"  Time array t: length={len(t)}, range=[{np.min(t):.4f}, {np.max(t):.4f}]")
-            print(f"  Adjusted signal: length={len(adjusted_signal)}, min={np.min(adjusted_signal):.2f}, max={np.max(adjusted_signal):.2f}")
-            print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
-            sys.stdout.flush()
             
             # Windows matplotlib plotting - add each signal to the SAME plot
             if matplotlib_plot_created and sys.platform.startswith('win'):
@@ -425,10 +358,7 @@ class Shower():
                     # Plot the audio waveform with matplotlib on the existing axes
                     ax.plot(t, adjusted_signal, color=color_mpl, linewidth=1, label=self.files[k].split('/')[-1])
                     
-                    print(f"  Signal {k} added to matplotlib plot")
-                    
-                except Exception as mpl_error:
-                    print(f"  Matplotlib plotting failed for signal {k}: {mpl_error}")
+                except Exception:
                     matplotlib_plot_created = False  # Fall back to PyQtGraph for remaining signals
             
             # Original PyQtGraph plotting (for non-Windows or if matplotlib fails)
@@ -437,33 +367,19 @@ class Shower():
                 if sys.platform.startswith('win'):
                     # Windows: Use thicker, simpler pen
                     pen = pg.mkPen(color=color, width=10)
-                    print("  Using Windows-optimized thick pen")
                 else:
                     # Mac/Linux: Standard pen
                     pen = pg.mkPen(color=color, width=5)
-                    print("  Using standard pen")
                 
                 # Plot the audio signal
                 curve = plot.plot(t, adjusted_signal, pen=pen)
-                print(f"  Audio curve plotted: {curve is not None}")
-                
-                # Windows-specific: Add a simple test curve for visibility verification
-                if sys.platform.startswith('win'):
-                    # Add a simple triangle as a test
-                    test_x = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
-                    test_y = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
-                    test_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color='magenta', width=12))
-                    print(f"  Windows test triangle plotted: {test_curve is not None}")
                 
                 # Force updates for Windows
                 if sys.platform.startswith('win'):
                     plot.update()
                     curve.update() 
-                    if 'test_curve' in locals():
-                        test_curve.update()
                     win.repaint()
                     app.processEvents()
-                    print("  Windows plot updates applied")
                 
                 legend.addItem(curve, self.files[k].split('/')[-1])
         
@@ -472,25 +388,15 @@ class Shower():
             try:
                 # Add legend without test triangle
                 ax.legend()
-                print("  Showing matplotlib plot with all signals...")
                 plt.show()
                 
                 # Since matplotlib worked and is displayed, we can skip the PyQtGraph display
-                print("  Matplotlib plot displayed successfully - skipping PyQtGraph display")
                 return  # Exit early since we have a working plot
                 
-            except Exception as mpl_error:
-                print(f"  Matplotlib display failed: {mpl_error}")
-                print("  Continuing with PyQtGraph display...")
-
-        print("Plot window should now be visible with all signals!")
-        print(f"Total curves plotted: {len(signals)}")
-        sys.stdout.flush()
-        
+            except Exception:
+                pass  # Continue with PyQtGraph display
         # Platform-specific window management and final display
         if sys.platform.startswith('win'):
-            print("Applying Windows-specific display optimizations...")
-            
             # Critical Windows fix: Force ViewBox to recalculate bounds and redraw
             view_box = plot.getViewBox()
             if view_box:
@@ -502,13 +408,10 @@ class Shower():
                 # Set our range again to make sure it sticks
                 if all_t_values and all_y_values:
                     view_box.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
-                    print(f"  Windows ViewBox range reset: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
                 
                 # Force ViewBox scene to update
                 if hasattr(view_box, 'scene'):
                     view_box.scene().update()
-                
-                print("  Windows ViewBox refresh applied")
             
             # Force immediate processing of Qt events on Windows
             for _ in range(5):
@@ -528,32 +431,20 @@ class Shower():
                 # Remove topmost flag after a moment
                 win.setWindowFlags(win.windowFlags() & ~Qt.WindowStaysOnTopHint)
                 win.show()
-                print("  Windows window management applied")
-            except Exception as e:
-                print(f"  Windows flags warning: {e}")
+            except Exception:
+                pass  # Silent fallback
         else:
             # Standard display for Mac/Linux
             win.show()
             win.raise_()
             win.activateWindow()
-            print("Standard window display applied")
         
         # Final event processing
         app.processEvents()
         
-        print("=== AUDIO PLOT DISPLAYED ===")
-        print("If you don't see the audio waveform:")
-        print("1. Check if the plot window opened")
-        print("2. Try zooming out in the plot (mouse wheel or right-click menu)")
-        print("3. Look for thick colored lines representing the audio signals")
-        if sys.platform.startswith('win'):
-            print("4. On Windows, try moving/resizing the window to trigger a refresh")
-            print("5. Close the window to continue - press Alt+F4 or click the X button")
-        
         # Platform-specific event loop handling
         if sys.platform.startswith('win'):
             # Windows-specific event loop with timeout to prevent hanging
-            print("Starting Windows-compatible event loop...")
             try:
                 # Add a timer to prevent infinite hanging
                 from PySide6.QtCore import QTimer
@@ -568,9 +459,7 @@ class Shower():
                 
                 # Start the application event loop with timeout handling
                 app.exec_()
-                print("Windows event loop completed")
-            except Exception as e:
-                print(f"Windows event loop error: {e}")
+            except Exception:
                 try:
                     app.quit()
                 except:
