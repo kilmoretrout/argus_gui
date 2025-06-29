@@ -292,10 +292,10 @@ class Shower():
         # Use a more reasonable vertical separation - normalize to a reasonable scale
         # Rather than using the full signal range, use a smaller multiplier for better visualization
         if max_range > 10000:
-            # For large audio ranges, use a smaller multiplier 
-            vertical_offset = float(max_range * 0.3)  # 30% padding for large ranges
+            # For large audio ranges, use a larger multiplier for better separation
+            vertical_offset = float(max_range * 0.8)  # 80% separation for large ranges
         else:
-            vertical_offset = float(max_range * 1.5)  # 50% padding for smaller ranges
+            vertical_offset = float(max_range * 2.5)  # 250% separation for smaller ranges
         
         # Debug output for Windows troubleshooting
         print(f"Signal ranges: {signal_ranges}")
@@ -423,7 +423,7 @@ class Shower():
                     color_mpl = bright_colors_mpl[k % len(bright_colors_mpl)]
                     
                     # Plot the audio waveform with matplotlib on the existing axes
-                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=2, label=self.files[k].split('/')[-1])
+                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=1, label=self.files[k].split('/')[-1])
                     
                     print(f"  Signal {k} added to matplotlib plot")
                     
@@ -470,12 +470,7 @@ class Shower():
         # Show matplotlib plot if it was created (after all signals are added)
         if matplotlib_plot_created and sys.platform.startswith('win'):
             try:
-                # Add test triangle to matplotlib as well
-                if len(signals) > 0:
-                    test_x_mpl = np.array([plot_x_min, (plot_x_min + plot_x_max)/2, plot_x_max])
-                    test_y_mpl = np.array([plot_y_min, plot_y_max, plot_y_min])
-                    ax.plot(test_x_mpl, test_y_mpl, color='purple', linewidth=3, linestyle='--', label='Test Triangle')
-                
+                # Add legend without test triangle
                 ax.legend()
                 print("  Showing matplotlib plot with all signals...")
                 plt.show()
