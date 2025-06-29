@@ -5,7 +5,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('QtAgg')  # Use QtAgg for automatic Qt version detection, compatible with PySide6
 
 # commented for pyqtgraph
 # from mpl_toolkits.mplot3d import Axes3D
