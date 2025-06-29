@@ -104,8 +104,8 @@ class Shower():
         plot.setLabel('bottom', 'Minutes')
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
-        # Enable auto-range to help with visualization
-        plot.enableAutoRange()
+        # Disable auto-range to help with visualization
+        plot.disableAutoRange()
 
         legend = plot.addLegend(offset=(70, 30))
         
@@ -192,8 +192,15 @@ class Shower():
             y_min = min(all_y_values)
             y_max = max(all_y_values)
             y_padding = (y_max - y_min) * 0.1  # 10% padding
-            plot.setYRange(y_min - y_padding, y_max + y_padding)
-            print(f"Set plot Y range: [{y_min - y_padding:.2f}, {y_max + y_padding:.2f}]")
+            final_y_min = y_min - y_padding
+            final_y_max = y_max + y_padding
+            
+            # Set both X and Y ranges explicitly
+            plot.setYRange(final_y_min, final_y_max, padding=0)
+            plot.setXRange(0, max([len(signals_[k]) / 48000. / 60. for k in range(len(signals_))]), padding=0.02)
+            
+            print(f"Set plot Y range: [{final_y_min:.2f}, {final_y_max:.2f}]")
+            print(f"Set plot X range: [0, {max([len(signals_[k]) / 48000. / 60. for k in range(len(signals_))]):.2f}] minutes")
             sys.stdout.flush()
 
         print("Plot window should now be visible with all signals!")
