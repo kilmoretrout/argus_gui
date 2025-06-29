@@ -104,8 +104,12 @@ class Shower():
         plot.setLabel('bottom', 'Minutes')
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
-        # Disable auto-range to help with visualization
+        # Disable auto-range to prevent erratic zooming behavior
         plot.disableAutoRange()
+        
+        # Disable mouse interaction to prevent accidental zooming/panning
+        plot.setMouseEnabled(x=False, y=False)
+        plot.setMenuEnabled(False)
 
         legend = plot.addLegend(offset=(70, 30))
         
@@ -202,8 +206,13 @@ class Shower():
             print(f"Set plot Y range: [{final_y_min:.2f}, {final_y_max:.2f}]")
             print(f"Set plot X range: [0, {max([len(signals_[k]) / 48000. / 60. for k in range(len(signals_))]):.2f}] minutes")
             sys.stdout.flush()
+        else:
+            print("Warning: No y-values to set range with!")
+            sys.stdout.flush()
 
         print("Plot window should now be visible with all signals!")
+        print(f"Total curves plotted: {len(signals)}")
+        print("If signals are not visible, try zooming out or check the debug output above.")
         sys.stdout.flush()
         
         # Show the window explicitly
