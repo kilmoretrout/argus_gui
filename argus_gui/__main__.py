@@ -36,16 +36,16 @@ if sys.platform.startswith('win'):
             # Check if the windows platform plugin specifically exists
             windows_plugin = os.path.join(qt_plugin_path, 'platforms', 'qwindows.dll')
             if os.path.exists(windows_plugin):
-                print(f"  ✓ Windows platform plugin found: {windows_plugin}")
+                print(f"  [OK] Windows platform plugin found: {windows_plugin}")
             else:
-                print(f"  ⚠ Windows platform plugin NOT found at: {windows_plugin}")
+                print(f"  [WARN] Windows platform plugin NOT found at: {windows_plugin}")
                 # List what's actually in the platforms directory
                 platforms_dir = os.path.join(qt_plugin_path, 'platforms')
                 if os.path.exists(platforms_dir):
                     plugins_found = os.listdir(platforms_dir)
                     print(f"  Available platform plugins: {plugins_found}")
         else:
-            print("  ⚠ Could not find Qt plugins directory in any expected location")
+            print("  [WARN] Could not find Qt plugins directory in any expected location")
             
         # Additional Qt environment variables for Windows
         os.environ['QT_QPA_PLATFORM'] = 'windows'

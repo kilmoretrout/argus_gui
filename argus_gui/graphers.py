@@ -37,16 +37,16 @@ if sys.platform.startswith('win'):
             # Check if the windows platform plugin specifically exists
             windows_plugin = os.path.join(qt_plugin_path, 'platforms', 'qwindows.dll')
             if os.path.exists(windows_plugin):
-                print(f"  ✓ Windows platform plugin found: {windows_plugin}")
+                print(f"  [OK] Windows platform plugin found: {windows_plugin}")
             else:
-                print(f"  ⚠ Windows platform plugin NOT found at: {windows_plugin}")
+                print(f"  [WARN] Windows platform plugin NOT found at: {windows_plugin}")
                 # List what's actually in the platforms directory
                 platforms_dir = os.path.join(qt_plugin_path, 'platforms')
                 if os.path.exists(platforms_dir):
                     plugins_found = os.listdir(platforms_dir)
                     print(f"  Available platform plugins: {plugins_found}")
         else:
-            print("  ⚠ Could not find Qt plugins directory in any expected location")
+            print("  [WARN] Could not find Qt plugins directory in any expected location")
             
         # Additional Qt environment variables for Windows
         os.environ['QT_QPA_PLATFORM'] = 'windows'
@@ -152,32 +152,6 @@ class Shower():
         # Windows-specific PyQtGraph configuration - BEFORE QApplication
         if sys.platform.startswith('win'):
             print("Applying Windows-specific PyQtGraph fixes...")
-            
-            # Fix Qt platform plugin path for Windows
-            import os
-            try:
-                import PySide6
-                pyside6_path = os.path.dirname(PySide6.__file__)
-                qt_plugin_path = os.path.join(pyside6_path, 'Qt', 'plugins')
-                if os.path.exists(qt_plugin_path):
-                    os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
-                    print(f"  Set QT_PLUGIN_PATH to: {qt_plugin_path}")
-                else:
-                    # Try alternative path structure
-                    qt_plugin_path = os.path.join(pyside6_path, 'plugins')
-                    if os.path.exists(qt_plugin_path):
-                        os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
-                        print(f"  Set QT_PLUGIN_PATH to: {qt_plugin_path}")
-                    else:
-                        print("  Warning: Could not find Qt plugins directory")
-                
-                # Additional Qt environment variables for Windows
-                os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = qt_plugin_path
-                os.environ['QT_QPA_PLATFORM'] = 'windows'
-                print("  Set additional Qt platform environment variables")
-                
-            except Exception as e:
-                print(f"  Qt plugin path setup warning: {e}")
             
             # Force software rendering to avoid GPU driver issues on Windows
             pg.setConfigOption('useOpenGL', False)
