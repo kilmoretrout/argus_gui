@@ -94,18 +94,49 @@ class Shower():
             signals.append(np.asarray(t))
             
         app = QApplication([])
-        win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
-        win.resize(1000, 600)
-        win.setWindowTitle('Audio Streams')
-        win.setBackground('w')
         
-        plot = win.addPlot()
+        # Try different backend/rendering approaches for Windows compatibility
+        print("Testing different pyqtgraph configurations...")
+        sys.stdout.flush()
+        
+        # Force software rendering to avoid GPU driver issues
+        pg.setConfigOption('useOpenGL', False)
+        pg.setConfigOption('antialias', True)
+        pg.setConfigOption('background', 'w')
+        pg.setConfigOption('foreground', 'k')
+        
+        print(f"PyQtGraph config - OpenGL: {pg.getConfigOption('useOpenGL')}")
+        print(f"PyQtGraph config - Antialias: {pg.getConfigOption('antialias')}")
+        sys.stdout.flush()
+        
+        # Try a simpler PlotWidget instead of GraphicsLayoutWidget
+        try:
+            win = pg.PlotWidget(title="Audio Streams")
+            win.resize(1000, 600)
+            win.setWindowTitle('Audio Streams - PlotWidget')
+            win.setBackground('w')
+            plot = win.getPlotItem()
+            print("Using PlotWidget successfully")
+        except Exception as e:
+            print(f"PlotWidget failed: {e}, falling back to GraphicsLayoutWidget")
+            win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
+            win.resize(1000, 600)
+            win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
+            win.setBackground('w')
+            plot = win.addPlot()
+            print("Using GraphicsLayoutWidget fallback")
+        
+        sys.stdout.flush()
+        
         plot.showGrid(x=True, y=True)
         plot.setLabel('bottom', 'Minutes')
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
-        # Enable auto-range to ensure signals are visible
-        plot.enableAutoRange()
+        
+        # Try disabling auto-range and setting manual range first
+        plot.disableAutoRange()
+        plot.setYRange(-15000, 15000, padding=0)
+        plot.setXRange(0, 1, padding=0)
 
         legend = plot.addLegend(offset=(70, 30))
         
@@ -180,11 +211,43 @@ class Shower():
             print(f"  Curve plotted successfully: {curve is not None}")
             print(f"  Curve object: {type(curve).__name__}")
             
-            # Add a simple test plot to verify pyqtgraph is working
+            # MULTIPLE TEST APPROACHES for Windows compatibility
+            print("  === TESTING MULTIPLE PLOT APPROACHES ===")
+            
+            # Test 1: Simplest possible plot with basic data
+            simple_x = np.array([0.0, 0.5, 1.0])
+            simple_y = np.array([0.0, 5000.0, 0.0])
+            simple_curve = plot.plot(simple_x, simple_y, pen=pg.mkPen(color='red', width=8))
+            print(f"  Simple test curve created: {simple_curve is not None}")
+            
+            # Test 2: Using different pen style
+            alt_pen = pg.mkPen(color=(0, 255, 255), width=15, style=pg.QtCore.Qt.PenStyle.SolidLine)
             test_t = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5])
             test_y = np.array([0, 1000, -1000, 2000, -2000, 0])
-            test_curve = plot.plot(test_t, test_y, pen=pg.mkPen(color=(0, 255, 255), width=10))
-            print(f"  Test curve plotted: {test_curve is not None}")
+            test_curve = plot.plot(test_t, test_y, pen=alt_pen)
+            print(f"  Alt pen test curve created: {test_curve is not None}")
+            
+            # Test 3: Scatter plot instead of line plot
+            scatter = pg.ScatterPlotItem(pos=np.column_stack([test_t, test_y]), 
+                                       brush=pg.mkBrush(255, 0, 255, 255), size=20)
+            plot.addItem(scatter)
+            print(f"  Scatter plot created: {scatter is not None}")
+            
+            # Test 4: Check pyqtgraph version and rendering info
+            print(f"  PyQtGraph version: {pg.__version__ if hasattr(pg, '__version__') else 'unknown'}")
+            print(f"  Plot view widget type: {type(plot).__name__}")
+            print(f"  Window type: {type(win).__name__}")
+            
+            # Test 5: Force immediate repaint
+            if hasattr(plot, 'repaint'):
+                plot.repaint()
+                print(f"  Plot repaint called")
+            if hasattr(win, 'repaint'):
+                win.repaint()
+                print(f"  Window repaint called")
+            
+            # Now try the original audio signal
+            print("  === PLOTTING AUDIO SIGNAL ===")
             
             # Check for NaN or infinite values in our data
             nan_count_t = np.sum(~np.isfinite(t))
@@ -196,16 +259,20 @@ class Shower():
             print(f"  Sample signal values: {adjusted_signal[:5]} ... {adjusted_signal[-5:]}")
             
             # Check if the plot item is actually visible
-            print(f"  Curve visible: {curve.isVisible()}")
-            print(f"  Test curve visible: {test_curve.isVisible()}")
-            print(f"  Curve data bounds: x=[{np.min(t):.4f}, {np.max(t):.4f}], y=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
-            print(f"  Test curve data bounds: x=[{np.min(test_t):.4f}, {np.max(test_t):.4f}], y=[{np.min(test_y):.2f}, {np.max(test_y):.2f}]")
+            print(f"  Audio curve visible: {curve.isVisible()}")
+            print(f"  Simple test visible: {simple_curve.isVisible()}")
+            print(f"  Alt test visible: {test_curve.isVisible()}")
+            print(f"  Scatter visible: {scatter.isVisible()}")
             
-            # Force an update/refresh of the plot
+            print(f"  Audio data bounds: x=[{np.min(t):.4f}, {np.max(t):.4f}], y=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
+            
+            # Force an update/refresh of everything
             plot.update()
             curve.update()
+            simple_curve.update()
             test_curve.update()
-            print(f"  Plot items updated")
+            scatter.update()
+            print("  All plot items updated")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
 
