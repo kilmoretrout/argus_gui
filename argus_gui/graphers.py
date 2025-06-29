@@ -363,82 +363,130 @@ class Shower():
             print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
             sys.stdout.flush()
             
-            # CRITICAL WINDOWS FIX: Use matplotlib as fallback if PyQtGraph fails
-            if sys.platform.startswith('win'):
-                # Try matplotlib as a backup for Windows
-                print("  Attempting matplotlib fallback for Windows...")
+        # CRITICAL WINDOWS FIX: Use matplotlib as fallback if PyQtGraph fails
+        matplotlib_plot_created = False
+        if sys.platform.startswith('win'):
+            # Try matplotlib as a backup for Windows - create ONE plot for ALL signals
+            print("  Creating matplotlib fallback for Windows...")
+            try:
+                import matplotlib.pyplot as plt
+                import matplotlib.patches as mpatches
+                
+                # Create matplotlib plot ONCE for all signals
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title('Audio Streams - Matplotlib Windows Fallback')
+                ax.set_xlabel('Minutes')
+                ax.grid(True)
+                
+                # Set the same ranges as PyQtGraph
+                ax.set_xlim(plot_x_min, plot_x_max)
+                ax.set_ylim(plot_y_min, plot_y_max)
+                
+                matplotlib_plot_created = True
+                print("  Matplotlib plot window created successfully")
+                
+            except Exception as mpl_error:
+                print(f"  Matplotlib setup failed: {mpl_error}")
+                print("  Continuing with PyQtGraph...")
+        
+        for k in range(len(signals)):
+            # Use bright, contrasting colors for better visibility
+            bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            color = bright_colors[k % len(bright_colors)]
+            print(f"Plotting signal {k} with BRIGHT color {color}")  # Debugging statement
+            sys.stdout.flush()
+            t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+            # Use the signal's offset from its center, then apply vertical separation
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0  # fallback for all NaN/inf signals
+            y_offset = k * vertical_offset
+            # Debug output for Windows troubleshooting
+            # Center the signal around zero, then add vertical offset for separation
+            adjusted_signal = signals[k] - signal_center + y_offset
+            print(f"Signal {k}: center={signal_center:.2f}, y_offset={y_offset:.2f}, range=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
+            print(f"  Time array t: length={len(t)}, range=[{np.min(t):.4f}, {np.max(t):.4f}]")
+            print(f"  Adjusted signal: length={len(adjusted_signal)}, min={np.min(adjusted_signal):.2f}, max={np.max(adjusted_signal):.2f}")
+            print(f"  Data types: t={type(t).__name__}, adjusted_signal={type(adjusted_signal).__name__}")
+            sys.stdout.flush()
+            
+            # Windows matplotlib plotting - add each signal to the SAME plot
+            if matplotlib_plot_created and sys.platform.startswith('win'):
                 try:
-                    import matplotlib.pyplot as plt
-                    import matplotlib.patches as mpatches
-                    
-                    # Create matplotlib plot
-                    fig, ax = plt.subplots(figsize=(12, 8))
-                    ax.set_title('Audio Streams - Matplotlib Windows Fallback')
-                    ax.set_xlabel('Minutes')
-                    ax.grid(True)
-                    
                     # Plot with matplotlib using the same data
                     bright_colors_mpl = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan']
                     color_mpl = bright_colors_mpl[k % len(bright_colors_mpl)]
                     
-                    # Plot the audio waveform with matplotlib
-                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=3, label=self.files[k].split('/')[-1])
+                    # Plot the audio waveform with matplotlib on the existing axes
+                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=2, label=self.files[k].split('/')[-1])
                     
-                    # Add the test triangle to matplotlib
-                    test_x_mpl = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
-                    test_y_mpl = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
-                    ax.plot(test_x_mpl, test_y_mpl, color='purple', linewidth=5, linestyle='--', label='Test Triangle')
-                    
-                    # Set the same ranges as PyQtGraph
-                    ax.set_xlim(plot_x_min, plot_x_max)
-                    ax.set_ylim(plot_y_min, plot_y_max)
-                    
-                    ax.legend()
-                    
-                    print("  Matplotlib plot created successfully - this should definitely be visible!")
-                    plt.show()
-                    
-                    # Skip the rest of the PyQtGraph plotting since matplotlib worked
-                    continue
+                    print(f"  Signal {k} added to matplotlib plot")
                     
                 except Exception as mpl_error:
-                    print(f"  Matplotlib fallback failed: {mpl_error}")
-                    print("  Continuing with PyQtGraph...")
+                    print(f"  Matplotlib plotting failed for signal {k}: {mpl_error}")
+                    matplotlib_plot_created = False  # Fall back to PyQtGraph for remaining signals
             
             # Original PyQtGraph plotting (for non-Windows or if matplotlib fails)
-            # Simplified plotting approach for better Windows compatibility
-            if sys.platform.startswith('win'):
-                # Windows: Use thicker, simpler pen
-                pen = pg.mkPen(color=color, width=10)
-                print("  Using Windows-optimized thick pen")
-            else:
-                # Mac/Linux: Standard pen
-                pen = pg.mkPen(color=color, width=5)
-                print("  Using standard pen")
-            
-            # Plot the audio signal
-            curve = plot.plot(t, adjusted_signal, pen=pen)
-            print(f"  Audio curve plotted: {curve is not None}")
-            
-            # Windows-specific: Add a simple test curve for visibility verification
-            if sys.platform.startswith('win'):
-                # Add a simple triangle as a test
-                test_x = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
-                test_y = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
-                test_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color='magenta', width=12))
-                print(f"  Windows test triangle plotted: {test_curve is not None}")
-            
-            # Force updates for Windows
-            if sys.platform.startswith('win'):
-                plot.update()
-                curve.update() 
-                if 'test_curve' in locals():
-                    test_curve.update()
-                win.repaint()
-                app.processEvents()
-                print("  Windows plot updates applied")
-            
-            legend.addItem(curve, self.files[k].split('/')[-1])
+            if not matplotlib_plot_created or not sys.platform.startswith('win'):
+                # Simplified plotting approach for better Windows compatibility
+                if sys.platform.startswith('win'):
+                    # Windows: Use thicker, simpler pen
+                    pen = pg.mkPen(color=color, width=10)
+                    print("  Using Windows-optimized thick pen")
+                else:
+                    # Mac/Linux: Standard pen
+                    pen = pg.mkPen(color=color, width=5)
+                    print("  Using standard pen")
+                
+                # Plot the audio signal
+                curve = plot.plot(t, adjusted_signal, pen=pen)
+                print(f"  Audio curve plotted: {curve is not None}")
+                
+                # Windows-specific: Add a simple test curve for visibility verification
+                if sys.platform.startswith('win'):
+                    # Add a simple triangle as a test
+                    test_x = np.array([np.min(t), (np.min(t) + np.max(t))/2, np.max(t)])
+                    test_y = np.array([np.min(adjusted_signal), np.max(adjusted_signal), np.min(adjusted_signal)])
+                    test_curve = plot.plot(test_x, test_y, pen=pg.mkPen(color='magenta', width=12))
+                    print(f"  Windows test triangle plotted: {test_curve is not None}")
+                
+                # Force updates for Windows
+                if sys.platform.startswith('win'):
+                    plot.update()
+                    curve.update() 
+                    if 'test_curve' in locals():
+                        test_curve.update()
+                    win.repaint()
+                    app.processEvents()
+                    print("  Windows plot updates applied")
+                
+                legend.addItem(curve, self.files[k].split('/')[-1])
+        
+        # Show matplotlib plot if it was created (after all signals are added)
+        if matplotlib_plot_created and sys.platform.startswith('win'):
+            try:
+                # Add test triangle to matplotlib as well
+                if len(signals) > 0:
+                    test_x_mpl = np.array([plot_x_min, (plot_x_min + plot_x_max)/2, plot_x_max])
+                    test_y_mpl = np.array([plot_y_min, plot_y_max, plot_y_min])
+                    ax.plot(test_x_mpl, test_y_mpl, color='purple', linewidth=3, linestyle='--', label='Test Triangle')
+                
+                ax.legend()
+                print("  Showing matplotlib plot with all signals...")
+                plt.show()
+                
+                # Since matplotlib worked and is displayed, we can skip the PyQtGraph display
+                print("  Matplotlib plot displayed successfully - skipping PyQtGraph display")
+                return  # Exit early since we have a working plot
+                
+            except Exception as mpl_error:
+                print(f"  Matplotlib display failed: {mpl_error}")
+                print("  Continuing with PyQtGraph display...")
 
         print("Plot window should now be visible with all signals!")
         print(f"Total curves plotted: {len(signals)}")
