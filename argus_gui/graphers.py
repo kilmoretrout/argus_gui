@@ -133,12 +133,11 @@ class Shower():
         plot.getAxis('left').setTicks([])
         plot.getAxis('left').setLabel('')
         
-        # Try disabling auto-range and setting manual range first
-        plot.disableAutoRange()
-        plot.setYRange(-15000, 15000, padding=0)
-        plot.setXRange(0, 1, padding=0)
-
         legend = plot.addLegend(offset=(70, 30))
+        
+        # We'll set the range AFTER we calculate the actual data bounds
+        # For now, just disable auto-range
+        plot.disableAutoRange()
         
         # Calculate signal ranges and vertical offsets to avoid overflow
         signal_ranges = []
@@ -214,37 +213,51 @@ class Shower():
             # MULTIPLE TEST APPROACHES for Windows compatibility
             print("  === TESTING MULTIPLE PLOT APPROACHES ===")
             
-            # Test 1: Simplest possible plot with basic data
-            simple_x = np.array([0.0, 0.5, 1.0])
-            simple_y = np.array([0.0, 5000.0, 0.0])
+            # Calculate proper coordinate ranges first
+            audio_x_min, audio_x_max = 0, len(signals_[k]) / 48000. / 60.
+            audio_y_min, audio_y_max = np.min(adjusted_signal), np.max(adjusted_signal)
+            print(f"  Audio coordinate ranges: X=[{audio_x_min:.4f}, {audio_x_max:.4f}], Y=[{audio_y_min:.2f}, {audio_y_max:.2f}]")
+            
+            # Test 1: Simple plot using the SAME coordinate range as our audio
+            simple_x = np.array([audio_x_min, audio_x_max * 0.5, audio_x_max])
+            simple_y = np.array([0, audio_y_max * 0.5, 0])  # Triangle within audio range
             simple_curve = plot.plot(simple_x, simple_y, pen=pg.mkPen(color='red', width=8))
-            print(f"  Simple test curve created: {simple_curve is not None}")
+            print(f"  Simple test curve (in audio range): {simple_curve is not None}")
+            print(f"    Simple curve coords: X=[{np.min(simple_x):.4f}, {np.max(simple_x):.4f}], Y=[{np.min(simple_y):.2f}, {np.max(simple_y):.2f}]")
             
-            # Test 2: Using different pen style
-            alt_pen = pg.mkPen(color=(0, 255, 255), width=15, style=pg.QtCore.Qt.PenStyle.SolidLine)
-            test_t = np.array([0, 0.1, 0.2, 0.3, 0.4, 0.5])
-            test_y = np.array([0, 1000, -1000, 2000, -2000, 0])
-            test_curve = plot.plot(test_t, test_y, pen=alt_pen)
-            print(f"  Alt pen test curve created: {test_curve is not None}")
-            
-            # Test 3: Scatter plot instead of line plot
-            scatter = pg.ScatterPlotItem(pos=np.column_stack([test_t, test_y]), 
+            # Test 2: Scatter plot using coordinates within audio range  
+            scatter_x = np.linspace(audio_x_min, audio_x_max, 6)
+            scatter_y = np.linspace(audio_y_min, audio_y_max, 6)
+            scatter = pg.ScatterPlotItem(pos=np.column_stack([scatter_x, scatter_y]), 
                                        brush=pg.mkBrush(255, 0, 255, 255), size=20)
             plot.addItem(scatter)
-            print(f"  Scatter plot created: {scatter is not None}")
+            print(f"  Scatter plot (in audio range): {scatter is not None}")
+            print(f"    Scatter coords: X=[{np.min(scatter_x):.4f}, {np.max(scatter_x):.4f}], Y=[{np.min(scatter_y):.2f}, {np.max(scatter_y):.2f}]")
             
-            # Test 4: Check pyqtgraph version and rendering info
+            # Set plot range to encompass our audio data BEFORE plotting
+            x_padding = (audio_x_max - audio_x_min) * 0.1
+            y_padding = (audio_y_max - audio_y_min) * 0.1
+            plot_x_min = audio_x_min - x_padding
+            plot_x_max = audio_x_max + x_padding  
+            plot_y_min = audio_y_min - y_padding
+            plot_y_max = audio_y_max + y_padding
+            
+            plot.setXRange(plot_x_min, plot_x_max, padding=0)
+            plot.setYRange(plot_y_min, plot_y_max, padding=0)
+            print(f"  Set plot ranges BEFORE plotting: X=[{plot_x_min:.4f}, {plot_x_max:.4f}], Y=[{plot_y_min:.2f}, {plot_y_max:.2f}]")
+            
+            # Test 3: Check pyqtgraph version and rendering info
             print(f"  PyQtGraph version: {pg.__version__ if hasattr(pg, '__version__') else 'unknown'}")
             print(f"  Plot view widget type: {type(plot).__name__}")
             print(f"  Window type: {type(win).__name__}")
             
-            # Test 5: Force immediate repaint
+            # Test 4: Force immediate repaint
             if hasattr(plot, 'repaint'):
                 plot.repaint()
-                print(f"  Plot repaint called")
+                print("  Plot repaint called")
             if hasattr(win, 'repaint'):
                 win.repaint()
-                print(f"  Window repaint called")
+                print("  Window repaint called")
             
             # Now try the original audio signal
             print("  === PLOTTING AUDIO SIGNAL ===")
@@ -261,7 +274,6 @@ class Shower():
             # Check if the plot item is actually visible
             print(f"  Audio curve visible: {curve.isVisible()}")
             print(f"  Simple test visible: {simple_curve.isVisible()}")
-            print(f"  Alt test visible: {test_curve.isVisible()}")
             print(f"  Scatter visible: {scatter.isVisible()}")
             
             print(f"  Audio data bounds: x=[{np.min(t):.4f}, {np.max(t):.4f}], y=[{np.min(adjusted_signal):.2f}, {np.max(adjusted_signal):.2f}]")
@@ -270,44 +282,10 @@ class Shower():
             plot.update()
             curve.update()
             simple_curve.update()
-            test_curve.update()
             scatter.update()
             print("  All plot items updated")
             sys.stdout.flush()
             legend.addItem(curve, self.files[k].split('/')[-1])
-
-        # Force the plot to show all signals by setting explicit range
-        # Calculate the overall y-range to show all signals
-        all_y_values = []
-        for k in range(len(signals)):
-            finite_signal = signals[k][np.isfinite(signals[k])]
-            if len(finite_signal) > 0:
-                signal_min = float(np.min(finite_signal))
-                signal_max = float(np.max(finite_signal))
-                signal_center = (signal_max + signal_min) / 2.0
-            else:
-                signal_center = 0.0
-            y_offset = k * vertical_offset
-            adjusted_signal = signals[k] - signal_center + y_offset
-            all_y_values.extend([np.min(adjusted_signal), np.max(adjusted_signal)])
-        
-        if all_y_values:
-            y_min = min(all_y_values)
-            y_max = max(all_y_values)
-            y_padding = (y_max - y_min) * 0.1  # 10% padding
-            final_y_min = y_min - y_padding
-            final_y_max = y_max + y_padding
-            
-            # Set both X and Y ranges explicitly
-            plot.setYRange(final_y_min, final_y_max, padding=0)
-            plot.setXRange(0, max([len(signals_[k]) / 48000. / 60. for k in range(len(signals_))]), padding=0.02)
-            
-            print(f"Set plot Y range: [{final_y_min:.2f}, {final_y_max:.2f}]")
-            print(f"Set plot X range: [0, {max([len(signals_[k]) / 48000. / 60. for k in range(len(signals_))]):.2f}] minutes")
-            sys.stdout.flush()
-        else:
-            print("Warning: No y-values to set range with!")
-            sys.stdout.flush()
 
         print("Plot window should now be visible with all signals!")
         print(f"Total curves plotted: {len(signals)}")
