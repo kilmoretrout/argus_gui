@@ -6,7 +6,6 @@ import numpy as np
 import scipy as sp
 from scipy import interpolate
 from argus.ocam import PointUndistorter, ocam_model
-from six.moves import range
 from tqdm import *
 
 
@@ -139,6 +138,9 @@ def undistort_pts(pts, prof):
         src = np.zeros((1, pts.shape[0], 2), dtype=np.float32)
         src[0] = pts
         ret = cv2.undistortPoints(src, K, prof[-5:], P=K)
+        # fix compatibility with newer cv2 shape of ret
+        if ret.shape[0] > 1:
+            ret = np.reshape(ret, (1,-1,2))
         return ret[0]
 
     else:
@@ -163,8 +165,8 @@ def redistort_pts(pts, prof):
             # rotaion is the identity matrix
             # translation is zero
             prof = np.array(prof)
-            rvec = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], np.float)  # rotation vector
-            tvec = np.array([0, 0, 0], np.float)  # translation vector
+            rvec = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], float)  # rotation vector
+            tvec = np.array([0, 0, 0], float)  # translation vector
 
             # define K, the camera matrix
             cameraMatrix = np.asarray([[prof[0], 0., prof[1]],
@@ -326,7 +328,7 @@ def uv_to_xyz(pts, profs, dlt):
                 B[k + 1] = dlt[uvs[k][1]][7] - uvs[k][0][1]
 
             # solve it
-            xyz = np.linalg.lstsq(A, B)[0]
+            xyz = np.linalg.lstsq(A, B, rcond=None)[0]
             # place in the proper frame
             xyzs[i] = xyz[:, 0]
 

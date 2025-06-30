@@ -10,7 +10,6 @@ import sys
 import cv2
 import numpy as np
 import scipy.spatial.distance
-from six.moves import range
 
 
 # Script called by patterns-gui. Runs through a video frame by frame and saves the object points (in arbitrary coordinates) and images points (pixel coordinates) to a pickle file

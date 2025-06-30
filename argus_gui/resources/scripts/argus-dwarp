@@ -6,8 +6,6 @@ from __future__ import print_function
 
 import argparse
 
-from six.moves import map
-
 from argus_gui import ArgusError
 from argus_gui import Undistorter, DistortionProfile
 

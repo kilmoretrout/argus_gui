@@ -10,7 +10,8 @@ Hedrick Lab
 
 from __future__ import absolute_import
 from __future__ import print_function
-
+import sys
+import os
 import shutil
 import subprocess
 import tempfile
@@ -19,11 +20,11 @@ import argus.ocam
 import cv2
 import numpy as np
 import pkg_resources
-from moviepy.config import get_setting
-from moviepy.editor import *
-from six.moves import map
-from six.moves import range
-from six.moves.tkinter import *
+# from moviepy.config import get_setting
+# from moviepy.editor import *
+from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import QThread, Signal
 
 from argus_gui import ArgusError
 
@@ -129,12 +130,12 @@ class Undistorter(object):
         if copy:
             self.copy_tmp = tempfile.mkdtemp()
             cmd = [
-                get_setting("FFMPEG_BINARY"),
+                'FFMPEG',
                 '-loglevel', 'panic',
                 '-hide_banner',
                 '-i', fnam,
-                '-acodec', 'copy',
-                '-vcodec', 'copy',
+                '-c:a', 'copy',
+                '-c:v', 'copy',
                 os.path.join(self.copy_tmp, 'copy.mp4')]
             print('Copying video and audio codecs...')
             sys.stdout.flush()
@@ -173,12 +174,14 @@ class Undistorter(object):
         else:
             tmp = tmp_dir
 
-        print(tmp)
-
+        # print(tmp)
+        if display:
+            self.preview()
+            
         print('Ripping audio... \n')
         sys.stdout.flush()
         cmd = [
-            get_setting("FFMPEG_BINARY"),
+            'FFMPEG',
             '-loglevel', 'panic',
             '-hide_banner',
             '-i', self.infilename,
@@ -197,20 +200,51 @@ class Undistorter(object):
         else:
             audio = None
 
+        # Try to determine available video encoder
+        available_encoder = self._get_available_video_encoder()
+        
         if audio is not None:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', \
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), '-pix_fmt', 'rgb24', \
-                   '-r', str(self.fps), '-i', '-', '-i', audio, \
-                   '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile', 'baseline', '-threads', \
-                   '0', '-pix_fmt', 'yuv420p', str(ofnam)]
+            cmd = ['FFMPEG', '-y',
+                   '-s', '{0}x{1}'.format(self.w, self.h), 
+                   '-pixel_format', 'bgr24',
+                   '-f', 'rawvideo', 
+                   '-r', str(self.fps),
+                   '-c:v', 'rawvideo', 
+                   '-i', 'pipe:',
+                   '-i', audio, '-c:a', 'copy', 
+                   '-c:v', available_encoder]
+            
+            # Add encoder-specific options
+            if available_encoder == 'libx264':
+                cmd.extend(['-crf', str(crf), '-profile:v', 'main'])
+            elif available_encoder in ['h264_nvenc', 'h264_amf', 'h264_qsv']:
+                cmd.extend(['-cq', str(crf)])
+            else:
+                # For other encoders, use basic quality setting
+                cmd.extend(['-q:v', str(min(31, max(1, crf)))])
+            
+            cmd.extend(['-g', str(frameint), '-threads', '0', '-pix_fmt', 'yuv420p', str(ofnam)])
         else:
-            cmd = [get_setting("FFMPEG_BINARY"), '-y', '-f', 'rawvideo', \
-                   '-vcodec', 'rawvideo', '-s', '{0}x{1}'.format(self.w, self.h), '-pix_fmt', 'rgb24', \
-                   '-r', str(self.fps), '-i', '-', '-an', \
-                   '-acodec', 'copy', '-vcodec', 'libx264', '-preset', 'medium', '-crf', \
-                   str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile', 'baseline', '-threads', \
-                   '0', '-pix_fmt', 'yuv420p', str(ofnam)]
+            cmd = ['FFMPEG', '-y', 
+                    '-s', '{0}x{1}'.format(self.w, self.h), 
+                   '-pixel_format', 'bgr24',
+                   '-f', 'rawvideo', 
+                   '-r', str(self.fps),
+                   '-c:v', 'rawvideo', 
+                   '-i', 'pipe:',
+                   '-an',
+                   '-c:v', available_encoder]
+            
+            # Add encoder-specific options
+            if available_encoder == 'libx264':
+                cmd.extend(['-crf', str(crf), '-profile:v', 'main'])
+            elif available_encoder in ['h264_nvenc', 'h264_amf', 'h264_qsv']:
+                cmd.extend(['-cq', str(crf)])
+            else:
+                # For other encoders, use basic quality setting
+                cmd.extend(['-q:v', str(min(31, max(1, crf)))])
+            
+            cmd.extend(['-g', str(frameint), '-threads', '0', '-pix_fmt', 'yuv420p', str(ofnam)])
 
         if write:
             if ofnam == '':
@@ -233,30 +267,23 @@ class Undistorter(object):
         if not self.coefficients is None:
             map1, map2 = self.get_mappings(crop)
 
-        # if we're displaying, make a window to do so
-
-        print('Beginning to undistort images and compile with FFMPEG...')
-        sys.stdout.flush()
-
-        p = Popen(cmd, stdin=PIPE)
-
-        if display:
-            if 'linux' in sys.platform:
-                cv2.imshow("Undistorted", np.zeros((1080, 1920, 3)))
-            cv2.namedWindow("Undistorted")
-
+       
         if write:
-            # Create a list of the frames (pngs)
-            fileList = []
-        k = 1
-
+            print('Beginning to undistort images and compile with FFMPEG...')
+            sys.stdout.flush()
+            print(cmd)
+            p = Popen(cmd, stdin=PIPE)
+        
+        # if we're displaying, make a window to do so
+        vidWindow = None
         if display:
-            if not 'linux' in sys.platform:
-                cv2.startWindowThread()
+            vidWindow = VideoWindow()
+            vidWindow.show()
 
-        for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
+        a = 0
+        # for a in range(int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))):
+        while self.movie.isOpened():
             retval, raw = self.movie.read()
-
             if retval:
                 previous = raw
                 if crop:
@@ -274,48 +301,15 @@ class Undistorter(object):
                         undistorted = self.oCamUndistorter.undistort_frame(raw)
 
                 if display:
-                    cv2.imshow('Undistorted', cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
-                    cv2.waitKey(1)
-                undistorted = cv2.cvtColor(undistorted, cv2.COLOR_BGR2RGB)
-
-                # im = Image.fromarray(undistorted, 'RGB')
-                # im.save(p.stdin, 'PNG')
+                    vidWindow.show_frame(cv2.resize(undistorted, (0, 0), fx=0.5, fy=0.5))
+                    QApplication.processEvents()
 
                 if write:
                     p.stdin.write(undistorted.tostring())
 
-                # line of code above allows you to open video clip after it is saved
-                # without that line video clip will save but won't be able to open and play clip
-
-                variable = False
-                self.root = Tk()
-
-                def __init__(self, master, title):
-                    top = self.top = Toplevel(master)
-                    top.resizable(width=FALSE, height=FALSE)
-                    top.bind('<Return>', self.cleanup)
-                    self.l = Label(top, text=title)
-                    self.l.pack(padx=10, pady=10)
-                    self.e = Entry(top)
-                    self.e.focus_set()
-                    self.e.pack(padx=10, pady=5)
-                    self.b = Button(top, text='Ok', padx=10, pady=10)
-                    self.b.bind('<Button-1>', self.cleanup)
-                    self.b.pack(padx=5, pady=5)
-                    self.crop = StringVar(self.root)
-                    self.copy = StringVar(self.root)
-
-                self.wrdispboth = IntVar(self.root)
-
                 if a % 5 == 0:
                     print('\n', end='')
                     sys.stdout.flush()
-                """
-                # Write the individual frame as a png to the temporary directory
-                if write:
-                    cv2.imwrite(tmp + '/' + str(a) + '.png', undistorted)
-                    fileList.append(tmp + '/' + str(a) + '.png')
-                """
             else:
                 if write:
                     print("Could not read frame number: " + str(a) + "\n writing blank frame")
@@ -324,38 +318,31 @@ class Undistorter(object):
                 else:
                     print("Could not read frame number: " + str(a))
                     sys.stdout.flush()
-
-        p.stdin.close()
-        p.wait()
-
-        print('Undistortion finished')
+                    
+            a += 1
+            
+            if a == int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT)):
+                # last frame
+                break
+            
         if write:
+            p.stdin.close()
+            p.wait()
             print('Wrote mp4 to {0}'.format(ofnam))
-        sys.stdout.flush()
-        # Destroy movie object and the window if it was even created
-        movie = None
-        if display:
-            cv2.waitKey(1)
-            cv2.destroyAllWindows()
-            cv2.waitKey(1)
-        if write:
-            # clip = ImageSequenceClip(fileList, fps=self.fps, with_mask = False, load_images = False)
-
-            # Write the mp4 file
-            """
-            if os.path.exists(tmp + '/' + 'temp.m4a'):
-                clip.write_videofile(ofnam, fps=self.fps, audio = tmp + '/' + 'temp.m4a', audio_fps = 48000, codec='libx264', threads=0, ffmpeg_params = ['-crf', str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile' ,'baseline'])
-            else:
-                print('No audio stream found, writing without...')
-                clip.write_videofile(ofnam, fps=self.fps, audio_fps = 48000, codec='libx264', threads=0, ffmpeg_params = ['-crf', str(crf), '-g', str(frameint), '-pix_fmt', 'yuv420p', '-profile' ,'baseline'])
-            """
             sys.stdout.flush()
-            clip = None
-
             # Destroy the temporary directory
             shutil.rmtree(tmp)
             if self.copy_tmp is not None:
                 shutil.rmtree(self.copy_tmp)
+            
+        if vidWindow is not None:
+            print("closing preview")
+            sys.stdout.flush()
+            vidWindow.close()
+            QApplication.processEvents()
+                    
+        print('Undistortion finished')
+        sys.stdout.flush()
 
     def undistort_frame(self, frame, ofile=None, crop=False):
         if self.movie is None:
@@ -418,8 +405,45 @@ class Undistorter(object):
         if not ofile is None:
             cv2.imwrite(ofile, undistorted)
         return undistorted
-
-
+    
+    def preview(self):
+        # Use existing QApplication instance if available
+        self.app = QApplication.instance()
+        if self.app is None:
+            # Only create a new QApplication if none exists
+            self.app = QApplication(sys.argv)
+        
+    def _get_available_video_encoder(self):
+        """
+        Determine which video encoder is available in the current FFmpeg installation.
+        Returns the best available encoder in order of preference.
+        """
+        # List of encoders to try in order of preference
+        encoders_to_try = [
+            'libx264',      # Most common and widely supported
+            'h264_nvenc',   # NVIDIA GPU encoder
+            'h264_amf',     # AMD GPU encoder  
+            'h264_qsv',     # Intel Quick Sync Video encoder
+            'libx265',      # H.265/HEVC encoder
+            'mpeg4',        # Fallback option
+            'libxvid'       # Another fallback
+        ]
+        
+        for encoder in encoders_to_try:
+            try:
+                # Test if encoder is available by running a quick check
+                cmd = ['FFMPEG', '-hide_banner', '-encoders']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0 and encoder in result.stdout:
+                    print(f"Using video encoder: {encoder}")
+                    return encoder
+                    
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+                continue
+                
+        # If no encoder found, raise an error
+        raise ArgusError('No compatible video encoder found. Please install a version of FFmpeg with H.264 support.')
 class DistortionProfile(object):
     def __init__(self, model=None, mode=None):
         calibFiles = list()
@@ -531,3 +555,22 @@ class DistortionProfile(object):
             return np.array([self.coefficients for k in range(ncams)])
         else:
             raise ArgusError('must specify distortion coefficients using get_coefficients or set_coefficients')
+      
+# class that displays video as it is being dwarped using a pyside6 window to avoid segmentation faults
+class VideoWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        layout = QVBoxLayout()
+        self.label = QLabel()
+        layout.addWidget(self.label)
+        self.setLayout(layout)
+
+    def show_frame(self, frame):
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w, c = image.shape
+        qimage = QImage(image.data, w, h, c * w, QImage.Format_RGB888)
+        pixmap = QPixmap.fromImage(qimage)
+        self.label.setPixmap(pixmap)

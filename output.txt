@@ -1,0 +1,69 @@
+Loading detected patterns from /Users/jacksonbe3/repos/argus_test_files/cameraDistortion/foo_patterns.pkl
+Using 20 patterns
+Inverted True
+Getting 10 replicates...
+Getting 1st replicate calibration
+Getting 2nd replicate calibration
+Getting 3rd replicate calibration
+Getting 4th replicate calibration
+Getting 5th replicate calibration
+Getting 6th replicate calibration
+Getting 7th replicate calibration
+Getting 8th replicate calibration
+Getting 9th replicate calibration
+Getting 10th replicate calibration
+summary for calibration file /Users/jacksonbe3/repos/argus_test_files/cameraDistortion/foo_patterns.csv
+             f     cx     cy   AR    s  ...        k2   t1   t2   k3        rmse
+0  1952.259382  959.5  539.5  1.0  0.0  ...  0.176308  0.0  0.0  0.0  444.535534
+1  1954.490751  959.5  539.5  1.0  0.0  ...  0.348777  0.0  0.0  0.0  448.035542
+2  1963.817511  959.5  539.5  1.0  0.0  ...  0.210831  0.0  0.0  0.0  449.804322
+3  1971.162844  959.5  539.5  1.0  0.0  ...  0.160531  0.0  0.0  0.0  450.125566
+4  1958.010810  959.5  539.5  1.0  0.0  ...  0.238410  0.0  0.0  0.0  450.914595
+
+[5 rows x 11 columns]
+10 calibrations obtained
+10 calibrations are within 1.1 of best
+
+rmse range:      444.5355337211422 < 444.5355337211422 < 470.6936056187404
+
+ranges for each calibration parameter
+focal length f:  1943.7577104929903 < 1952.2593815538544 < 1971.1628435194152
+principal pt cx: 959.5 < 959.5 < 959.5
+principal pt cy: 539.5 < 539.5 < 539.5
+aspect ratio AR: 1.0 < 1.0 < 1.0
+skew s:          0.0 < 0.0 < 0.0
+radial k1:       -0.3984954133312824 < -0.3736136402971456 < -0.3677838371708817
+radial k2:       0.1514231864904243 < 0.176308101455181 < 0.3563325291208149
+tangential t1:   0.0 < 0.0 < 0.0
+tangential t2:   0.0 < 0.0 < 0.0
+radial k3:       0.0 < 0.0 < 0.0
+
+
+rmse:            444.5355337211422 < 444.5355337211422 < 444.5355337211422 
+
+medians for each calibration parameter in top 1
+focal length f:  1952.2593815538544 < 1952.2593815538544 < 1952.2593815538544
+principal pt cx: 959.5 < 959.5 < 959.5
+principal pt cy: 539.5 < 539.5 < 539.5
+aspect ratio AR: 1.0 < 1.0 < 1.0
+skew s:          0.0 < 0.0 < 0.0
+radial k1:       -0.3736136402971456 < -0.3736136402971456 < -0.3736136402971456
+radial k2:       0.176308101455181 < 0.176308101455181 < 0.176308101455181
+tangential t1:   0.0 < 0.0 < 0.0
+tangential t2:   0.0 < 0.0 < 0.0
+radial k3:       0.0 < 0.0 < 0.0
+
+
+best calibration found: (rmse=444.5355337211422)
+f       1952.259382
+cx       959.500000
+cy       539.500000
+AR         1.000000
+s          0.000000
+k1        -0.373614
+k2         0.176308
+t1         0.000000
+t2         0.000000
+k3         0.000000
+rmse     444.535534
+Name: 0, dtype: float64

@@ -27,8 +27,6 @@ import sys
 
 import argus
 import numpy as np
-from six.moves import map
-from six.moves import range
 
 # Script for Argus-Calibrate. Takes a pickle file with object and image point coordinates. Solves for camera intrinsics with OpenCV.
 if __name__ == "__main__":
