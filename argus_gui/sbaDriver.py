@@ -597,9 +597,36 @@ class OutlierWindow(QtWidgets.QWidget):
         scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=20)  # Green color, larger markers
         scatter.setGLOptions('translucent')
         self.view.addItem(scatter)
-       
-    
-    def buildData(self): 
+
+        # Add camera orientation lines (lollipop style)
+        # We can get camera orientations from the quaternion data
+        cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')
+        qT = cam[:, -7:]
+        quats = qT[:, :4]
+        trans = qT[:, 4:]
+
+        # Calculate orientation vectors for each camera
+        import scipy.spatial.transform
+        for k in range(len(plotcamXYZ)):
+            # Convert quaternion to rotation matrix
+            rotation = scipy.spatial.transform.Rotation.from_quat([quats[k][1], quats[k][2], quats[k][3], quats[k][0]])  # Note: scipy expects [x,y,z,w] format
+            R = rotation.as_matrix()
+            
+            # Camera optical axis is typically the negative z-axis in camera coordinates
+            optical_axis = np.array([0, 0, -1])
+            world_optical_axis = R @ optical_axis
+            
+            # Scale the orientation vector for visibility
+            orientation_length = 1  # Adjust this value to make the lines longer/shorter
+            start_point = plotcamXYZ[k]
+            end_point = start_point + world_optical_axis * orientation_length
+            
+            # Create line from camera position to show orientation
+            line_points = np.array([start_point, end_point])
+            orientation_line = gl.GLLinePlotItem(pos=line_points, color=(0, 0.8, 0, 1), width=3)  # Darker green line
+            self.view.addItem(orientation_line)
+
+    def buildData(self):
         # Load the points and camera profile from SBA
         xyzs = np.loadtxt(self.temp + '/' + self.key + '_np.txt')
         cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')

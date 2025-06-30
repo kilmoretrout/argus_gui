@@ -1116,6 +1116,52 @@ class wandGrapher(QWidget):
         scatter.setGLOptions('translucent')
         self.view.addItem(scatter)
 
+        # Calculate automatic orientation length based on data range
+        # Combine all visible 3D points to determine the overall scale
+        all_points = []
+        if len(plotcamXYZ) > 0:
+            all_points.append(plotcamXYZ)
+        if self.nRef != 0 and ref is not None:
+            all_points.append(ref)
+        if self.nppts != 0:
+            all_points.append(pairedSet1)
+            all_points.append(pairedSet2)
+        if self.nuppts != 0:
+            all_points.append(xyzs[self.nppts:, :])  # unpaired points
+        
+        if all_points:
+            all_coords = np.vstack(all_points)
+            # Calculate the range in each dimension
+            x_range = np.max(all_coords[:, 0]) - np.min(all_coords[:, 0])
+            y_range = np.max(all_coords[:, 1]) - np.min(all_coords[:, 1])
+            z_range = np.max(all_coords[:, 2]) - np.min(all_coords[:, 2])
+            # Use 5-10% of the maximum range as orientation length
+            max_range = max(x_range, y_range, z_range)
+            orientation_length = max_range * 0.1  # 10% of the data range
+        else:
+            orientation_length = 1.0  # fallback value
+
+        # Add camera orientation lines (lollipop style)
+        # Calculate orientation vectors for each camera using quaternions
+        import scipy.spatial.transform
+        for k in range(len(plotcamXYZ)):
+            # Convert quaternion to rotation matrix
+            rotation = scipy.spatial.transform.Rotation.from_quat([quats[k][1], quats[k][2], quats[k][3], quats[k][0]])  # Note: scipy expects [x,y,z,w] format
+            R = rotation.as_matrix()
+            
+            # Camera optical axis is typically the negative z-axis in camera coordinates
+            optical_axis = np.array([0, 0, -1])
+            world_optical_axis = R @ optical_axis
+            
+            # Scale the orientation vector for visibility
+            start_point = plotcamXYZ[k]
+            end_point = start_point + world_optical_axis * orientation_length
+            
+            # Create line from camera position to show orientation
+            line_points = np.array([start_point, end_point])
+            orientation_line = gl.GLLinePlotItem(pos=line_points, color=(0, 0.8, 0, 1), width=3)  # Darker green line
+            self.view.addItem(orientation_line)
+        
         outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], up, self.indices['unpaired'], self.nupframes)
         outputter.output()
 
