@@ -119,7 +119,7 @@ class Triangulator():
             # Inverse view
             P_ = np.zeros((3, 4))
             P_[:, :3] = np.linalg.inv(R)
-            P_[:, 3] = np.mat(-t.T) * np.mat(R)
+            P_[:, 3] = np.asmatrix(-t.T) * np.asmatrix(R)
 
             # Make arrays for triangulated points from base & inverse camera view
             out = np.zeros((3, len(self.p1)))
