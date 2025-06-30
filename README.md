@@ -65,8 +65,9 @@ Then run: `argus-gui`
 - If you (especially on Windows) encounter an error related to `ffmpeg`, or `ffplay`, download the latest version of `ffmpeg` add it to your system's PATH using [these instructions](https://www.wikihow.com/Install-FFmpeg-on-Windows).
 
 
+#### Option 2: Install with conda (if you prefer conda)
 <details>
-<summary><strong>Option 2: Install with conda (if you prefer conda)</strong></summary>
+<summary><strong>👈 Click the triangle to expand!</strong></summary>
 
 1. Right-click this link and select "Save Link As..." or "Download Linked File As..." : <a href="https://raw.githubusercontent.com/backyardbiomech/argus_gui/main/Argus.yaml">Argus.yaml</a> (save it as `Argus.yaml`, not `Argus.yaml.txt`).
 2. Install [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install) or anaconda on your computer. 
