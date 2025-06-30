@@ -60,6 +60,10 @@ Then run: `argus-gui`
   ```bash
   pip install opencv-python
   ```
+- If during use you encounter an error related to `cv2` or `opencv`, you can try installing the contrib package:
+  ```bash
+  pip install opencv-contrib-python
+  ```
 
 
 #### Option 2: Install with conda (if you prefer conda)
