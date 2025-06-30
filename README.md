@@ -62,6 +62,8 @@ Then run: `argus-gui`
   pip install opencv-contrib-python
   ```
 
+- If you (especially on Windows) encounter an error related to `ffmpeg`, or `ffplay`, download the latest version of `ffmpeg` add it to your system's PATH using [these instructions](https://www.wikihow.com/Install-FFmpeg-on-Windows).
+
 
 <details>
 <summary><strong>Option 2: Install with conda (if you prefer conda)</strong></summary>
