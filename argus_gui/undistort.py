@@ -343,17 +343,6 @@ class Undistorter(object):
                     
         print('Undistortion finished')
         sys.stdout.flush()
-        # if write:
-        #     print('Wrote mp4 to {0}'.format(ofnam))
-        #     sys.stdout.flush()
-        #     # Destroy the temporary directory
-        #     shutil.rmtree(tmp)
-        #     if self.copy_tmp is not None:
-        #         shutil.rmtree(self.copy_tmp)
-        
-
-        if display:
-            self.app.exec()
 
     def undistort_frame(self, frame, ofile=None, crop=False):
         if self.movie is None:
@@ -418,9 +407,10 @@ class Undistorter(object):
         return undistorted
     
     def preview(self):
+        # Use existing QApplication instance if available
         self.app = QApplication.instance()
         if self.app is None:
-        #     print('app is None')
+            # Only create a new QApplication if none exists
             self.app = QApplication(sys.argv)
         
     def _get_available_video_encoder(self):
