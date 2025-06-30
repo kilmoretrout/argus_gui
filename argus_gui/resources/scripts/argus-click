@@ -411,12 +411,25 @@ def draw_line(pt1, pt2, color=(255, 255, 255, 255), width = None, batch=None):
     # pt1 and pt2 are tuples or arrays like (x, y) for the two ends of the line
     (x1, y1) = pt1
     (x2, y2) = pt2
-    return shapes.Line(
-        x1, y1, x2, y2,
-        width = width,
-        color = color,
-        batch = batch
-    )
+    
+    # Pyglet 2.1+ removed the width parameter for Line
+    # Create line without width parameter for compatibility
+    # But there are other issues with window size that need to be fixed still - so install is forced to pyglet < 2.1
+    try:
+        # Try with width parameter (Pyglet 2.0.x)
+        return shapes.Line(
+            x1, y1, x2, y2,
+            width = width,
+            color = color,
+            batch = batch
+        )
+    except TypeError:
+        # Fallback without width parameter (Pyglet 2.1+)
+        return shapes.Line(
+            x1, y1, x2, y2,
+            color = color,
+            batch = batch
+        )
 
 
 # global variables for options and current track

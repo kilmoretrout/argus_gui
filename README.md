@@ -55,10 +55,12 @@ Then run: `argus-gui`
 
 **Note:** The installation will automatically handle the `sba` and `argus` dependencies from GitHub.
 
-**Troubleshooting:** If you get a `ModuleNotFoundError: No module named 'cv2'` error, install OpenCV manually:
-```bash
-pip install opencv-python
-```
+**Troubleshooting:** 
+- If you get a `ModuleNotFoundError: No module named 'cv2'` error, install OpenCV manually:
+  ```bash
+  pip install opencv-python
+  ```
+
 
 #### Option 2: Install with conda (if you prefer conda)
 
