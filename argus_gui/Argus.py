@@ -797,7 +797,16 @@ class MainWindow(QtWidgets.QMainWindow):
         mov_layout.addWidget(self.dwarp_copy, 3, 0, 1, 2)
         mov_box.setLayout(mov_layout)
 
+        # Create informational text at the top
+        dwarp_info_label = QtWidgets.QLabel(
+            "Dwarp is only necessary for creating undistorted videos for presentations or analysis in other software. "
+            "The other Argus modules will undistort behind the scenes when you load a properly formatted camera profile."
+        )
+        dwarp_info_label.setWordWrap(True)
+        dwarp_info_label.setStyleSheet("QLabel { font-style: italic; margin: 10px; }")
+
         layout = QtWidgets.QGridLayout()
+        layout.addWidget(dwarp_info_label, 0, 0, 1, 4)
         layout.addWidget(self.dwarp_file_button, 1, 0)
         layout.addWidget(self.dwarp_file, 1, 1, 1, 3)
         layout.addWidget(param_box, 2, 0, 3, 4)
