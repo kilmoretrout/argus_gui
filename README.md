@@ -12,7 +12,7 @@ Visit https://argus.web.unc.edu for detailed instructions
 
 ### Quick installation instructions
 
-1. <a href="https://github.com/backyardbiomech/argus_gui/raw/main/Argus.yaml">Download the Argus configuration file</a>.
+1. Right-click this link and select "Save Link As...": <a href="https://raw.githubusercontent.com/backyardbiomech/argus_gui/main/Argus.yaml">Argus.yaml</a> (save it as `Argus.yaml`, not `Argus.yaml.txt`).
 2. Install miniconda or anaconda on your computer. 
 3. Open a terminal (macOS/Linux) or Anaconda Prompt (Windows).
 4. Navigate to the directory where you downloaded `Argus.yaml` (probably your Downloads folder). You can use the `cd` command to change directories. For example:
