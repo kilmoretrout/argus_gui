@@ -5,15 +5,28 @@ from __future__ import print_function
 
 import os
 
-import pkg_resources
-
-cwd = os.getcwd()
-os.chdir(pkg_resources.resource_filename('argus_gui.resources', ''))
-
-import sba
-from .output import *
-
-os.chdir(cwd)
+try:
+    # Python 3.9+
+    import importlib.resources
+    with importlib.resources.as_file(importlib.resources.files('argus_gui.resources')) as resources_path:
+        cwd = os.getcwd()
+        os.chdir(str(resources_path))
+        
+        import sba
+        from .output import *
+        
+        os.chdir(cwd)
+except (AttributeError, ImportError):
+    # Fallback for older Python versions or missing importlib.resources
+    import pkg_resources
+    
+    cwd = os.getcwd()
+    os.chdir(pkg_resources.resource_filename('argus_gui.resources', ''))
+    
+    import sba
+    from .output import *
+    
+    os.chdir(cwd)
 import numpy as np
 from PySide6 import QtWidgets
 from PySide6.QtCore import Qt

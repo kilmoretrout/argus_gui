@@ -12,6 +12,56 @@ Visit https://argus.web.unc.edu for detailed instructions
 
 ### Quick installation instructions
 
+#### Option 1: Install with pip (recommended for most users)
+
+**Step 1: Create a virtual environment (recommended)**
+
+A virtual environment keeps your argus_gui installation separate from other Python packages on your system.
+
+1. Open a terminal (macOS/Linux) or Command Prompt (Windows)
+2. Create a new virtual environment:
+   ```bash
+   python -m venv argus_env
+   ```
+3. Activate the virtual environment:
+   - On macOS/Linux:
+     ```bash
+     source argus_env/bin/activate
+     ```
+   - On Windows:
+     ```bash
+     argus_env\Scripts\activate
+     ```
+   
+   You should see `(argus_env)` at the beginning of your command prompt when the environment is active.
+
+**Step 2: Install argus_gui**
+
+```bash
+pip install git+https://github.com/backyardbiomech/argus_gui.git
+```
+
+**Step 3: Run the GUI**
+
+```bash
+argus-gui
+```
+
+**For future use:** Remember to activate your virtual environment each time before using argus_gui:
+- macOS/Linux: `source argus_env/bin/activate`
+- Windows: `argus_env\Scripts\activate`
+
+Then run: `argus-gui`
+
+**Note:** The installation will automatically handle the `sba` and `argus` dependencies from GitHub.
+
+**Troubleshooting:** If you get a `ModuleNotFoundError: No module named 'cv2'` error, install OpenCV manually:
+```bash
+pip install opencv-python
+```
+
+#### Option 2: Install with conda (if you prefer conda)
+
 1. Right-click this link and select "Save Link As..." or "Download Linked File As..." : <a href="https://raw.githubusercontent.com/backyardbiomech/argus_gui/main/Argus.yaml">Argus.yaml</a> (save it as `Argus.yaml`, not `Argus.yaml.txt`).
 2. Install [miniconda](https://www.anaconda.com/docs/getting-started/miniconda/install) or anaconda on your computer. 
 3. Open a terminal (macOS/Linux) or Anaconda Prompt (Windows).

@@ -13,7 +13,14 @@ import numpy as np
 import scipy
 import scipy.io.wavfile
 import scipy.signal
-from moviepy.config import get_setting
+try:
+    from moviepy.config import get_setting
+except ImportError:
+    # Fallback for newer moviepy versions
+    def get_setting(setting_name):
+        if setting_name == "FFMPEG_BINARY":
+            return "ffmpeg"  # Default to system ffmpeg
+        return None
 from texttable import *
 
 

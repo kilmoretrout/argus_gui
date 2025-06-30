@@ -19,7 +19,16 @@ import tempfile
 import argus.ocam
 import cv2
 import numpy as np
-import pkg_resources
+try:
+    # Python 3.9+
+    import importlib.resources
+    with importlib.resources.as_file(importlib.resources.files('argus_gui.resources')) as resources_path:
+        RESOURCE_PATH = str(resources_path)
+except (AttributeError, ImportError):
+    # Fallback for older Python versions
+    import pkg_resources
+    RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
+    
 # from moviepy.config import get_setting
 # from moviepy.editor import *
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
@@ -37,8 +46,6 @@ else:
 
 from PIL import Image
 from subprocess import Popen, PIPE
-
-RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
 
 def array2image(a):

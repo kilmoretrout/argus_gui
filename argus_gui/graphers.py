@@ -50,7 +50,14 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from pyqtgraph.opengl.items.GLTextItem import GLTextItem
 # from pyqtgraph import GraphicsLayoutWidget, LabelItem, PlotWidget
-from moviepy.config import get_setting
+try:
+    from moviepy.config import get_setting
+except ImportError:
+    # Fallback for newer moviepy versions
+    def get_setting(setting_name):
+        if setting_name == "FFMPEG_BINARY":
+            return "ffmpeg"  # Default to system ffmpeg
+        return None
 
 # import wandOutputter
 from .output import *
@@ -66,7 +73,14 @@ import scipy
 import sys
 import os.path
 # import matplotlib.pyplot as plt
-from moviepy.config import get_setting
+try:
+    from moviepy.config import get_setting
+except ImportError:
+    # Fallback for newer moviepy versions
+    def get_setting(setting_name):
+        if setting_name == "FFMPEG_BINARY":
+            return "ffmpeg"  # Default to system ffmpeg
+        return None
 # import matplotlib.patches as mpatches
 import random
 from .colors import *

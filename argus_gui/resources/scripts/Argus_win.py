@@ -8,11 +8,18 @@ from __future__ import absolute_import
 import os
 import subprocess
 
-import pkg_resources
+try:
+    # Python 3.9+
+    import importlib.resources
+    with importlib.resources.as_file(importlib.resources.files('argus_gui.resources')) as resources_path:
+        RESOURCE_PATH = str(resources_path)
+except (AttributeError, ImportError):
+    # Fallback for older Python versions
+    import pkg_resources
+    RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
+
 from six.moves.tkinter import *
 import six.moves.tkinter_ttk as ttk
-
-RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
 
 # Launcher script. Has buttons for all programs in the Argus suite to be launched
 if __name__ == '__main__':

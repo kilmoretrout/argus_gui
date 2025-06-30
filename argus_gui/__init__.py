@@ -18,13 +18,14 @@ try:
     from .tools import *
     from .triangulate import *
     from .undistort import *
-    from .frameFinderPyglet import *
+    from .frameFinderPyglet import FrameFinder
     # Import graphers and Argus last as they depend on PySide6
     from .graphers import *
-    from .Argus import *
-except ImportError:
+    from .Argus import *  # This will include ClickerProject
+except ImportError as e:
     # If dependencies aren't available, skip the imports
     # This prevents module discovery warnings
+    print(f"Warning: Could not import some argus_gui modules: {e}")
     pass
 
 # Resources are always available
