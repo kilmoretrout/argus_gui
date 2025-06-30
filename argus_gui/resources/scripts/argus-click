@@ -2173,6 +2173,72 @@ class ClickerWindow(pyglet.window.Window):
         out[0, 2] = len(row)
         return out
 
+    def check_overwrite_files(self, filename, is_sparse=True):
+        """
+        Check if any output files would be overwritten and ask user for confirmation.
+        
+        Args:
+            filename (str): Base filename prefix
+            is_sparse (bool): Whether this is for sparse or non-sparse save
+            
+        Returns:
+            bool: True if user confirms overwrite or no files exist, False to cancel
+        """
+        import os
+        
+        # List of file suffixes that will be created
+        file_suffixes = ['-offsets.csv']
+        
+        if is_sparse:
+            file_suffixes.extend(['-xypts.tsv'])
+            # Check for DLT-related files
+            if hasattr(self, 'points') and DLTCoefficients is not None and camera_profile is not None:
+                file_suffixes.extend(['-xyzpts.tsv', '-xyzres.tsv'])
+                # Check for bootstrap files
+                if bstrap:
+                    file_suffixes.extend(['-xyz-cis.tsv', '-spline-weights.tsv', '-spline-error-tolerances.tsv'])
+            else:
+                file_suffixes.append('-xyzres.csv')
+        else:
+            file_suffixes.extend(['-xypts.csv'])
+            # Check for DLT-related files
+            if hasattr(self, 'points') and DLTCoefficients is not None and camera_profile is not None:
+                file_suffixes.extend(['-xyzpts.csv', '-xyzres.csv'])
+                # Check for bootstrap files
+                if bstrap:
+                    file_suffixes.extend(['-xyz-cis.csv', '-spline-weights.csv', '-spline-error-tolerances.csv'])
+            else:
+                file_suffixes.append('-xyzres.csv')
+        
+        # Check which files already exist
+        existing_files = []
+        for suffix in file_suffixes:
+            file_path = filename + suffix
+            if os.path.exists(file_path):
+                existing_files.append(os.path.basename(file_path))
+        
+        # If no files exist, proceed without warning
+        if not existing_files:
+            return True
+        
+        # Show warning dialog for existing files
+        app = QtWidgets.QApplication.instance()
+        if app is None:
+            app = QtWidgets.QApplication([])
+        
+        file_list = '\n'.join(existing_files)
+        message = f"The following files already exist and will be overwritten:\n\n{file_list}\n\nDo you want to continue?"
+        
+        reply = QtWidgets.QMessageBox.question(
+            None, 
+            "Overwrite Files?", 
+            message,
+            QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+            QtWidgets.QMessageBox.No  # Default to No for safety
+        )
+        
+        return reply == QtWidgets.QMessageBox.Yes
+
     def save_sparse(self, save_as=True):
         global global_filename
         filename = ''
@@ -2188,6 +2254,9 @@ class ClickerWindow(pyglet.window.Window):
         if filename == '':
             return
         if filename != '' and type(filename) == str:
+            # Check for existing files and get user confirmation
+            if not self.check_overwrite_files(filename, is_sparse=True):
+                return  # User cancelled the operation
             global_filename = filename
             for window in pyglet.app.windows:
                 if isinstance(window, ClickerWindow):
@@ -2313,6 +2382,9 @@ class ClickerWindow(pyglet.window.Window):
         if filename == '':
             return
         if filename != '' and type(filename) == str:
+            # Check for existing files and get user confirmation
+            if not self.check_overwrite_files(filename, is_sparse=False):
+                return  # User cancelled the operation
             global_filename = filename
             # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
             for window in pyglet.app.windows:
@@ -2614,7 +2686,8 @@ class ClickerWindow(pyglet.window.Window):
                         window.change_track(old_track)
                         window.delete_all_tracks()
 
-            # if the track did not change but we turned on displaying the rest
+            # if the track did not change but we turned on displaying the rest of
+            # tracks
             elif new_disp != displaying_all_tracks and new_disp:
                 # for window in [u for u in pyglet.app.windows if type(u) != GhostWindow]:
                 for window in pyglet.app.windows:
