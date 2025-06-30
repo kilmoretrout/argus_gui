@@ -134,8 +134,8 @@ class Undistorter(object):
                 '-loglevel', 'panic',
                 '-hide_banner',
                 '-i', fnam,
-                '-acodec', 'copy',
-                '-vcodec', 'copy',
+                '-c:a', 'copy',
+                '-c:v', 'copy',
                 os.path.join(self.copy_tmp, 'copy.mp4')]
             print('Copying video and audio codecs...')
             sys.stdout.flush()
@@ -200,40 +200,51 @@ class Undistorter(object):
         else:
             audio = None
 
+        # Try to determine available video encoder
+        available_encoder = self._get_available_video_encoder()
+        
         if audio is not None:
             cmd = ['FFMPEG', '-y',
                    '-s', '{0}x{1}'.format(self.w, self.h), 
                    '-pixel_format', 'bgr24',
                    '-f', 'rawvideo', 
                    '-r', str(self.fps),
-                   '-vcodec', 'rawvideo', 
+                   '-c:v', 'rawvideo', 
                    '-i', 'pipe:',
-                   '-i', audio, '-acodec', 'copy', 
-                   '-vcodec', 'libx264', 
-                   '-preset', 'medium', 
-                   '-crf', str(crf), 
-                   '-g', str(frameint), 
-                   '-profile:v', 'main', 
-                   '-threads', '0', 
-                   '-pix_fmt', 'yuv420p', 
-                   str(ofnam)]
+                   '-i', audio, '-c:a', 'copy', 
+                   '-c:v', available_encoder]
+            
+            # Add encoder-specific options
+            if available_encoder == 'libx264':
+                cmd.extend(['-crf', str(crf), '-profile:v', 'main'])
+            elif available_encoder in ['h264_nvenc', 'h264_amf', 'h264_qsv']:
+                cmd.extend(['-cq', str(crf)])
+            else:
+                # For other encoders, use basic quality setting
+                cmd.extend(['-q:v', str(min(31, max(1, crf)))])
+            
+            cmd.extend(['-g', str(frameint), '-threads', '0', '-pix_fmt', 'yuv420p', str(ofnam)])
         else:
             cmd = ['FFMPEG', '-y', 
                     '-s', '{0}x{1}'.format(self.w, self.h), 
                    '-pixel_format', 'bgr24',
                    '-f', 'rawvideo', 
                    '-r', str(self.fps),
-                   '-vcodec', 'rawvideo', 
+                   '-c:v', 'rawvideo', 
                    '-i', 'pipe:',
-                   '-an', '-acodec', 'copy',
-                   '-vcodec', 'libx264',
-                   '-preset', 'medium',
-                   '-crf', str(crf),
-                   '-g', str(frameint),
-                   '-profile:v', 'main',
-                   '-threads', '0', 
-                   '-pix_fmt', 'yuv420p', 
-                   str(ofnam)]
+                   '-an',
+                   '-c:v', available_encoder]
+            
+            # Add encoder-specific options
+            if available_encoder == 'libx264':
+                cmd.extend(['-crf', str(crf), '-profile:v', 'main'])
+            elif available_encoder in ['h264_nvenc', 'h264_amf', 'h264_qsv']:
+                cmd.extend(['-cq', str(crf)])
+            else:
+                # For other encoders, use basic quality setting
+                cmd.extend(['-q:v', str(min(31, max(1, crf)))])
+            
+            cmd.extend(['-g', str(frameint), '-threads', '0', '-pix_fmt', 'yuv420p', str(ofnam)])
 
         if write:
             if ofnam == '':
@@ -412,8 +423,37 @@ class Undistorter(object):
         #     print('app is None')
             self.app = QApplication(sys.argv)
         
-
-
+    def _get_available_video_encoder(self):
+        """
+        Determine which video encoder is available in the current FFmpeg installation.
+        Returns the best available encoder in order of preference.
+        """
+        # List of encoders to try in order of preference
+        encoders_to_try = [
+            'libx264',      # Most common and widely supported
+            'h264_nvenc',   # NVIDIA GPU encoder
+            'h264_amf',     # AMD GPU encoder  
+            'h264_qsv',     # Intel Quick Sync Video encoder
+            'libx265',      # H.265/HEVC encoder
+            'mpeg4',        # Fallback option
+            'libxvid'       # Another fallback
+        ]
+        
+        for encoder in encoders_to_try:
+            try:
+                # Test if encoder is available by running a quick check
+                cmd = ['FFMPEG', '-hide_banner', '-encoders']
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+                
+                if result.returncode == 0 and encoder in result.stdout:
+                    print(f"Using video encoder: {encoder}")
+                    return encoder
+                    
+            except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+                continue
+                
+        # If no encoder found, raise an error
+        raise ArgusError('No compatible video encoder found. Please install a version of FFmpeg with H.264 support.')
 class DistortionProfile(object):
     def __init__(self, model=None, mode=None):
         calibFiles = list()
@@ -525,7 +565,7 @@ class DistortionProfile(object):
             return np.array([self.coefficients for k in range(ncams)])
         else:
             raise ArgusError('must specify distortion coefficients using get_coefficients or set_coefficients')
-            
+      
 # class that displays video as it is being dwarped using a pyside6 window to avoid segmentation faults
 class VideoWindow(QWidget):
     def __init__(self):
