@@ -176,9 +176,20 @@ pip install opencv-contrib-python
 ```
 
 #### FFmpeg Error (Windows)
-If you encounter an error related to `ffmpeg` or `ffplay`:
-1. Download the latest version of [FFmpeg](https://ffmpeg.org/download.html)
-2. Add it to your system's PATH using [these instructions](https://www.wikihow.com/Install-FFmpeg-on-Windows)
+If you encounter an error related to `ffmpeg` or `ffplay`, or an error reporting something like a file cannot be found:
+1. In your command line, activate your virtual environment:
+   ```bash
+   argus_env\Scripts\activate  # Windows
+   source argus_env/bin/activate  # macOS/Linux
+   ```
+2. Check if `ffmpeg` is installed:
+   ```bash
+   ffmpeg -version
+   ```
+   If you see an error like "command not found", follow these steps:
+3. Download the latest version of [FFmpeg](https://ffmpeg.org/download.html)
+4. Add it to your system's PATH using [these instructions](https://www.wikihow.com/Install-FFmpeg-on-Windows)
+5. Note that you may need to restart your terminal or computer for the changes to take effect.
 
 #### Permission Errors (macOS/Linux)
 If you get permission errors, try:
