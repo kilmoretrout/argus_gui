@@ -8,6 +8,8 @@ Updated: 2025-06-30, tested on Windows 11 and MacOS 15.5
 
 ### How do I get set up?
 
+Users new to Python should follow the full [installation instructions](installation.md) to get started.
+
 Visit https://argus.web.unc.edu for detailed instructions
 
 ### Quick installation instructions
@@ -105,7 +107,34 @@ Then run: `argus-gui`
 
 </details>   
    
-   
+
+## Citation
+
+If you use Argus in your research, please cite the following paper:
+
+**Jackson, B.E., Evangelista, D.J., Ray, D.D., and Hedrick, T.L.** (2016). 3D for the people: multi-camera motion capture in the field with consumer-grade cameras and open source software. *Biology Open*, 5(9), 1334-1342. [https://doi.org/10.1242/bio.018713](https://doi.org/10.1242/bio.018713)
+
+<details>
+<summary><strong>📋 BibTeX Citation</strong></summary>
+
+```bibtex
+@article{Jackson3Dpeoplemulticamera2016,
+  title = {{3D for the people: multi-camera motion capture in the field with consumer-grade cameras and open source software}},
+  author = {Jackson, Brandon E. and Evangelista, Dennis J. and Ray, Dylan D. and Hedrick, Tyson L.},
+  year = {2016},
+  journal = {Biology Open},
+  volume = {5},
+  number = {9},
+  pages = {1334--1342},
+  doi = {10.1242/bio.018713},
+  pmid = {27444791},
+  url = {https://doi.org/10.1242/bio.018713}
+}
+```
+
+</details>
+
+
 ### Who do I talk to?
 
 Any questions or comments can be emailed to:
