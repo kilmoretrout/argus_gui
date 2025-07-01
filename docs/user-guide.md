@@ -22,7 +22,7 @@ Several imporant steps of the 3D reconstruction process are performed by marking
 
 ### Main GUI Elements
 
-![Clicker Tab](/docs/images/clicker_img.png)
+![Clicker Tab](images/clicker_img.png)
 
 1. Video List: Displays loaded videos and frame offsets. The first camera has an offset of 0. 
 2. `+` Button: Add a new video to the list. After selecting a video, you will be prompted to set the frame offset for that camera. You can edit that offset by double-clicking the offset value in the table, and by using the ⬆ and ⬇ keys while viewing the video.
@@ -33,7 +33,7 @@ Several imporant steps of the 3D reconstruction process are performed by marking
 
 ### Clicker Video Interface
 
-![Clicker Video Interface](/docs/images/clicker_vids.png)
+![Clicker Video Interface](images/clicker_vids.png)
 
 Each video will open in a separate window. The window title has several important pieces of information:
 1. Video file name
@@ -82,7 +82,7 @@ Light blue lines display the epipolar lines that show a predicted position based
 
 With any video window active, you can open the options dialog by typing `o` . This dialog allows you to configure various settings for the Clicker module that affect the current project rather than specific videos. All settings shown are saved to the project configuration file when you save the project.
 
-![Clicker Options Dialog](/docs/images/clicker_options.png)
+![Clicker Options Dialog](images/clicker_options.png)
 
 1. Navigate to and select a camera profile that contains the camera intrinsics for your specific camera. You can use one of the included profiles or build your own using **Patterns** and **Calibrate**. This is required for 3D reconstruction.
 2. Navigate to and select a DLT coefficients file that contains the camera extrinsics for your specific camera. You can use **Wand** to determine the DLT coefficients for a camera set up based on points tracked in **Clicker**. This is required for 3D reconstruction.
@@ -107,14 +107,14 @@ With any video window active, you can open the options dialog by typing `o` . Th
 
 Before analyzing videos in **Clicker**, you need to determine the synchronization offsets between cameras. The **Sync** module provides tools to synchronize multiple video files based on their audio tracks. We suggest repeated loud sounds delivered directly to each camera. See [the paper](/docs/citation.md) for some details on how to synchronize cameras using sound. 
 
-![Sync Tab](/docs/images/sync_img.png)
+![Sync Tab](images/sync_img.png)
 
 1. **Add Video**: Click the `+` button to add a video file to the list. You should add all videos from your cameras for a specific trial. Make sure you load them in the same order you will load them in **Clicker**. 
 2. **Remove Video**: Select a video and click the `-` button to remove it from the list.
 3. **Clear List**: Click the `Clear` button to remove all videos from the list.
 4. **Show Waves**: Click the `Show Waves` button to display the audio waveforms for all loaded videos. This will open a new window showing the audio waveforms for each video, which can help you visually identify synchronization points.
 
-![Sync Waves](/docs/images/sync_waves_img.png)
+![Sync Waves](images/sync_waves_img.png)
 
 5. **Specify Time Range**: Long videos, especially with low sync-signal-to-noise-ratios may not syncrhonize accurately if the full video is used. Use the waveform display to determine the approximate start and end time (in decimal minutes) of your synchronization sequence, and enter those values in `Start Time` and `End Time` fields.
 6. **Output filename**: Specify the output filename for the synchronization results. By default this will be named based on the first video loaded in the list, with `_offsets.csv` appended, saved to the same directory as the first video. You can change this to any valid filename, but it must end with `.csv`. This file will contain the time and frame offsets for each camera, plus an confidence score for the synchronization. The confidence score is based on the correlation between the audio waveforms of the cameras.
@@ -125,7 +125,7 @@ Before analyzing videos in **Clicker**, you need to determine the synchronizatio
 
 Camera extrinsics (location and orientation relative to a common coordinate system) are determined by waving a "wand" with two markers in front of the cameras to provide a known distance calibration. **Wand** uses the wand (or "paired") points, and other unpaired points (these can be static objects in the background, or moving subjects), tracked in **Clicker**, along with camera intrinsics, and processed through sparse bundle adjustment to optimize camera extrinsics. It can also further optimize camera intrinsics. The output is a DLT coeffients file than can be loaded into **Clicker** for 3D reconstruction of tracks. 
 
-![Wand Tab](/docs/images/wand_img.png)
+![Wand Tab](images/wand_img.png)
 
 1. **Select paired points file**: This should be a `-xypts.csv` file saved from **Clicker** containing two tracks that mark two points a constant distance apart. The distance between these two points will be used to determine the scale of the 3D reconstruction.
 
