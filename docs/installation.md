@@ -108,7 +108,7 @@ argus-gui
 
 ### Daily Usage
 
-For future use, remember to activate your virtual environment each time before using Argus GUI:
+For future use, remember to activate your virtual environment each time before launching the Argus GUI:
 
 **macOS/Linux:**
 ```bash
