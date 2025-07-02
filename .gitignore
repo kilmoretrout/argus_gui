@@ -7,6 +7,7 @@ __pycache__/
 .Python
 env/
 argus_env/
+arguspip/
 build/
 develop-eggs/
 dist/

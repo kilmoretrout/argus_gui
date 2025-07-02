@@ -387,6 +387,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wand_outputProf = QtWidgets.QCheckBox("Output camera profiles")
         self.wand_display = QtWidgets.QCheckBox("Display results")
         self.wand_display.setChecked(True)
+        self.wand_display.stateChanged.connect(self.update_outliers_checkbox_state)
         self.wand_log = QtWidgets.QCheckBox("Write log")
 
         self.wand_onam_label = QtWidgets.QLabel("Output file prefix and location")
@@ -431,6 +432,9 @@ class MainWindow(QtWidgets.QMainWindow):
         layout.addWidget(self.wand_go_button, 13, 3)
 
         # layout.setColumnMinimumWidth(1, 400)
+
+        # Set initial state for outliers checkbox based on display checkbox
+        self.update_outliers_checkbox_state()
 
         tab = QtWidgets.QWidget()
         tab.setLayout(layout)
@@ -1419,6 +1423,19 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             self.wand_freq.setEnabled(False)
             self.wand_freq_label.setEnabled(False)
+
+    def update_outliers_checkbox_state(self):
+        """Update the outliers checkbox state based on display checkbox."""
+        if self.wand_display.isChecked():
+            # When display is enabled, automatically enable outliers reporting
+            # and gray it out since GUI handles outliers interactively
+            self.wand_outliers.setChecked(True)
+            self.wand_outliers.setEnabled(False)
+            self.wand_outliers.setToolTip("Outlier processing is handled through the GUI when display is enabled")
+        else:
+            # When display is disabled, allow user to control outliers checkbox
+            self.wand_outliers.setEnabled(True)
+            self.wand_outliers.setToolTip("Process outlier point with option to remove")
 
     def wand_go(self):
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, "scripts/argus-wand")]
