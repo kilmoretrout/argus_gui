@@ -128,312 +128,38 @@ Camera extrinsics (location and orientation relative to a common coordinate syst
 ![Wand Tab](images/wand_img.png)
 
 1. **Select paired points file**: This should be a `-xypts.csv` file saved from **Clicker** containing two tracks that mark two points a constant distance apart. The distance between these two points will be used to determine the scale of the 3D reconstruction.
-
-
-## Project Management
-
-### Creating a New Project
-
-1. **File → New Project** or click the "New Project" button
-2. Choose a project directory (will create subfolder structure)
-3. Enter project name and description
-4. Configure default settings
-
-### Suggested Project Structure
-
-A lot of files will be tracked and created in the process of using Argus, so it is important to keep them organized. The following structure is one recommended for your project directory:
-
-```
-MyProject/
-├── date/          # one folder per day, or camera setup/session
-    └── calibration  # to contain camera intrinsics and extrinsics
-        ├── camera1.yaml  # Camera 1 calibration data
-        ├── camera2.yaml  # Camera 2 calibration data
-        └── ...
-├── config.yaml    # Project configuration file
-├── cameras/              # Camera calibration data
-├── videos/              # Video files (or links)
-├── images/              # Image sequences
-├── points/              # Detected/manual points
-├── calibration/         # Calibration results
-├── reconstruction/      # 3D reconstruction data
-└── exports/             # Exported results
-```
-
-### Saving and Loading
-
-- **Auto-save**: Projects are saved automatically every 5 minutes
-- **Manual save**: Ctrl+S or File → Save
-- **Load project**: File → Open Project (select .yaml config file)
-
-## Camera Setup
-
-### Adding Cameras
-
-1. Click "Add Camera" in the cameras panel
-2. Configure camera properties:
-   - **Name**: Descriptive camera name
-   - **Type**: Video file, image sequence, or live camera
-   - **Source**: File path or device ID
-   - **Properties**: Resolution, frame rate, etc.
-
-### Camera Types
-
-#### Video Files
-- Supported formats: MP4, AVI, MOV, MKV
-- Should be synchronized across cameras
-- Can specify start/end frames
-
-#### Image Sequences
-- Supported formats: JPG, PNG, TIFF, BMP
-- Images should be numbered consistently
-- Example: cam1_001.jpg, cam1_002.jpg, etc.
-
-#### Live Cameras
-- USB cameras, IP cameras, or capture devices
-- Real-time preview and capture
-- Adjustable camera parameters
-
-### Synchronization
-
-For accurate 3D reconstruction, cameras must be synchronized:
-
-- **Hardware sync**: Use external trigger or sync signal
-- **Software sync**: Manual alignment using common events
-- **Audio sync**: Use audio tracks to align video files
-- **Visual sync**: Use flashes or other visual cues
-
-## Data Import
-
-### Video Import
-
-1. **File → Import → Videos**
-2. Select video files for each camera
-3. Configure import settings:
-   - Frame range to import
-   - Downsampling factor
-   - Quality settings
-
-### Image Import
-
-1. **File → Import → Images**
-2. Select folders containing image sequences
-3. Map folders to cameras
-4. Verify image ordering and timing
-
-### Batch Import
-
-For large datasets:
-1. **File → Import → Batch Import**
-2. Select parent directory containing organized subdirectories
-3. Configure automatic camera detection and mapping
-4. Review and confirm import settings
-
-## Point Detection
-
-### Detection Methods
-
-#### Checkerboard Detection
-- Automatic detection of checkerboard patterns
-- Configure board size (internal corners)
-- Adjust detection sensitivity
-- Sub-pixel accuracy refinement
-
-#### Circle Grid Detection
-- Detects circular patterns
-- More robust to lighting variations
-- Symmetric or asymmetric grids supported
-- Higher accuracy than checkerboards
-
-#### LED/Marker Detection
-- Detects bright spots or markers
-- Adjustable intensity threshold
-- Blob detection algorithms
-- Good for large volumes or specific markers
-
-#### Manual Point Selection
-- Click to manually select points
-- Useful for custom calibration objects
-- Supports multiple point types
-- Can combine with automatic detection
-
-### Detection Settings
-
-#### Sensitivity Settings
-- **Threshold**: Detection sensitivity (0-100)
-- **Min/Max Size**: Size constraints for detected features
-- **Aspect Ratio**: Expected shape constraints
-- **Clustering**: Group nearby detections
-
-#### Quality Filters
-- **Sharpness**: Remove blurry detections
-- **Contrast**: Minimum contrast requirements
-- **Symmetry**: Geometric consistency checks
-- **Temporal**: Consistency across frames
-
-### Manual Editing
-
-After automatic detection:
-1. **Review Results**: Check detected points in all views
-2. **Delete Bad Points**: Right-click → Delete on poor detections
-3. **Add Missing Points**: Manual click to add missed points
-4. **Refine Positions**: Drag points for fine adjustments
-
-## Calibration Process
-
-### Calibration Methods
-
-#### Standard Calibration
-- Uses detected calibration points
-- Estimates intrinsic and extrinsic parameters
-- Includes distortion correction
-- Good for most applications
-
-#### Self-Calibration
-- Uses feature matches between views
-- No calibration object required
-- Requires sufficient camera motion
-- Less accurate than standard methods
-
-#### Hybrid Calibration
-- Combines calibration object and feature matching
-- Improved accuracy and robustness
-- Handles sparse calibration data
-- Recommended for challenging scenarios
-
-### Calibration Parameters
-
-#### Intrinsic Parameters
-- **Focal Length**: Camera focal length in pixels
-- **Principal Point**: Image center offset
-- **Distortion**: Radial and tangential distortion coefficients
-- **Aspect Ratio**: Pixel aspect ratio
-
-#### Extrinsic Parameters
-- **Rotation**: Camera orientation in 3D space
-- **Translation**: Camera position in 3D space
-- **Scale**: Overall scale of the coordinate system
-
-### Quality Assessment
-
-#### Reprojection Error
-- Average pixel error across all points
-- Should be < 1 pixel for good calibration
-- Check for outliers or systematic errors
-
-#### Calibration Plots
-- Error distribution plots
-- Camera position visualization
-- Calibration point coverage maps
-- Parameter uncertainty estimates
-
-### Refinement
-
-If calibration quality is poor:
-1. **Add More Data**: Capture additional calibration images
-2. **Improve Coverage**: Ensure calibration object fills entire field of view
-3. **Remove Outliers**: Delete poor quality detections
-4. **Adjust Parameters**: Modify calibration settings
-5. **Re-run Calibration**: Iterate until satisfactory results
-
-## 3D Reconstruction
-
-### Point Reconstruction
-
-1. **Select Points**: Click corresponding points in multiple camera views
-2. **Triangulate**: Calculate 3D coordinates using camera calibration
-3. **Refine**: Optimize 3D positions using all available views
-4. **Validate**: Check reconstruction errors and geometry
-
-### Batch Reconstruction
-
-For large datasets:
-1. **Feature Detection**: Automatically detect features to track
-2. **Feature Matching**: Match features across camera views
-3. **Trajectory Reconstruction**: Calculate 3D trajectories over time
-4. **Smoothing**: Apply temporal smoothing to reduce noise
-
-### Reconstruction Quality
-
-#### Geometric Validation
-- **Triangulation Angle**: Angle between rays from different cameras
-- **Reprojection Error**: Back-projection error in each camera
-- **3D Residuals**: Distance between rays in 3D space
-- **Temporal Consistency**: Smoothness of trajectories
-
-#### Statistical Analysis
-- **Point Clouds**: Visualize 3D point distributions
-- **Measurement Tools**: Distance and angle measurements
-- **Coordinate Transformations**: Convert between coordinate systems
-- **Export Options**: Various 3D file formats
-
-## Data Export
-
-### Export Formats
-
-#### 3D Points
-- **CSV**: Simple comma-separated values
-- **JSON**: Structured data with metadata
-- **PLY**: 3D point cloud format
-- **MAT**: MATLAB data format
-- **HDF5**: Hierarchical data format
-
-#### Camera Data
-- **Calibration Files**: Camera parameters and distortion
-- **Projection Matrices**: Direct projection matrices
-- **OpenCV Format**: Compatible with OpenCV library
-- **Blender**: Import into Blender for visualization
-
-#### Videos and Images
-- **Undistorted**: Remove lens distortion
-- **Synchronized**: Align timing across cameras
-- **Annotated**: Overlay detected points and tracks
-- **Cropped**: Extract regions of interest
-
-### Export Settings
-
-- **Coordinate System**: Choose world coordinate frame
-- **Units**: Specify measurement units
-- **Precision**: Number of decimal places
-- **Metadata**: Include calibration information
-- **Compression**: Data compression options
-
-### Integration
-
-#### MATLAB/Python
-- Direct data loading functions
-- Example analysis scripts
-- Visualization tools
-- Further processing pipelines
-
-#### Other Software
-- **DLTdv**: Direct export compatibility
-- **OpenCV**: Standard calibration format
-- **Blender**: 3D visualization and animation
-- **CAD Software**: Engineering analysis tools
-
-## Tips and Best Practices
-
-### Camera Setup
-- Use high-quality cameras with global shutters
-- Ensure adequate lighting and contrast
-- Minimize camera vibration and movement
-- Plan camera positions for good triangulation angles
-
-### Calibration
-- Use high-quality calibration objects
-- Cover entire field of view during calibration
-- Capture calibration data at multiple distances and angles
-- Check calibration quality before proceeding
-
-### Reconstruction
-- Ensure good lighting and contrast for tracking
-- Use appropriate frame rates for motion being captured
-- Validate 3D results against known measurements
-- Apply appropriate smoothing for noisy data
-
-### Troubleshooting
-- Check camera synchronization if 3D results look wrong
-- Verify calibration quality if reconstruction is poor
-- Ensure sufficient baseline between cameras
-- Check for and remove systematic errors
+2. **Select unpaired points file**: This should be a `-xypts.csv` file saved from **Clicker**. These can be static objects in the background, or moving subjects as long as the same actual object is accurately tracked in multiple cameras in the same time-synced frames. The more of the filming volume covered by unpaired points, the better the camera extrinsics will be estimated. These should all be in a single clicker track. 
+3. **Select reference points file**: This should be a `-xypts.csv` file saved from **Clicker** containing a single track that marks 1-4 points in all cameras. This will be used to determine the origin and orientation of the coordinate system for the 3D reconstruction: 1 point will set the origin, 2 points will set the z-axis (plumb line), 3 points will set a horizontal plane with the z-axis calculated, and 4 points will set the origin, x, y, and z axes with the right-hand rule. You can also track a free-falling object in the filming volume, such as a ball, and select "Gravity" as the point type to calculate the z-axis. 
+4. **Select camera profile**: This should be a camera profile file that contains the camera intrinsics for your specific camera. You can use one of the included profiles or build your own using **Patterns** and **Calibrate**.
+5. **Wand Length**: Enter the length of the wand. The units used here will set the units for the 3D reconstruction.
+6. **Referecne Point Type**: Select the type of reference points you are using. This will determine how the coordinate system is set up. Options for static objects include `Axis` (1, 2, or 4 poitns), or `Plane` (3 points). If you are using a free-falling object, select `Gravity`.
+7. **Recording frequency**: This is the camera recording frequency for the free-falling object for a `Gravity` reference point type.
+8. **Intrinsics** and **Distortion**: Specifiy which camera intrinsics and distortion parameters you would like to optimizein the sparse bundle adjustment based on the paired and unpaired points. You can also use the intrinsics from the camera profile (`Optimize none`).
+10. **Report on outliers**: If checked, the software will report on outliers in the paired and unpaired points after the sparse bundle adjustment and give the option to remove the outliers and re-run the optimization. This is automatic if you also selsect **Display results**. 
+11. **Choose reference camera**: Optimize the choice of reference camera such that there are the most 3D triangulatable points, i.e. camera with the most shared information.
+12. **Output camera profiles**: Good to use if you optimized intrinsics and distortion as those new values will be saved in a new camera profile to be used in **Clicker**. 
+13: **Display results**: If checked, the software will display the results of the sparse bundle adjustment in a new window. This will show the 3D positions of the paired and unpaired points, the reference points, and allow you to visualize the camera extrinsics. This will also include an outlier detection and removal step.
+14. **Output file prefix and location**: The default is the same directory as the paired points file, with `_cal` added. Depending on the options selected, this will save the following files:
+   - `*_dlt-coefficients.csv` - DLT coefficients file for use in **Clicker** (camera extriniscs)
+   - `*_-sba-profile.txt` - Camera profile file with optimized intrinsics
+   - `*_-sba-profile-orig.txt` - a copy of the loaded camera profile file
+    - `*_unpaired-points-xyz.csv` - The 3D positions of the unpaired points after the sparse bundle adjustment
+    - `*_paired-points-xyz.csv` - The 3D positions of the paired points after the sparse bundle adjustment
+15. **Write log**: If checked, a log file will be created with the output that is printed to the right side of the window.
+16. **Go**: Click this button to start the sparse bundle adjustment process. If `Display results` is checked, the window below will open showing the results of the sparse bundle adjustment. 
+
+![Wand Results](images/wand_report.png)
+
+The 3D plot of the calibration scene can be navigated using the mouse:
+- Left click and drag to rotate the view
+- Cmd-click (macOS) or Ctrl-click (Windows/Linux) and drag to pan the view
+- Scroll wheel to zoom in and out
+
+Colors are as follows:
+- **Paired points**: magenta lines
+- **Unpaired points**: cyan dots
+- **Reference points**: red dots
+- **Cameras**: green dots
+
+- The `DLT errors` shows the rmse reconstruction error for each camera, which is the average distance between the marked 2D position in the video and the 3D position projected back to the 2D camera using the DLT coefficients.  Very good calibrations will have DLT errors of less than 1 pixel.
+- The `Wand Score` is calculated as $100 * \frac{std_{wand}}{mean_{wand}}$, where `std_wand` is the standard deviation of the calculated wand length across all cameras, and `mean_wand` is the mean calculated wand length across all cameras. Good calibrations generally have a wand score of approximately 1.0 or less. 
