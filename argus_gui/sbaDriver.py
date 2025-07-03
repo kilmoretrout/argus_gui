@@ -304,7 +304,29 @@ class sbaArgusDriver():
 
         camO = pandas.DataFrame(camO)
         camO.to_csv(self.name + '-sba-profile.txt', header=False, index=False, sep=' ')
-        # newcameras.toTxt(self.name + '-sba-profile.txt')
+        
+        # format for clicker
+        clicker_data = []
+        for i in range(len(camO)):
+            row_data = [
+                i + 1,  # row number starting from 1
+                camO.iloc[i, 0],  # focal length
+                2 * camO.iloc[i, 1],  # vid width
+                2 * camO.iloc[i, 2],  # vid height
+                camO.iloc[i, 1],  # principle point x
+                camO.iloc[i, 2],  # principle point y
+                camO.iloc[i, 3],  # aspect 
+                camO.iloc[i, 4],  # r2
+                camO.iloc[i, 5],  # r4
+                camO.iloc[i, 6],  # t1
+                camO.iloc[i, 7],  # t2
+                camO.iloc[i, 8]   # r6
+            ]
+            clicker_data.append(row_data)
+        
+        clicker_df = pandas.DataFrame(clicker_data)
+        clicker_df.to_csv(self.name + '-clicker-profile.txt', header=False, index=False, sep=' ')
+
 
         if self.ppts is not None:
             npframes = self.ppts.shape[0]
