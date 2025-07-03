@@ -316,11 +316,11 @@ class sbaArgusDriver():
                 camO.iloc[i, 1],  # principle point x
                 camO.iloc[i, 2],  # principle point y
                 camO.iloc[i, 3],  # aspect 
-                camO.iloc[i, 4],  # r2
-                camO.iloc[i, 5],  # r4
-                camO.iloc[i, 6],  # t1
-                camO.iloc[i, 7],  # t2
-                camO.iloc[i, 8]   # r6
+                camO.iloc[i, 5],  # r2
+                camO.iloc[i, 6],  # r4
+                camO.iloc[i, 7],  # t1
+                camO.iloc[i, 8],  # t2
+                camO.iloc[i, 9]   # r6
             ]
             clicker_data.append(row_data)
         
