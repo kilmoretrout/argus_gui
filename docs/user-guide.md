@@ -139,12 +139,8 @@ Camera extrinsics (location and orientation relative to a common coordinate syst
 11. **Choose reference camera**: Optimize the choice of reference camera such that there are the most 3D triangulatable points, i.e. camera with the most shared information.
 12. **Output camera profiles**: Good to use if you optimized intrinsics and distortion as those new values will be saved in a new camera profile to be used in **Clicker**. 
 13: **Display results**: If checked, the software will display the results of the sparse bundle adjustment in a new window. This will show the 3D positions of the paired and unpaired points, the reference points, and allow you to visualize the camera extrinsics. This will also include an outlier detection and removal step.
-14. **Output file prefix and location**: The default is the same directory as the paired points file, with `_cal` added. Depending on the options selected, this will save the following files:
-   - `*_dlt-coefficients.csv` - DLT coefficients file for use in **Clicker** (camera extriniscs)
-   - `*_-sba-profile.txt` - Camera profile file with optimized intrinsics
-   - `*_-sba-profile-orig.txt` - a copy of the loaded camera profile file
-    - `*_unpaired-points-xyz.csv` - The 3D positions of the unpaired points after the sparse bundle adjustment
-    - `*_paired-points-xyz.csv` - The 3D positions of the paired points after the sparse bundle adjustment
+14. **Output file prefix and location**: The default is the same directory as the paired points file, with `_cal` added. This will save a number of files depending on the options selected, all starting with the file prefix. 
+
 15. **Write log**: If checked, a log file will be created with the output that is printed to the right side of the window.
 16. **Go**: Click this button to start the sparse bundle adjustment process. If `Display results` is checked, the window below will open showing the results of the sparse bundle adjustment. 
 
@@ -163,3 +159,36 @@ Colors are as follows:
 
 - The `DLT errors` shows the rmse reconstruction error for each camera, which is the average distance between the marked 2D position in the video and the 3D position projected back to the 2D camera using the DLT coefficients.  Very good calibrations will have DLT errors of less than 1 pixel.
 - The `Wand Score` is calculated as $100 * \frac{std_{wand}}{mean_{wand}}$, where `std_wand` is the standard deviation of the calculated wand length across all cameras, and `mean_wand` is the mean calculated wand length across all cameras. Good calibrations generally have a wand score of approximately 1.0 or less. 
+
+### Output Files
+Depending on the options selected, the following files will be saved to the output directory with the specified prefix:
+- `*_dlt-coefficients.csv` - DLT coefficients file for use in **Clicker** (camera extriniscs)
+- `*_-sba-profile.txt` - Camera profile file with optimized intrinsics and extrinsics. This is for compatibility with DLTdv and easyWand, and should not be used in **Clicker**. Each row represents a camera with the following columns:
+     - fx - focal length for x in pixels
+     - cx, cy - principal point in pixels, typically in middle of image
+     - AR - aspect ratio, typically 1.
+     - s - skew, typically 0.
+     - r2,r4 - radial distortion coeffs according to Bourguet (dimensionless)
+     - t1,t2 - tangential distortion coeffs (dimensionless)
+     - r6 - radial distortion coeff according to Bourguet (dimensionless)
+     - q0,qi,qj,qk - unit quaternion rotation of camera (dimensionless)
+     - tx,ty,tz - translation of camera in real world units
+- `*_-sba-profile-orig.txt` - a the same profile above before full optimization
+- `*-clicker_profile.txt` - a version of `sba-profile.txt` formatted for use in **Clicker** with the following columns:
+     - camera number
+     - fx - focal length for x in pixels
+     - image width, height
+     - cx, cy - principal point in pixels, typically in middle of image
+     - AR - aspect ratio, typically 1.
+     - r2,r4- radial distortion coeffs according to Bourguet (dimensionless)
+     - t1,t2 - tangential distortion coeffs (dimensionless)
+     - r6 - radial distortion coeff according to Bourguet (dimensionless)
+ 
+- `*_unpaired-points-xyz.csv` - The 3D positions of the unpaired points after the sparse bundle adjustment
+- `*_paired-points-xyz.csv` - The 3D positions of the paired points after the sparse bundle adjustment
+
+## Patterns
+
+## Calibrate
+
+## Dwarp
