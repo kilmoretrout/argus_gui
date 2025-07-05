@@ -1549,7 +1549,7 @@ class MainWindow(QtWidgets.QMainWindow):
             self.cal_onam.setText(self.cal_file.text()[:-3] + "csv")
 
         if self.cal_onam.text().split(".")[-1].lower() != "csv":
-            self.cal_onam.setText(self.cal_onam.text() + ".csv")
+            self.cal_onam.setText(self.cal_onam.text() + "_calibrations.csv")
 
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, "scripts/argus-calibrate")]
         writeBool = False
