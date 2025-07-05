@@ -47,7 +47,7 @@ Get up and running with Argus GUI in just a few steps:
 ### Developer Resources
 - [API Reference](api-reference.md)
 - [Contributing](contributing.md)
-- [Building from Source](building.md)
+
 
 ## Citation
 
