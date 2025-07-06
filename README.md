@@ -8,9 +8,9 @@ Updated: 2025-06-30, tested on Windows 11 and MacOS 15.5
 
 ### How do I get set up?
 
-Users new to Python should follow the full [installation instructions](docs/installation.md) to get started.
+Users new to Python should follow the full [installation instructions](https://backyardbiomech.github.io/argus_gui/installation.html) to get started.
 
-Visit https://argus.web.unc.edu for detailed instructions
+Visit https://backyardbiomech.github.io/argus_gui for detailed instructions
 
 ### Quick installation instructions
 

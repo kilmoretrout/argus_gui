@@ -13,7 +13,6 @@ highlighter: rouge
 plugins:
   - jekyll-feed
   - jekyll-sitemap
-  - jekyll-github-alerts
 
 # Navigation
 header_pages:

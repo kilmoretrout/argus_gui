@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-This guide helps you solve common issues when using Argus GUI. If you can't find a solution here, please check our [FAQ](faq.md) or contact support.
+This guide helps you solve common issues when using Argus GUI. If you can't find a solution here, please check our [FAQ](https://backyardbiomech.github.io/argus_gui/faq.html) or contact support.
 
 ## Installation Issues
 

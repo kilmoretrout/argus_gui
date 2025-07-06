@@ -20,33 +20,33 @@ Argus packages together a suite of open-source, freely available software tools 
 
 Get up and running with Argus GUI in just a few steps:
 
-1. **[Installation](installation.md)** - Choose from pip or conda installation
-2. **[Quick Start Guide](quick-start.md)** 
-3. **[User Guide](user-guide.md)** - Comprehensive usage instructions
+1. **[Installation](https://backyardbiomech.github.io/argus_gui/installation.html)** - Choose from pip or conda installation
+2. **[Quick Start Guide](https://backyardbiomech.github.io/argus_gui/quick-start.html)** 
+3. **[User Guide](https://backyardbiomech.github.io/argus_gui/user-guide.html)** - Comprehensive usage instructions
 
 
 ## Documentation Sections
 
 ### Getting Started
-- [Installation](installation.md)
-- [Quick Start Guide](quick-start.md)
-- [System Requirements](requirements.md)
+- [Installation](https://backyardbiomech.github.io/argus_gui/installation.html)
+- [Quick Start Guide](https://backyardbiomech.github.io/argus_gui/quick-start.html)
+- [System Requirements](https://backyardbiomech.github.io/argus_gui/requirements.html)
 
 ### User Guide
-- [User Interface Overview](user-guide.md)
-- [Camera Calibration](calibration.md)
-- [3D Reconstruction](reconstruction.md)
-- [Working with Videos](video-processing.md)
+- [User Interface Overview](https://backyardbiomech.github.io/argus_gui/user-guide.html)
+- [Camera Calibration](https://backyardbiomech.github.io/argus_gui/calibration.html)
+- [3D Reconstruction](https://backyardbiomech.github.io/argus_gui/reconstruction.html)
+- [Working with Videos](https://backyardbiomech.github.io/argus_gui/video-processing.html)
 
 ### Advanced Topics
-- [Configuration Files](configuration.md)
-- [Batch Processing](batch-processing.md)
-- [Troubleshooting](troubleshooting.md)
-- [FAQ](faq.md)
+- [Configuration Files](https://backyardbiomech.github.io/argus_gui/configuration.html)
+- [Batch Processing](https://backyardbiomech.github.io/argus_gui/batch-processing.html)
+- [Troubleshooting](https://backyardbiomech.github.io/argus_gui/troubleshooting.html)
+- [FAQ](https://backyardbiomech.github.io/argus_gui/faq.html)
 
 ### Developer Resources
-- [API Reference](api-reference.md)
-- [Contributing](contributing.md)
+- [API Reference](https://backyardbiomech.github.io/argus_gui/api-reference.html)
+- [Contributing](https://backyardbiomech.github.io/argus_gui/contributing.html)
 
 
 ## Citation
@@ -55,7 +55,7 @@ If you use Argus in your research, please cite:
 
 **Jackson, B.E., Evangelista, D.J., Ray, D.D., and Hedrick, T.L.** (2016). 3D for the people: multi-camera motion capture in the field with consumer-grade cameras and open source software. *Biology Open*, 5(9), 1334-1342. [https://doi.org/10.1242/bio.018713](https://doi.org/10.1242/bio.018713)
 
-[Full citation details and BibTeX →](citation.md)
+[Full citation details and BibTeX →](https://backyardbiomech.github.io/argus_gui/citation.html)
 
 ## Support
 

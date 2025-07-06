@@ -217,7 +217,7 @@ Depending on the options selected, the following files will be saved to the outp
 ## Dwarp
 ![Dwarp Tab](images/dwarp_img.png)
 
->[!NOTE]
+> [!NOTE]
 > The **Dwarp** module is only necessary for creating undistorted videos for presentation or analysis in other software. The othe Argus modules, like **Clicker**, will apply undistortion algorithms to the data when camera profiles have been loaded, so you do not need to use this module for 3D reconstruction or tracking. You can track points on the distorted video and the 3D positions will be undistorted automatically when you save the data. Also, recent GoPro models include a "linear" shooting mode that undistorts the video in-camera, so you may not need to use this module at all if you are using a GoPro camera. We highly recommend using the linear shooting modes if available. 
 
 1. **Select movie file**: This should be a video file that you want to undistort using the camera profile.
@@ -247,8 +247,8 @@ This guide will walk you through the basic steps to set up a multi-camera projec
 #### Step 1: Determine Camera Intrinsics
 Camera intrinsics are the internal parameters of a camera that affect how it captures images. These include focal length, principal point, and distortion coefficients. Action cameras like GoPro often have fairly wide-angle lenses with significant distortion, so it is important to calibrate them for accurate 3D reconstruction. However, many cameras now can shoot in "linear" modes which use factory calibration to undistort the video in-camera. We strongly recommend using these modes if available as they greatly reduce the complexity of the calibration process. In fact, if you are using a GoPro or other camera with a linear shooting mode, you can skip the calibration steps below and skip to [create a camera profile](#create-a-camera-profile).
 
-> [!NOTE] 
-> We've included instrinsics for some common cameras in the [`resources/calibrations`](../resources/calibrations) directory. If you are using one of these cameras and shooting modes, you can skip the calibration steps below and [create a camera profile](#create-a-camera-profile) based on the included numbers.
+> [!NOTE]
+> We've included intrinsics for some common cameras in the [resources/calibrations directory on GitHub](https://github.com/backyardbiomech/argus_gui/tree/main/argus_gui/resources/calibrations). If you are using one of these cameras and shooting modes, you can skip the calibration steps below and [create a camera profile](#create-a-camera-profile) based on the included numbers.
 
 Argus divides the intrinsic-calibration process into mulitple steps, all of which should be completed in controlled environments before recording research videos:
 + Use the **Patterns** module to detect calibration patterns in video files.
