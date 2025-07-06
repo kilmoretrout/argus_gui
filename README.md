@@ -1,16 +1,21 @@
-ReadMe
+Argus
 =======
 
-argus_gui is a python package with multiple tools for 3D camera calibration and reconstruction. Argus Panoptes had thousands of eyes, but you may only have two or more cameras.  Hopefully this will help.
+Argus is a python package with multiple tools for 3D camera calibration and reconstruction. Argus Panoptes had thousands of eyes, but you may only have two or more cameras.  Hopefully this will help.
 
-Version: 3.0.0 
+![Argus GUI](https://img.shields.io/badge/version-3.0.0-blue)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![License](https://img.shields.io/badge/license-GPL%20v3-green)
+
 Updated: 2025-06-30, tested on Windows 11 and MacOS 15.5
+
+Read the [full documentation](docs/index.md).
+
+Find our origingal website at [https://argus.web.unc.edu](https://argus.web.unc.edu).
 
 ### How do I get set up?
 
-Users new to Python should follow the full [installation instructions](https://backyardbiomech.github.io/argus_gui/installation.html) to get started.
-
-Visit https://backyardbiomech.github.io/argus_gui for detailed instructions
+Users new to Python should follow the full [installation instructions](docs/installation.md) to get started.
 
 ### Quick installation instructions
 

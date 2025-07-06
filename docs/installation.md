@@ -258,4 +258,4 @@ You can also delete the `argus_env` folder if you no longer need it.
 
 ## Next Steps
 
-Once installed, proceed to the [Quick Start Guide](quick-start.md) to begin using Argus GUI.
+Once installed, proceed to the [Quick Start Guide](docs/quick-start.md) to begin using Argus GUI.

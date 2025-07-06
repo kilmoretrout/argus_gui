@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get up and running with your first tracking effort! This guide assumes you have already [installed Argus GUI](https://backyardbiomech.github.io/argus_gui/installation.html).
+Get up and running with your first tracking effort! This guide assumes you have already [installed Argus GUI](docs/installation.md).
 
 ## Your First Track
 
@@ -45,26 +45,12 @@ argus-gui
 1. You can type `o` to open the options dialog and select a save location and name. `Ok` to close the dialog.
 2. With a video window active, type `s` to save the current video data. This will overwrite without warning, so be careful!
 
-
-
-
-## Quick Tips
-
-- **Lighting**: Ensure even, bright lighting for better detection
-- **Coverage**: Move calibration object to cover entire camera field of view
-- **Angles**: Capture the calibration object at various angles and distances
-- **Synchronization**: Ensure cameras are properly synchronized
-- **Quality**: Delete poor quality frames/detections before calibration
-
 ## What's Next?
 
-- Read the full [User Guide](https://backyardbiomech.github.io/argus_gui/user-guide.html) for detailed instructions
-- Learn about [advanced calibration techniques](https://backyardbiomech.github.io/argus_gui/calibration.html)
-- Explore [3D reconstruction workflows](https://backyardbiomech.github.io/argus_gui/reconstruction.html)
-- Check out [video processing features](https://backyardbiomech.github.io/argus_gui/video-processing.html)
+- Read the full [User Guide](docs/user-guide.md) for detailed instructions
 
 ## Need Help?
 
-- Check the [Troubleshooting Guide](https://backyardbiomech.github.io/argus_gui/troubleshooting.html)
-- Review the [FAQ](https://backyardbiomech.github.io/argus_gui/faq.html)
+- Check the [Troubleshooting Guide](docs/troubleshooting.md)
+- Review the [FAQ](docs/faq.md)
 
