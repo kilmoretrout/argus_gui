@@ -20,10 +20,10 @@ Argus packages together a suite of open-source, freely available software tools 
 
 Get up and running with Argus GUI in just a few steps:
 
-1. **[Installation](docs/installation.md)** - Choose from pip or conda installation
-2. **[Quick Start Guide](docs/quick-start.md)** 
-3. **[User Guide](docs/user-guide.md)** - Comprehensive usage instructions
-4. **[Troublshooting](docs/troubleshooting.md)** - Common issues and solutions
+1. **[Installation](installation.md)** - Choose from pip or conda installation
+2. **[Quick Start Guide](quick-start.md)** 
+3. **[User Guide](user-guide.md)** - Comprehensive usage instructions
+4. **[Troublshooting](troubleshooting.md)** - Common issues and solutions
 
 
 ## Citation
