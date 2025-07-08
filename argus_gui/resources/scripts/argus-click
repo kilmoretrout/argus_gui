@@ -194,7 +194,8 @@ class OptionsPopupWindow(QtWidgets.QDialog):
     """# popup window for the options dialog
     """
 
-    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, rgb, radius, thickness, parent=None):
+#options popup dialog start    
+    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, o_dlc, rgb, radius, thickness, parent=None):
 
         super().__init__(parent)
         self.setWindowTitle("Options")
@@ -202,6 +203,7 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         self.setSizeGripEnabled(True)  # Allow resizing
 
         self.o_sparse = o_sparse
+        self.o_dlc = o_dlc  # Track if DLC format is selected
         self.rgb = rgb
         self.track_list = track_list
 
@@ -242,10 +244,12 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
         self.formatlabel = QtWidgets.QLabel("Save format: ")
         self.formatbox = QtWidgets.QComboBox()
-        self.formatbox.addItems(["Dense .csv", "Sparse .tsv"])
+        self.formatbox.addItems(["Dense .csv", "Sparse .tsv", "DeepLabCut .h5"])
         self.formatbox.currentIndexChanged.connect(self.sparse_toggle)
         if self.o_sparse:
             self.formatbox.setCurrentText("Sparse .tsv")
+        elif self.o_dlc:
+            self.formatbox.setCurrentText("DeepLabCut .h5")
         else:
             self.formatbox.setCurrentText("Dense .csv")
 
@@ -380,8 +384,13 @@ class OptionsPopupWindow(QtWidgets.QDialog):
     def sparse_toggle(self):
         if self.formatbox.currentText() == "Sparse .tsv":
             self.o_sparse = True
+            self.o_dlc = False
         elif self.formatbox.currentText() == "Dense .csv":
             self.o_sparse = False
+            self.o_dlc = False
+        elif self.formatbox.currentText() == "DeepLabCut .h5":
+            self.o_sparse = False  # DLC format is treated as non-sparse for legacy compatibility
+            self.o_dlc = True
 
     def color_toggle(self):
         if self.colorbox.currentText() == "RGB color":
@@ -548,6 +557,7 @@ camera_profile = None
 bstrap = False
 busy = False
 outputSparse = False
+outputDLC = False
 global_filename = ''
 rgb = True
 vw = 15
@@ -2796,7 +2806,157 @@ class ClickerWindow(pyglet.window.Window):
                                   dlt_coefficents=dlt_filename if dlt_filename else None,
                                   camera_profile=camera_filename if camera_filename else None,
                                   settings=settings)
+    
+    def save_dlc(self, saveas=True):
+        """Save the current points in DeepLabCut format as h5 files, one per camera."""
+        global global_filename
+        global dlt_filename
+        global camera_filename
+        
+        filename = ''
+        if saveas or global_filename == '':
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for DeepLabCut files", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = clean_filename_for_prefix(w.filename)
+        else:
+            filename = global_filename
+        if filename == '':
+            return
+            
+        if filename != '' and isinstance(filename, str):
+            global_filename = filename
+            
+            # Get all camera windows
+            video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+            video_windows.sort(key=lambda w: w.actual_camera_number)
+            
+            if not video_windows:
+                QtWidgets.QMessageBox.warning(None, "Error", "No video windows are currently open.")
+                return
+            
+            # Fill common dictionary with all data
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
+            
+            # Determine scorer name - use original if data was loaded from DLC, otherwise use 'argus'
+            scorer_name = 'argus'
+            
+            # Check if this is modified DLC data by looking for existing DLC-style column names
+            if any('_cam_' in col for col in common.keys()):
+                # This appears to be original argus data, use 'argus' as scorer
+                pass
+            else:
+                # This might be modified DLC data, but we'll still use 'argus' for consistency
+                pass
+            
+            try:
+                # Process each camera separately
+                success_count = 0
+                for window in video_windows:
+                    camera_num = window.actual_camera_number
+                    
+                    # Get video file name for this camera
+                    video_name = window.movie.split('/')[-1] if window.movie else f"camera_{camera_num}"
+                    video_base = os.path.splitext(video_name)[0]
+                    
+                    # Create filename for this camera
+                    if 'argus' in filename.lower():
+                        camera_filename_h5 = f"{filename}_cam{camera_num}.h5"
+                        camera_filename_csv = f"{filename}_cam{camera_num}.csv"
+                    else:
+                        camera_filename_h5 = f"{filename}_{video_base}_argus.h5"
+                        camera_filename_csv = f"{filename}_{video_base}_argus.csv"
+                    
+                    # Extract data for this camera
+                    camera_data = self._extract_camera_data_for_dlc(window, scorer_name)
+                    
+                    if camera_data is not None:
+                        # Save as h5 file
+                        camera_data.to_hdf(camera_filename_h5, key='df_with_missing', mode='w')
+                        
+                        # Also save as CSV for convenience
+                        camera_data.to_csv(camera_filename_csv)
+                        
+                        success_count += 1
+                        print(f"Saved DLC data for camera {camera_num}: {camera_filename_h5}")
+                
+                if success_count > 0:
+                    QtWidgets.QMessageBox.information(None, "Success", 
+                        f'Successfully saved DeepLabCut data for {success_count} camera(s).\n'
+                        f'Files saved with prefix: {filename}')
+                else:
+                    QtWidgets.QMessageBox.warning(None, "Error", "No data was saved. Check that you have tracking data.")
+                    
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(None, "Error", f"Failed to save DeepLabCut data: {str(e)}")
 
+    def _extract_camera_data_for_dlc(self, window, scorer_name):
+        """Extract and format data for a single camera in DLC format."""
+        try:
+            camera_num = window.actual_camera_number
+            
+            # Get the maximum number of frames from the window
+            max_frames = window.end
+            
+            # Create frame indices (0-based for DLC compatibility)
+            frame_indices = list(range(max_frames))
+            
+            # Prepare data structure for DLC multi-index format
+            data_dict = {}
+            
+            # Create columns for each track (bodypart)
+            for track in track_list_global:
+                # Extract x, y coordinates for this track and camera
+                x_col = f"{track}_cam_{camera_num}_x"
+                y_col = f"{track}_cam_{camera_num}_y"
+                
+                if x_col in common and y_col in common:
+                    x_data = common[x_col][:max_frames]
+                    y_data = common[y_col][:max_frames]
+                    
+                    # Convert 0s to NaN (DLC uses NaN for missing data)
+                    x_data = np.where(x_data == 0, np.nan, x_data)
+                    y_data = np.where(y_data == 0, np.nan, y_data)
+                    
+                    # Calculate likelihood (1.0 for marked points, 0.0 for unmarked)
+                    likelihood = np.where(np.isnan(x_data) | np.isnan(y_data), 0.0, 1.0)
+                    
+                    # Store in data dictionary with proper column names
+                    data_dict[(scorer_name, track, 'x')] = x_data
+                    data_dict[(scorer_name, track, 'y')] = y_data
+                    data_dict[(scorer_name, track, 'likelihood')] = likelihood
+                else:
+                    # No data for this track/camera combination, fill with NaN
+                    x_data = np.full(max_frames, np.nan)
+                    y_data = np.full(max_frames, np.nan)
+                    likelihood = np.zeros(max_frames)
+                    
+                    data_dict[(scorer_name, track, 'x')] = x_data
+                    data_dict[(scorer_name, track, 'y')] = y_data
+                    data_dict[(scorer_name, track, 'likelihood')] = likelihood
+            
+            if not data_dict:
+                return None
+            
+            # Create DataFrame with MultiIndex columns
+            df = pandas.DataFrame(data_dict, index=frame_indices)
+            
+            # Set up the MultiIndex for columns (scorer, bodyparts, coords)
+            df.columns = pandas.MultiIndex.from_tuples(df.columns, names=['scorer', 'bodyparts', 'coords'])
+            
+            # Ensure the index name is set for DLC compatibility
+            df.index.name = 'frames'
+            
+            return df
+            
+        except Exception as e:
+            print(f"Error extracting camera data for camera {window.actual_camera_number}: {e}")
+            return None
+        
     # pretty self explanatory
     def updateSelf(self):
         if not self.safe_switch_to():
