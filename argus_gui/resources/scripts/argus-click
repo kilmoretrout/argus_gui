@@ -558,6 +558,7 @@ bstrap = False
 busy = False
 outputSparse = False
 outputDLC = False
+data_loaded_from_dlc = False  # Track if current data was loaded from DLC files
 global_filename = ''
 rgb = True
 vw = 15
@@ -580,6 +581,7 @@ def load_csv(csv):
     global no_cameras_global
     global track_list_global
     global current_track_global
+    global data_loaded_from_dlc
 
     # sys.stdout.flush()
 
@@ -603,6 +605,9 @@ def load_csv(csv):
     load_data_global = csc_matrix(load_data_global, dtype = np.float32)
 
     no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
+    
+    # Set flag to indicate data was NOT loaded from DLC
+    data_loaded_from_dlc = False
 
     # TODO: Better Exception Handling
     # except:
@@ -623,6 +628,7 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     global no_cameras_global
     global track_list_global
     global current_track_global
+    global data_loaded_from_dlc
 
     # load dlc file for each camera
     # number of cameras is determined by how many windows are open
@@ -806,6 +812,9 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     # then convert to csc_matrix
     load_data_global[np.isnan(load_data_global)] = 0
     load_data_global = csc_matrix(load_data_global, dtype=np.float32)
+    
+    # Set flag to indicate data was loaded from DLC
+    data_loaded_from_dlc = True
 
 # for sparse data files as TSVs
 def load_tsv(tsv):
@@ -813,6 +822,7 @@ def load_tsv(tsv):
     global no_cameras_global
     global track_list_global
     global current_track_global
+    global data_loaded_from_dlc
 
     try:
         # load the file, expects a header
@@ -833,6 +843,7 @@ def load_tsv(tsv):
             track_list_global.append('Track ' + str(k + 1))
 
         current_track_global = track_list_global[0]
+        data_loaded_from_dlc = False
     except:
         QtWidgets.QMessageBox.warning(None,
             "Error",
@@ -2656,7 +2667,8 @@ class ClickerWindow(pyglet.window.Window):
                 "rgb": rgb,
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
-                "init_track": track_list_global[0]
+                "init_track": track_list_global[0],
+                "data_loaded_from_dlc": data_loaded_from_dlc
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2794,7 +2806,8 @@ class ClickerWindow(pyglet.window.Window):
                 "rgb": rgb,
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
-                "init_track": track_list_global[0]
+                "init_track": track_list_global[0],
+                "data_loaded_from_dlc": data_loaded_from_dlc
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2843,15 +2856,13 @@ class ClickerWindow(pyglet.window.Window):
                     window.fill_common_dictionary()
             
             # Determine scorer name - use original if data was loaded from DLC, otherwise use 'argus'
-            scorer_name = 'argus'
-            
-            # Check if this is modified DLC data by looking for existing DLC-style column names
-            if any('_cam_' in col for col in common.keys()):
-                # This appears to be original argus data, use 'argus' as scorer
-                pass
+            if data_loaded_from_dlc:
+                # Data was originally from DLC, try to preserve original scorer name
+                # For now, we'll still use 'argus' but this could be extended to store original scorer
+                scorer_name = 'argus'
             else:
-                # This might be modified DLC data, but we'll still use 'argus' for consistency
-                pass
+                # This is original argus data
+                scorer_name = 'argus'
             
             try:
                 # Process each camera separately
@@ -3746,6 +3757,7 @@ def load_settings(settings):
     global rgb
     global outputSparse
     global bstrap
+    global data_loaded_from_dlc
 
     sync = settings["sync"]
     displaying_all_tracks = settings["displaying_all_tracks"]
@@ -3755,6 +3767,8 @@ def load_settings(settings):
     rgb = settings["rgb"]
     outputSparse = settings["output_sparse"]
     bstrap = settings["bstrap"]
+    # Load DLC flag if present, default to False for backward compatibility
+    data_loaded_from_dlc = settings.get("data_loaded_from_dlc", False)
 
 
 def load_from_config(path):
