@@ -198,6 +198,8 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
         super().__init__(parent)
         self.setWindowTitle("Options")
+        self.setMinimumSize(400, 600)  # Ensure window is large enough to show all widgets
+        self.setSizeGripEnabled(True)  # Allow resizing
 
         self.o_sparse = o_sparse
         self.rgb = rgb
@@ -276,12 +278,16 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         genlabel = QtWidgets.QLabel("General Settings")
         displabel = QtWidgets.QLabel("Display options")
         outlabel = QtWidgets.QLabel("Save Settings")
+        dlclabel = QtWidgets.QLabel("DeepLabCut Import")
         divider1 = QtWidgets.QFrame()
         divider1.setFrameShape(QtWidgets.QFrame.HLine)
         divider1.setFrameShadow(QtWidgets.QFrame.Sunken)
         divider2 = QtWidgets.QFrame()
         divider2.setFrameShape(QtWidgets.QFrame.HLine)
-        divider2.setFrameShadow(QtWidgets.QFrame.Sunken)        
+        divider2.setFrameShadow(QtWidgets.QFrame.Sunken)
+        divider3 = QtWidgets.QFrame()
+        divider3.setFrameShape(QtWidgets.QFrame.HLine)
+        divider3.setFrameShadow(QtWidgets.QFrame.Sunken)        
 
         layout = QtWidgets.QGridLayout(self)
         layout.addWidget(genlabel, 0, 0)
@@ -312,8 +318,11 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         layout.addWidget(self.savelabel, 14, 0)
         layout.addWidget(self.fnam, 15, 0, 1, 2)
         layout.addWidget(self.save_button, 15, 2)
-        layout.addWidget(self.dlc_button, 16, 0, 1, 3)
-        layout.addWidget(self.okbutton, 17, 2)
+        
+        layout.addWidget(divider3, 16, 0, 1, 3)
+        layout.addWidget(dlclabel, 17, 0, 1, 3)
+        layout.addWidget(self.dlc_button, 18, 0, 1, 3)
+        layout.addWidget(self.okbutton, 19, 2)
 
     # close with Return key
     def keyPressEvent(self, event):
@@ -392,6 +401,8 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         Load DeepLabCut h5 files for each open video window.
         Prompts user to select one h5 file per open video window.
         """
+        import pyglet
+        
         # Get list of open video windows
         video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
         
@@ -408,6 +419,11 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         # Sort windows by camera number for consistent ordering
         video_windows.sort(key=lambda w: w.actual_camera_number)
         
+        # Get the directory from the first video to use as initial directory
+        initial_dir = ""
+        if video_windows and video_windows[0].movie:
+            initial_dir = os.path.dirname(video_windows[0].movie)
+        
         for window in video_windows:
             # Prompt user to select h5 file for this camera
             movie_name = window.movie.split('/')[-1] if window.movie else f"Camera {window.actual_camera_number}"
@@ -415,6 +431,7 @@ class OptionsPopupWindow(QtWidgets.QDialog):
             filename, _ = QtWidgets.QFileDialog.getOpenFileName(
                 self, 
                 f"Select DeepLabCut h5 file for {movie_name} (Camera {window.actual_camera_number})",
+                dir=initial_dir,
                 filter="HDF5 files (*.h5 *.hdf5)"
             )
             
@@ -429,13 +446,35 @@ class OptionsPopupWindow(QtWidgets.QDialog):
             h5_file_paths.append(filename)
         
         # All files selected, now call load_dlc function
-        # For now, we'll just pass the first file since load_dlc function is incomplete
-        # TODO: Modify load_dlc to handle multiple files when it's fully implemented
         try:
-            load_dlc(h5_file_paths, offsets = None, like=0.9, flipy=True)
+            load_dlc(h5_file_paths)
+            
+            # Update the track list in the GUI after successful loading
+            global track_list_global, current_track_global
+            self.track_list = track_list_global.copy()
+            
+            # Clear and repopulate the tracks combobox
+            self.tracks.clear()
+            self.tracks.addItems(self.track_list)
+            
+            # Set the current track to the first one
+            if self.track_list:
+                current_track_global = self.track_list[0]
+                self.tracks.setCurrentText(current_track_global)
+            
+            # Clear existing track data and update all video windows with the new track data
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    # Clear existing track data first
+                    window.points.clear()
+                    # Now update with new DLC tracks
+                    window.update_tracks()  # Create track keys
+                    window.load_points()    # Load actual data from load_data_global
+            
             QtWidgets.QMessageBox.information(None,
                 "Success",
-                f"Successfully loaded DeepLabCut data from {len(h5_file_paths)} file(s)."
+                f"Successfully loaded DeepLabCut data from {len(h5_file_paths)} file(s).\n"
+                f"Track list updated with {len(self.track_list)} body parts."
             )
         except Exception as e:
             QtWidgets.QMessageBox.warning(None,
@@ -563,7 +602,7 @@ def load_csv(csv):
     #     )
     # sys.stdout.flush()
 
-def load_dlc(h5_files, like=0.9, flipy=True):
+def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     """
     Load DeepLabCut data from h5 files for multiple cameras.
     
@@ -579,7 +618,7 @@ def load_dlc(h5_files, like=0.9, flipy=True):
     # number of cameras is determined by how many windows are open
     video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
     no_cameras_global = len(video_windows)
-    offsets = [window.offset for window in video_windows]
+    offsets = [window.offsets[window.original_index] for window in video_windows]
     if len(h5_files) != no_cameras_global:
         raise ValueError(f"Number of h5 files ({len(h5_files)}) does not match number of open video windows ({no_cameras_global})")
     
@@ -614,7 +653,18 @@ def load_dlc(h5_files, like=0.9, flipy=True):
             scorers.append(camdata.columns.get_level_values('scorer')[0])
             # if this is the first file in the list, determine several variables
             if c == 0:
-                tracks = camdata.columns.get_level_values('bodypart').unique().tolist()
+                # Check for both 'bodypart' and 'bodyparts' (DLC files use 'bodyparts')
+                bodypart_level = None
+                for level_name in camdata.columns.names:
+                    if 'bodypart' in level_name.lower():
+                        bodypart_level = level_name
+                        break
+                
+                if bodypart_level:
+                    tracks = camdata.columns.get_level_values(bodypart_level).unique().tolist()
+                else:
+                    raise ValueError("No bodypart level found in DLC data")
+                
                 #determine if multianimal dlc based on number of levels in the multiindex
                 if isinstance(camdata.columns, pandas.MultiIndex):
                     if len(camdata.columns.levels) == 3:
@@ -644,8 +694,8 @@ def load_dlc(h5_files, like=0.9, flipy=True):
                 alldata[c] = camdata[scorers[c]]
             numframes.append(max(camdata.index.values) + 1)  # DLC indices are 0-based, so add 1 for frame count
 
-    except:
-        raise Exception("Could not load DLC data. Make sure files are formatted according to DLC documentation.")
+    except Exception as e:
+        raise Exception(f"Could not load DLC data. Make sure files are formatted according to DLC documentation. Error: {str(e)}")
     
     # initialize the massive array full of nans (with more than enough rows)
     blankarr = np.empty((max(numframes) - min(offsets), len(tracks) * 2 * no_cameras_global)) + np.nan
@@ -661,11 +711,26 @@ def load_dlc(h5_files, like=0.9, flipy=True):
     # loopthrough each camera's data and assign to the proper row
     # get list of camera windows
     video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+    
     for c, camdata in alldata.items():
         # need to check for "height", and flip the y-coordinates (origin is lower left in Argus and DLTdv 1-7, upper left in openCV, DLC, DLTdv8)
         # height is saved in self.frameFinder.oh
-        height = video_windows[c].frameFinder.oh
-        width = video_windows[c].frameFinder.ow
+        
+        # Find the correct window for this camera data
+        # The windows should be in the same order as the h5_files were provided
+        # Since h5_files were sorted by actual_camera_number in load_dlc_data(), 
+        # we need to find the window with actual_camera_number = c + 1
+        current_window = None
+        for window in video_windows:
+            if window.actual_camera_number == c + 1:
+                current_window = window
+                break
+        
+        if current_window is None:
+            raise ValueError(f"Could not find window for camera {c + 1}")
+        
+        height = current_window.frameFinder.oh
+        width = current_window.frameFinder.ow
         # make lists of rows, of matching length, that account for offsets (out = in - offset)
         outrows = list(range(max([0, 0 - offsets[c]]), min([numframes[c], numframes[c] - offsets[c]]), 1))
         inrows = list(range(max([0, 0 + offsets[c]]), min([numframes[c], numframes[c] + offsets[c]]), 1))
@@ -703,32 +768,34 @@ def load_dlc(h5_files, like=0.9, flipy=True):
                 else:
                     outdata[0][outrows, outcol:outcol+2] = camdata.iloc[inrows, incol:incol+2]
 
-    
-        
-        # TODO: Complete the implementation to:
-        # 1. Parse the multiindex header to extract body parts/animals
-        # 2. Load data from all h5 files 
-        # 3. Combine into the expected format for argus (matching existing CSV format)
-        # 4. Handle likelihood thresholds
-        # 5. Convert to sparse matrix format
-        
-        # For now, create placeholder structure
-        print(f"DLC data loading initiated for {len(h5_files)} files")
-        print(f"First file structure: {dlc_data.columns}")
-        print("TODO: Complete DLC data parsing and integration")
-        
-        # Placeholder - set up basic track structure
-        track_list_global = ['Track 1']  # TODO: Extract from DLC data
-        current_track_global = track_list_global[0]
-        
-        # TODO: Build proper load_data_global matrix from all camera files
-        # For now, create empty structure
-        load_data_global = csc_matrix((100, 2 * no_cameras_global))  # Placeholder
-        
-        print("DLC loading structure created - implementation incomplete")
-        
-    except Exception as e:
-        raise Exception(f"Could not load DLC data: {str(e)}. Make sure files are formatted according to DLC documentation.")
+    # convert outdata to the big array
+    if madlc:
+        if not splitind:
+            # all indivduals on one array - do all body parts for each individual
+            # Stack all individual data horizontally to create single combined array
+            # Update track_list_global to include all individuals and tracks
+            track_list_global = []
+            for ind in individuals:
+                for track in tracks:
+                    track_list_global.append(f'{ind}_{track}')
+
+            load_data_global = None
+            for idx, ind in enumerate(individuals):
+                outdata[ind] = outdata[ind].reshape((outdata[ind].shape[0], -1))
+                if idx == 0:
+                    load_data_global = outdata[ind]
+                else:
+                    load_data_global = np.concatenate((load_data_global, outdata[ind]), axis=1)
+        # allow user option to split individuals after asking, or with setting in options window, and select individual
+        # so maybe an option in the options window to "work on one individual at a time", that if checked had them enter a number? Or maybe have to load the files first to see what's available   
+    else:
+        # single individual, so just concatenate the data
+        load_data_global = outdata[0].reshape((outdata[0].shape[0], -1))
+        track_list_global = tracks
+
+    # then convert to csc_matrix
+    load_data_global[np.isnan(load_data_global)] = 0
+    load_data_global = csc_matrix(load_data_global, dtype=np.float32)
 
 # for sparse data files as TSVs
 def load_tsv(tsv):
