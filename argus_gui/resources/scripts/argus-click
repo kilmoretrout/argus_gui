@@ -628,6 +628,8 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     global data_loaded_from_dlc
     global dlc_scorer
 
+    # TODO - add option window number input for dlc likelihood threshold
+
     # load dlc file for each camera
     # number of cameras is determined by how many windows are open
     video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
@@ -2911,11 +2913,12 @@ class ClickerWindow(pyglet.window.Window):
 
     def _extract_camera_data_for_dlc(self, window, scorer_name):
         """Extract and format data for a single camera in DLC format."""
-
-        #TODO: check saving dlc data with offsets
         
         try:
             camera_num = window.actual_camera_number
+            
+            # Get the offset for this specific camera
+            offset = window.offsets[window.original_index]
             
             # Get the maximum number of frames from the window
             max_frames = window.end
@@ -2968,6 +2971,22 @@ class ClickerWindow(pyglet.window.Window):
             
             # Ensure the index name is set for DLC compatibility
             df.index.name = 'frames'
+            
+            # Apply offset adjustments to the DataFrame
+            if offset < 0:
+                # The DLT digitized value on the n-th row was actually digitized at n+offset frame
+                # e.g. if offset = -5, a point digitized in the first frame of the video will be placed
+                # on the 5th row of the xypts csv file, so negative offsets mean that many blank rows
+                # need to be removed from the front of the df
+                print(f'Dropping {-1*offset} rows from start due to negative offset for camera {camera_num}')
+                df.drop(range(-1*offset), inplace=True)
+                df.reset_index(drop=True, inplace=True)
+                # Update frame indices to reflect the dropped rows
+                df.index.name = 'frames'
+            elif offset > 0:
+                # Remove that many rows from the end of the df
+                print(f'Dropping {offset} rows from end due to positive offset for camera {camera_num}')
+                df.drop(range(len(df)-offset, len(df)), inplace=True)
             
             return df
             
