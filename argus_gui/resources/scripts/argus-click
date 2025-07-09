@@ -399,9 +399,9 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
     def color_toggle(self):
         if self.colorbox.currentText() == "RGB color":
-            self.rgb == True
+            self.rgb = True
         elif self.colorbox.currentText() == "grayscale":
-            self.rgb == False
+            self.rgb = False
 
     def save_as(self):
         global global_filename
@@ -3399,7 +3399,9 @@ class ClickerWindow(pyglet.window.Window):
                 saveas = False
 
             self.toggleBusy()
-            if outputSparse:
+            if outputDLC:
+                self.save_dlc(saveas)
+            elif outputSparse:
                 self.save_sparse(saveas)
             else:
                 self.save_non_sparse(saveas)
