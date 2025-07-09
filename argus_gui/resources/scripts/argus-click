@@ -564,6 +564,7 @@ busy = False
 outputSparse = False
 outputDLC = False
 data_loaded_from_dlc = False  # Track if current data was loaded from DLC files
+dlc_scorer = []  # List of scorer names for each video/camera, empty if no DLC data loaded
 global_filename = ''
 rgb = True
 vw = 15
@@ -587,6 +588,7 @@ def load_csv(csv):
     global track_list_global
     global current_track_global
     global data_loaded_from_dlc
+    global dlc_scorer
 
     # sys.stdout.flush()
 
@@ -611,8 +613,9 @@ def load_csv(csv):
 
     no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
     
-    # Set flag to indicate data was NOT loaded from DLC
+    # Set flag to indicate data was NOT loaded from DLC and clear scorer list
     data_loaded_from_dlc = False
+    dlc_scorer = []
 
     # TODO: Better Exception Handling
     # except:
@@ -634,6 +637,7 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     global track_list_global
     global current_track_global
     global data_loaded_from_dlc
+    global dlc_scorer
 
     # load dlc file for each camera
     # number of cameras is determined by how many windows are open
@@ -642,6 +646,9 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     offsets = [window.offsets[window.original_index] for window in video_windows]
     if len(h5_files) != no_cameras_global:
         raise ValueError(f"Number of h5 files ({len(h5_files)}) does not match number of open video windows ({no_cameras_global})")
+    
+    # Initialize scorer list for each camera
+    dlc_scorer = []
     
     # For now, just implement a basic structure that loads the first file
     # TODO: Complete implementation to handle multiple cameras and build data in DLT format
@@ -671,7 +678,9 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
             # Read the h5 file
             print(f"Loading DLC data from {h5_files[c]}")
             camdata = pandas.read_hdf(h5_files[c], key='df_with_missing')
-            scorers.append(camdata.columns.get_level_values('scorer')[0])
+            scorer_name = camdata.columns.get_level_values('scorer')[0]
+            scorers.append(scorer_name)
+            dlc_scorer.append(scorer_name)  # Store scorer for this camera
             # if this is the first file in the list, determine several variables
             if c == 0:
                 # Check for both 'bodypart' and 'bodyparts' (DLC files use 'bodyparts')
@@ -828,6 +837,7 @@ def load_tsv(tsv):
     global track_list_global
     global current_track_global
     global data_loaded_from_dlc
+    global dlc_scorer
 
     try:
         # load the file, expects a header
@@ -849,6 +859,7 @@ def load_tsv(tsv):
 
         current_track_global = track_list_global[0]
         data_loaded_from_dlc = False
+        dlc_scorer = []  # Clear scorer list since this is not DLC data
     except:
         QtWidgets.QMessageBox.warning(None,
             "Error",
@@ -2673,7 +2684,8 @@ class ClickerWindow(pyglet.window.Window):
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
                 "init_track": track_list_global[0],
-                "data_loaded_from_dlc": data_loaded_from_dlc
+                "data_loaded_from_dlc": data_loaded_from_dlc,
+                "dlc_scorer": dlc_scorer
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2812,7 +2824,8 @@ class ClickerWindow(pyglet.window.Window):
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
                 "init_track": track_list_global[0],
-                "data_loaded_from_dlc": data_loaded_from_dlc
+                "data_loaded_from_dlc": data_loaded_from_dlc,
+                "dlc_scorer": dlc_scorer
             }
 
             ClickerProject.create(proj_path=filename,
@@ -3767,6 +3780,7 @@ def load_settings(settings):
     global outputSparse
     global bstrap
     global data_loaded_from_dlc
+    global dlc_scorer
 
     sync = settings["sync"]
     displaying_all_tracks = settings["displaying_all_tracks"]
@@ -3778,6 +3792,8 @@ def load_settings(settings):
     bstrap = settings["bstrap"]
     # Load DLC flag if present, default to False for backward compatibility
     data_loaded_from_dlc = settings.get("data_loaded_from_dlc", False)
+    # Load DLC scorer list if present, default to empty list for backward compatibility
+    dlc_scorer = settings.get("dlc_scorer", [])
 
 
 def load_from_config(path):
