@@ -2873,32 +2873,32 @@ class ClickerWindow(pyglet.window.Window):
                 if isinstance(window, ClickerWindow):
                     window.fill_common_dictionary()
             
-            # Determine scorer name - use original if data was loaded from DLC, otherwise use 'argus'
-            if data_loaded_from_dlc:
-                # Data was originally from DLC, try to preserve original scorer name
-                # For now, we'll still use 'argus' but this could be extended to store original scorer
-                scorer_name = 'argus'
-            else:
-                # This is original argus data
-                scorer_name = 'argus'
-            
             try:
                 # Process each camera separately
                 success_count = 0
                 for window in video_windows:
                     camera_num = window.actual_camera_number
                     
+                    # Determine scorer name for this specific camera
+                    # Use original scorer if data was loaded from DLC and we have scorer info
+                    if data_loaded_from_dlc and dlc_scorer and len(dlc_scorer) >= camera_num:
+                        scorer_name = dlc_scorer[camera_num - 1]  # camera_num is 1-based, list is 0-based
+                    else:
+                        # This is original argus data or no scorer info available
+                        scorer_name = 'argus'
+                    
                     # Get video file name for this camera
                     video_name = window.movie.split('/')[-1] if window.movie else f"camera_{camera_num}"
                     video_base = os.path.splitext(video_name)[0]
                     
-                    # Create filename for this camera
-                    if 'argus' in filename.lower():
-                        camera_filename_h5 = f"{filename}_cam{camera_num}.h5"
-                        camera_filename_csv = f"{filename}_cam{camera_num}.csv"
+                    # Construct filenames for this camera
+                    if scorer_name != 'argus': #was originally dlc data
+                        camera_filename_h5 = f"{video_base}_{scorer_name}_{filename}_argus.h5"
+                        camera_filename_csv = f"{video_base}_{scorer_name}_{filename}_argus.csv"
                     else:
-                        camera_filename_h5 = f"{filename}_{video_base}_argus.h5"
-                        camera_filename_csv = f"{filename}_{video_base}_argus.csv"
+                        # If no specific dlcscorer, use just the video base name
+                        camera_filename_h5 = f"{video_base}_{filename}_argus.h5"
+                        camera_filename_csv = f"{video_base}_{filename}_argus.csv"
                     
                     # Extract data for this camera
                     camera_data = self._extract_camera_data_for_dlc(window, scorer_name)
