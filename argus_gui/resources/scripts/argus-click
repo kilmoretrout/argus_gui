@@ -272,6 +272,16 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
         self.dlc_button = QtWidgets.QPushButton("Load DeepLabCut Data")
         self.dlc_button.clicked.connect(self.load_dlc_data)
+        
+        # DeepLabCut likelihood threshold input
+        global dlc_likelihood_threshold
+        self.dlc_likelihood_label = QtWidgets.QLabel("Likelihood threshold:")
+        self.dlc_likelihood_input = QtWidgets.QDoubleSpinBox()
+        self.dlc_likelihood_input.setRange(0.0, 1.0)
+        self.dlc_likelihood_input.setDecimals(2)
+        self.dlc_likelihood_input.setSingleStep(0.01)
+        self.dlc_likelihood_input.setValue(dlc_likelihood_threshold)
+        self.dlc_likelihood_input.setToolTip("DeepLabCut coordinates with likelihoods below this value will not be imported. Set to 0 to import all DLC coordinates.")
 
         self.okbutton = QtWidgets.QPushButton("Ok")
         self.okbutton.clicked.connect(self.accept)
@@ -328,8 +338,16 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         
         layout.addWidget(divider3, 16, 0, 1, 3)
         layout.addWidget(dlclabel, 17, 0, 1, 3)
-        layout.addWidget(self.dlc_button, 18, 0, 1, 3)
-        layout.addWidget(self.okbutton, 19, 2)
+        layout.addWidget(self.dlc_likelihood_label, 18, 0)
+        layout.addWidget(self.dlc_likelihood_input, 18, 1)
+        layout.addWidget(self.dlc_button, 19, 0, 1, 3)
+        layout.addWidget(self.okbutton, 20, 2)
+
+    def accept(self):
+        """Override accept to save the likelihood threshold value to global variable"""
+        global dlc_likelihood_threshold
+        dlc_likelihood_threshold = self.dlc_likelihood_input.value()
+        super().accept()
 
     # close with Return key
     def keyPressEvent(self, event):
@@ -458,7 +476,9 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         
         # All files selected, now call load_dlc function
         try:
-            load_dlc(h5_file_paths)
+            # Use the likelihood threshold from the input widget
+            likelihood_threshold = self.dlc_likelihood_input.value()
+            load_dlc(h5_file_paths, like=likelihood_threshold)
             
             # Update the track list in the GUI after successful loading
             global track_list_global, current_track_global
@@ -569,6 +589,7 @@ vh = 15
 # vf = 30
 radius = 3
 thickness = 3
+dlc_likelihood_threshold = 0.9
 
 dlt_filename = ''
 camera_filename = ''
@@ -627,8 +648,6 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     global current_track_global
     global data_loaded_from_dlc
     global dlc_scorer
-
-    # TODO - add option window number input for dlc likelihood threshold
 
     # load dlc file for each camera
     # number of cameras is determined by how many windows are open
