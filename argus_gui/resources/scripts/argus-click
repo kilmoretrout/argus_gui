@@ -2891,14 +2891,18 @@ class ClickerWindow(pyglet.window.Window):
                     video_name = window.movie.split('/')[-1] if window.movie else f"camera_{camera_num}"
                     video_base = os.path.splitext(video_name)[0]
                     
-                    # Construct filenames for this camera
+                    # Extract directory path and base name from the user-selected filename
+                    file_dir = os.path.dirname(filename)
+                    filename_name = os.path.splitext(os.path.basename(filename))[0]
+                    
+                    # Construct filenames for this camera with full path
                     if scorer_name != 'argus': #was originally dlc data
-                        camera_filename_h5 = f"{video_base}_{scorer_name}_{filename}_argus.h5"
-                        camera_filename_csv = f"{video_base}_{scorer_name}_{filename}_argus.csv"
+                        camera_filename_h5 = os.path.join(file_dir, f"{video_base}_{scorer_name}_{filename_name}_argus.h5")
+                        camera_filename_csv = os.path.join(file_dir, f"{video_base}_{scorer_name}_{filename_name}_argus.csv")
                     else:
                         # If no specific dlcscorer, use just the video base name
-                        camera_filename_h5 = f"{video_base}_{filename}_argus.h5"
-                        camera_filename_csv = f"{video_base}_{filename}_argus.csv"
+                        camera_filename_h5 = os.path.join(file_dir, f"{video_base}_{filename_name}_argus.h5")
+                        camera_filename_csv = os.path.join(file_dir, f"{video_base}_{filename_name}_argus.csv")
                     
                     # Extract data for this camera
                     camera_data = self._extract_camera_data_for_dlc(window, scorer_name)
