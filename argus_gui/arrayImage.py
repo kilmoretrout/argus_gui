@@ -146,7 +146,6 @@ class ArrayInterfaceImage(ImageData):
             if self._real_string_data is None:
                 return self.data_ptr
             else:
-                # XXX pyglet may copy this to create a pointer to the buffer?
                 return self._real_string_data
         else:
             if self.allow_copy:

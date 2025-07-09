@@ -153,7 +153,6 @@ def load_camera(filename):
                     # array is numpy and won't accept varying type
                     new_list.append(argus.ocam.CMeiUndistorter(argus.ocam.ocam_model.from_array(profile)))
                     camera_number_checker += 1
-                # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
                     QtWidgets.QMessageBox.warning(None,
@@ -184,7 +183,6 @@ def load_camera(filename):
                     # array is numpy and won't accept varying type
                     new_list.append(argus.ocam.PointUndistorter(argus.ocam.ocam_model.from_array(profile)))
                     camera_number_checker += 1
-                # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
                     QtWidgets.QMessageBox.warning(None,
@@ -379,11 +377,10 @@ class OptionsPopupWindow(QtWidgets.QDialog):
                 DLTCoefficients = DLTCoefficients.T
                 self.dlt.setText(filename)
                 dlt_filename = filename
-            # TODO: Better Exception Handling
-            except:
+            except Exception as e:
                 QtWidgets.QMessageBox.warning(None,
                     "Error",
-                    "Could not load DLT coefficients!"
+                    f"Could not load DLT coefficients! {str(e)}"
                 )
             
     def sparse_toggle(self):
@@ -617,14 +614,6 @@ def load_csv(csv):
     data_loaded_from_dlc = False
     dlc_scorer = []
 
-    # TODO: Better Exception Handling
-    # except:
-    #     QtWidgets.QMessageBox.warning(None,
-    #         "Error",
-    #         "Could not load CSV! Make sure it is formatted according to the documentation."
-    #     )
-    # sys.stdout.flush()
-
 def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     """
     Load DeepLabCut data from h5 files for multiple cameras.
@@ -649,10 +638,7 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     
     # Initialize scorer list for each camera
     dlc_scorer = []
-    
-    # For now, just implement a basic structure that loads the first file
-    # TODO: Complete implementation to handle multiple cameras and build data in DLT format
-    
+
     # Get track names from first file to ensure they match across all cameras
     # If maDLC, ask user if single animal at a time or all animals at once
     # If all animals, make track names like 'indiv1_track1_cam_1_x, indiv1_track1_cam_1_y' etc.
@@ -865,9 +851,6 @@ def load_tsv(tsv):
             "Error",
             "Could not load TSV! Make sure it is formatted according to the documentation."
         )
-
-
-# TODO: Implement abstract classes
 
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
@@ -1685,7 +1668,6 @@ class ClickerWindow(pyglet.window.Window):
         :param dx: The distance the mouse was moved horizontally
         :param dy: The distance the mouse was moved vertically
         :param buttons: The buttons used in the drag
-        :param modifiers: // TODO Better doc.
         :return: None
         """
         # Move camera
@@ -2929,6 +2911,9 @@ class ClickerWindow(pyglet.window.Window):
 
     def _extract_camera_data_for_dlc(self, window, scorer_name):
         """Extract and format data for a single camera in DLC format."""
+
+        #TODO: check saving dlc data with offsets
+        
         try:
             camera_num = window.actual_camera_number
             
@@ -3215,10 +3200,71 @@ class ClickerWindow(pyglet.window.Window):
         self.change_marker()
 
     def on_key_press(self, symbol, modifiers):
-        """Manager for hotkeys
-        :param symbol: Symbol passed from pyglt (?) representing the key pressed //Todo: Verify
-        :param modifiers: // TODO: Document
-        :return:
+        """Manager for hotkeys - handles all keyboard input for the application
+        
+        Hotkey Reference:
+        ================
+        
+        NAVIGATION:
+        -----------
+        F               - Advance one frame forward
+        Shift+F         - Advance 50 frames forward  
+        B               - Go back one frame
+        Shift+B         - Go back 50 frames
+        G               - Go to specific frame (opens dialog)
+        Right Arrow     - Skip to next marked point in current track
+        Left Arrow      - Skip to previous marked point in current track
+        Up Arrow        - Increase frame offset by 1
+        Down Arrow      - Decrease frame offset by 1
+        
+        TRACK MANAGEMENT:
+        ----------------
+        . (Period)      - Switch to next track in list
+        , (Comma)       - Switch to previous track in list
+        Shift+D         - Delete current track (with confirmation)
+        C               - Clear all tracks for current camera (with confirmation)
+        
+        VIEW CONTROLS:
+        -------------
+        V               - Toggle viewfinder display
+        = (Plus)        - Zoom in at mouse position
+        - (Minus)       - Zoom out at mouse position  
+        R               - Reset view to original frame size
+        Ctrl+F          - Toggle frame number display
+        
+        AUTO-TRACKING:
+        -------------
+        A               - Toggle color-based contour auto-tracking
+        I               - Decrease viewfinder width (minimum 5)
+        Y               - Increase viewfinder width (maximum 30)
+        U               - Decrease viewfinder height (minimum 5)
+        7               - Increase viewfinder height (maximum 30)
+        
+        FILE OPERATIONS:
+        ---------------
+        S               - Save points (format depends on output settings)
+        Ctrl+S          - Save As (opens file dialog)
+        L               - Load points from CSV/TSV file
+        
+        IMAGE CAPTURE:
+        -------------
+        Shift+C         - Set capture directory for screenshots
+        Alt+C           - Capture current frame as image
+        
+        DATA MANIPULATION:
+        -----------------
+        D               - Delete point at current frame/track
+        O               - Open options/settings dialog
+        X               - Toggle window synchronization
+        
+        3D VISUALIZATION:
+        ----------------
+        P               - Plot all 3D tracks (requires DLT coefficients)
+        Ctrl+P          - Plot current track only in 3D
+        
+        :param symbol: Pyglet key symbol representing the key pressed
+        :param modifiers: Bitfield of modifier keys (Shift, Ctrl, Alt) pressed simultaneously
+        :return: None
         """
         global sync
         global auto_advance
