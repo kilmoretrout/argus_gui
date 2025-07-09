@@ -76,16 +76,21 @@ class GoToPopupWindow(QtWidgets.QDialog):
         self.go_to_frame.setFocus()
         self.go_to_frame.selectAll()
 
-class YesNoPopup(QtWidgets.QWidget):
+class YesNoPopup(QtWidgets.QDialog):
     def __init__(self, question):
         super().__init__()
-
-        reply = QtWidgets.QMessageBox.question(self, "Question", question, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-
+        self.question = question
+        self.reply = "No"  # Default to No
+        
+    def exec(self):
+        reply = QtWidgets.QMessageBox.question(self, "Question", self.question, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        
         if reply == QtWidgets.QMessageBox.Yes:
             self.reply = "Yes"
+            return QtWidgets.QDialog.Accepted
         else:
             self.reply = "No"
+            return QtWidgets.QDialog.Rejected
 
 class OpenFilePopup(QtWidgets.QWidget):
     def __init__(self, win_title, init, filt):
@@ -3076,6 +3081,7 @@ class ClickerWindow(pyglet.window.Window):
         global busy
         global bstrap
         global outputSparse
+        global outputDLC
         global rgb
         global vx
         global vy
@@ -3089,13 +3095,14 @@ class ClickerWindow(pyglet.window.Window):
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication([])
-        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb, radius, thickness)
+        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, outputDLC, rgb, radius, thickness)
         if w.exec() == QtWidgets.QDialog.Accepted:
             auto_advance = w.auto.isChecked()
             sync = w.sync.isChecked()
             new_disp = w.disp.isChecked()
             bstrap = w.bstrap.isChecked()
             outputSparse = w.o_sparse
+            outputDLC = w.o_dlc
             rgb = w.rgb
             rad = False
             thick = False
