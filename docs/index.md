@@ -24,6 +24,7 @@ Get up and running with Argus GUI in just a few steps:
 2. **[Quick Start Guide](quick-start.md)** 
 3. **[User Guide](user-guide.md)** - Comprehensive usage instructions
 4. **[Troublshooting](troubleshooting.md)** - Common issues and solutions
+5. **[Working with DeepLabCut](deeplabcut.md)** - Integrating Argus with DeepLabCut for advanced tracking
 
 
 ## Citation
