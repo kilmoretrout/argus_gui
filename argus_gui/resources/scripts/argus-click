@@ -76,16 +76,21 @@ class GoToPopupWindow(QtWidgets.QDialog):
         self.go_to_frame.setFocus()
         self.go_to_frame.selectAll()
 
-class YesNoPopup(QtWidgets.QWidget):
+class YesNoPopup(QtWidgets.QDialog):
     def __init__(self, question):
         super().__init__()
-
-        reply = QtWidgets.QMessageBox.question(self, "Question", question, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
-
+        self.question = question
+        self.reply = "No"  # Default to No
+        
+    def exec(self):
+        reply = QtWidgets.QMessageBox.question(self, "Question", self.question, QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+        
         if reply == QtWidgets.QMessageBox.Yes:
             self.reply = "Yes"
+            return QtWidgets.QDialog.Accepted
         else:
             self.reply = "No"
+            return QtWidgets.QDialog.Rejected
 
 class OpenFilePopup(QtWidgets.QWidget):
     def __init__(self, win_title, init, filt):
@@ -148,7 +153,6 @@ def load_camera(filename):
                     # array is numpy and won't accept varying type
                     new_list.append(argus.ocam.CMeiUndistorter(argus.ocam.ocam_model.from_array(profile)))
                     camera_number_checker += 1
-                # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
                     QtWidgets.QMessageBox.warning(None,
@@ -179,7 +183,6 @@ def load_camera(filename):
                     # array is numpy and won't accept varying type
                     new_list.append(argus.ocam.PointUndistorter(argus.ocam.ocam_model.from_array(profile)))
                     camera_number_checker += 1
-                # TODO: Better Error Handling
                 except Exception as e:
                     print(e)
                     QtWidgets.QMessageBox.warning(None,
@@ -194,12 +197,16 @@ class OptionsPopupWindow(QtWidgets.QDialog):
     """# popup window for the options dialog
     """
 
-    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, rgb, radius, thickness, parent=None):
+#options popup dialog start    
+    def __init__(self, sync, auto, track_list, track, disp, bstrap, o_sparse, o_dlc, rgb, radius, thickness, parent=None):
 
         super().__init__(parent)
         self.setWindowTitle("Options")
+        self.setMinimumSize(400, 600)  # Ensure window is large enough to show all widgets
+        self.setSizeGripEnabled(True)  # Allow resizing
 
         self.o_sparse = o_sparse
+        self.o_dlc = o_dlc  # Track if DLC format is selected
         self.rgb = rgb
         self.track_list = track_list
 
@@ -240,10 +247,12 @@ class OptionsPopupWindow(QtWidgets.QDialog):
 
         self.formatlabel = QtWidgets.QLabel("Save format: ")
         self.formatbox = QtWidgets.QComboBox()
-        self.formatbox.addItems(["Dense .csv", "Sparse .tsv"])
+        self.formatbox.addItems(["Dense .csv", "Sparse .tsv", "DeepLabCut .h5"])
         self.formatbox.currentIndexChanged.connect(self.sparse_toggle)
         if self.o_sparse:
             self.formatbox.setCurrentText("Sparse .tsv")
+        elif self.o_dlc:
+            self.formatbox.setCurrentText("DeepLabCut .h5")
         else:
             self.formatbox.setCurrentText("Dense .csv")
 
@@ -261,6 +270,19 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         self.save_button = QtWidgets.QPushButton('Specify')
         self.save_button.clicked.connect(self.save_as)
 
+        self.dlc_button = QtWidgets.QPushButton("Load DeepLabCut Data")
+        self.dlc_button.clicked.connect(self.load_dlc_data)
+        
+        # DeepLabCut likelihood threshold input
+        global dlc_likelihood_threshold
+        self.dlc_likelihood_label = QtWidgets.QLabel("Likelihood threshold:")
+        self.dlc_likelihood_input = QtWidgets.QDoubleSpinBox()
+        self.dlc_likelihood_input.setRange(0.0, 1.0)
+        self.dlc_likelihood_input.setDecimals(2)
+        self.dlc_likelihood_input.setSingleStep(0.01)
+        self.dlc_likelihood_input.setValue(dlc_likelihood_threshold)
+        self.dlc_likelihood_input.setToolTip("DeepLabCut coordinates with likelihoods below this value will not be imported. Set to 0 to import all DLC coordinates.")
+
         self.okbutton = QtWidgets.QPushButton("Ok")
         self.okbutton.clicked.connect(self.accept)
         
@@ -273,12 +295,16 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         genlabel = QtWidgets.QLabel("General Settings")
         displabel = QtWidgets.QLabel("Display options")
         outlabel = QtWidgets.QLabel("Save Settings")
+        dlclabel = QtWidgets.QLabel("DeepLabCut Import")
         divider1 = QtWidgets.QFrame()
         divider1.setFrameShape(QtWidgets.QFrame.HLine)
         divider1.setFrameShadow(QtWidgets.QFrame.Sunken)
         divider2 = QtWidgets.QFrame()
         divider2.setFrameShape(QtWidgets.QFrame.HLine)
-        divider2.setFrameShadow(QtWidgets.QFrame.Sunken)        
+        divider2.setFrameShadow(QtWidgets.QFrame.Sunken)
+        divider3 = QtWidgets.QFrame()
+        divider3.setFrameShape(QtWidgets.QFrame.HLine)
+        divider3.setFrameShadow(QtWidgets.QFrame.Sunken)        
 
         layout = QtWidgets.QGridLayout(self)
         layout.addWidget(genlabel, 0, 0)
@@ -309,7 +335,19 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         layout.addWidget(self.savelabel, 14, 0)
         layout.addWidget(self.fnam, 15, 0, 1, 2)
         layout.addWidget(self.save_button, 15, 2)
-        layout.addWidget(self.okbutton, 16, 2)
+        
+        layout.addWidget(divider3, 16, 0, 1, 3)
+        layout.addWidget(dlclabel, 17, 0, 1, 3)
+        layout.addWidget(self.dlc_likelihood_label, 18, 0)
+        layout.addWidget(self.dlc_likelihood_input, 18, 1)
+        layout.addWidget(self.dlc_button, 19, 0, 1, 3)
+        layout.addWidget(self.okbutton, 20, 2)
+
+    def accept(self):
+        """Override accept to save the likelihood threshold value to global variable"""
+        global dlc_likelihood_threshold
+        dlc_likelihood_threshold = self.dlc_likelihood_input.value()
+        super().accept()
 
     # close with Return key
     def keyPressEvent(self, event):
@@ -357,24 +395,28 @@ class OptionsPopupWindow(QtWidgets.QDialog):
                 DLTCoefficients = DLTCoefficients.T
                 self.dlt.setText(filename)
                 dlt_filename = filename
-            # TODO: Better Exception Handling
-            except:
+            except Exception as e:
                 QtWidgets.QMessageBox.warning(None,
                     "Error",
-                    "Could not load DLT coefficients!"
+                    f"Could not load DLT coefficients! {str(e)}"
                 )
             
     def sparse_toggle(self):
         if self.formatbox.currentText() == "Sparse .tsv":
             self.o_sparse = True
+            self.o_dlc = False
         elif self.formatbox.currentText() == "Dense .csv":
             self.o_sparse = False
+            self.o_dlc = False
+        elif self.formatbox.currentText() == "DeepLabCut .h5":
+            self.o_sparse = False  # DLC format is treated as non-sparse for legacy compatibility
+            self.o_dlc = True
 
     def color_toggle(self):
         if self.colorbox.currentText() == "RGB color":
-            self.rgb == True
+            self.rgb = True
         elif self.colorbox.currentText() == "grayscale":
-            self.rgb == False
+            self.rgb = False
 
     def save_as(self):
         global global_filename
@@ -382,6 +424,94 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         if filename != '':
             self.fnam.setText(filename)
             global_filename = filename
+
+    def load_dlc_data(self):
+        """
+        Load DeepLabCut h5 files for each open video window.
+        Prompts user to select one h5 file per open video window.
+        """
+        import pyglet
+        
+        # Get list of open video windows
+        video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+        
+        if not video_windows:
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                "No video windows are currently open. Please open video files first."
+            )
+            return
+        
+        # Track h5 file paths for each window
+        h5_file_paths = []
+        
+        # Sort windows by camera number for consistent ordering
+        video_windows.sort(key=lambda w: w.actual_camera_number)
+        
+        # Get the directory from the first video to use as initial directory
+        initial_dir = ""
+        if video_windows and video_windows[0].movie:
+            initial_dir = os.path.dirname(video_windows[0].movie)
+        
+        for window in video_windows:
+            # Prompt user to select h5 file for this camera
+            movie_name = window.movie.split('/')[-1] if window.movie else f"Camera {window.actual_camera_number}"
+            
+            filename, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self, 
+                f"Select DeepLabCut h5 file for {movie_name} (Camera {window.actual_camera_number})",
+                dir=initial_dir,
+                filter="HDF5 files (*.h5 *.hdf5)"
+            )
+            
+            if not filename:
+                # User cancelled, don't continue
+                QtWidgets.QMessageBox.information(None,
+                    "Cancelled",
+                    "DeepLabCut data loading cancelled."
+                )
+                return
+            
+            h5_file_paths.append(filename)
+        
+        # All files selected, now call load_dlc function
+        try:
+            # Use the likelihood threshold from the input widget
+            likelihood_threshold = self.dlc_likelihood_input.value()
+            load_dlc(h5_file_paths, like=likelihood_threshold)
+            
+            # Update the track list in the GUI after successful loading
+            global track_list_global, current_track_global
+            self.track_list = track_list_global.copy()
+            
+            # Clear and repopulate the tracks combobox
+            self.tracks.clear()
+            self.tracks.addItems(self.track_list)
+            
+            # Set the current track to the first one
+            if self.track_list:
+                current_track_global = self.track_list[0]
+                self.tracks.setCurrentText(current_track_global)
+            
+            # Clear existing track data and update all video windows with the new track data
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    # Clear existing track data first
+                    window.points.clear()
+                    # Now update with new DLC tracks
+                    window.update_tracks()  # Create track keys
+                    window.load_points()    # Load actual data from load_data_global
+            
+            QtWidgets.QMessageBox.information(None,
+                "Success",
+                f"Successfully loaded DeepLabCut data from {len(h5_file_paths)} file(s).\n"
+                f"Track list updated with {len(self.track_list)} body parts."
+            )
+        except Exception as e:
+            QtWidgets.QMessageBox.warning(None,
+                "Error",
+                f"Failed to load DeepLabCut data: {str(e)}"
+            )
 
 class newTrackPopup(QtWidgets.QDialog):
     def __init__(self, parent=None):
@@ -449,6 +579,9 @@ camera_profile = None
 bstrap = False
 busy = False
 outputSparse = False
+outputDLC = False
+data_loaded_from_dlc = False  # Track if current data was loaded from DLC files
+dlc_scorer = []  # List of scorer names for each video/camera, empty if no DLC data loaded
 global_filename = ''
 rgb = True
 vw = 15
@@ -456,6 +589,7 @@ vh = 15
 # vf = 30
 radius = 3
 thickness = 3
+dlc_likelihood_threshold = 0.9
 
 dlt_filename = ''
 camera_filename = ''
@@ -471,6 +605,8 @@ def load_csv(csv):
     global no_cameras_global
     global track_list_global
     global current_track_global
+    global data_loaded_from_dlc
+    global dlc_scorer
 
     # sys.stdout.flush()
 
@@ -494,15 +630,212 @@ def load_csv(csv):
     load_data_global = csc_matrix(load_data_global, dtype = np.float32)
 
     no_cameras_global = len([u for u in pyglet.app.windows if type(u) != GhostWindow])
+    
+    # Set flag to indicate data was NOT loaded from DLC and clear scorer list
+    data_loaded_from_dlc = False
+    dlc_scorer = []
 
-    # TODO: Better Exception Handling
-    # except:
-    #     QtWidgets.QMessageBox.warning(None,
-    #         "Error",
-    #         "Could not load CSV! Make sure it is formatted according to the documentation."
-    #     )
-    # sys.stdout.flush()
+def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
+    """
+    Load DeepLabCut data from h5 files for multiple cameras.
+    
+    Args:
+        h5_files: List of h5 file paths, one for each camera window
+    """
+    global load_data_global
+    global no_cameras_global
+    global track_list_global
+    global current_track_global
+    global data_loaded_from_dlc
+    global dlc_scorer
 
+    # load dlc file for each camera
+    # number of cameras is determined by how many windows are open
+    video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+    no_cameras_global = len(video_windows)
+    offsets = [window.offsets[window.original_index] for window in video_windows]
+    if len(h5_files) != no_cameras_global:
+        raise ValueError(f"Number of h5 files ({len(h5_files)}) does not match number of open video windows ({no_cameras_global})")
+    
+    # Initialize scorer list for each camera
+    dlc_scorer = []
+
+    # Get track names from first file to ensure they match across all cameras
+    # If maDLC, ask user if single animal at a time or all animals at once
+    # If all animals, make track names like 'indiv1_track1_cam_1_x, indiv1_track1_cam_1_y' etc.
+    # Track names go in track_list_global
+    # Build data in DLT format (2xNxt cols, N = number of cameras, t= tracks)
+    # Loop through cameras and combine data
+    # Data is saved as load_data_global (no column names needed just same order as track names)
+    # NaNs converted to 0, converted to csc_matrix
+
+    try:
+        # Load the first file to get structure - expects a multiindex header
+        # For single animal DLC projects, this is (scorer, body part, coords (x, y, likelihood))
+        # For multi-animal DLC projects, this is (scorer, animal, body part, coords (x, y, likelihood))
+        alldata = {}
+        numframes = []
+        scorers= []
+        madlc = False
+        for c in range(no_cameras_global):
+            # Load each h5 file
+            if not os.path.exists(h5_files[c]):
+                raise FileNotFoundError(f"DeepLabCut h5 file not found: {h5_files[c]}")
+            
+            # Read the h5 file
+            print(f"Loading DLC data from {h5_files[c]}")
+            camdata = pandas.read_hdf(h5_files[c], key='df_with_missing')
+            scorer_name = camdata.columns.get_level_values('scorer')[0]
+            scorers.append(scorer_name)
+            dlc_scorer.append(scorer_name)  # Store scorer for this camera
+            # if this is the first file in the list, determine several variables
+            if c == 0:
+                # Check for both 'bodypart' and 'bodyparts' (DLC files use 'bodyparts')
+                bodypart_level = None
+                for level_name in camdata.columns.names:
+                    if 'bodypart' in level_name.lower():
+                        bodypart_level = level_name
+                        break
+                
+                if bodypart_level:
+                    tracks = camdata.columns.get_level_values(bodypart_level).unique().tolist()
+                else:
+                    raise ValueError("No bodypart level found in DLC data")
+                
+                #determine if multianimal dlc based on number of levels in the multiindex
+                if isinstance(camdata.columns, pandas.MultiIndex):
+                    if len(camdata.columns.levels) == 3:
+                        # Single animal DLC project
+                        print("Detected single animal DLC project")
+                        madlc = False
+                    elif len(camdata.columns.levels) == 4:
+                        # Multi-animal DLC project
+                        print("Detected multi-animal DLC project")
+                        madlc = True
+                    else:
+                        raise ValueError("Unexpected number of levels in DLC multiindex columns")
+                else:
+                    raise ValueError("DLC data does not have expected multiindex format")
+            
+            if madlc:
+                alldata[c] = {}
+                individuals = camdata.columns.get_level_values('animal').unique().tolist()
+                for ind in individuals:
+                    for track in set(tracks):
+                        # set coords with low likelihood values to NaN
+                        camdata.loc[camdata[scorers[c]][ind][track]['likelihood'] <= like, (scorers[c], ind, track, ['x', 'y'])] = np.nan
+                    alldata[c][ind]=camdata[scorers[c]][ind]
+            else:
+                for track in set(tracks):
+                    camdata.loc[camdata[scorers[c]][track]['likelihood'] <= like, (scorers[c], track, ['x', 'y'])] = np.nan
+                alldata[c] = camdata[scorers[c]]
+            numframes.append(max(camdata.index.values) + 1)  # DLC indices are 0-based, so add 1 for frame count
+
+    except Exception as e:
+        raise Exception(f"Could not load DLC data. Make sure files are formatted according to DLC documentation. Error: {str(e)}")
+    
+    # initialize the massive array full of nans (with more than enough rows)
+    blankarr = np.empty((max(numframes) - min(offsets), len(tracks) * 2 * no_cameras_global)) + np.nan
+    xcols = range(0, len(tracks) * 2 * no_cameras_global, 2)
+    ycols = range(1, len(tracks) * 2 * no_cameras_global, 2)
+    # outdata is a dict with first key = indiv (0 if not multianimal)
+    outdata = {}
+    if madlc:
+        for ind in individuals:
+            outdata[ind]=blankarr.copy()
+    else:
+        outdata[0] = blankarr.copy()
+    # loopthrough each camera's data and assign to the proper row
+    # get list of camera windows
+    video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+    
+    for c, camdata in alldata.items():
+        # need to check for "height", and flip the y-coordinates (origin is lower left in Argus and DLTdv 1-7, upper left in openCV, DLC, DLTdv8)
+        # height is saved in self.frameFinder.oh
+        
+        # Find the correct window for this camera data
+        # The windows should be in the same order as the h5_files were provided
+        # Since h5_files were sorted by actual_camera_number in load_dlc_data(), 
+        # we need to find the window with actual_camera_number = c + 1
+        current_window = None
+        for window in video_windows:
+            if window.actual_camera_number == c + 1:
+                current_window = window
+                break
+        
+        if current_window is None:
+            raise ValueError(f"Could not find window for camera {c + 1}")
+        
+        height = current_window.frameFinder.oh
+        width = current_window.frameFinder.ow
+        # make lists of rows, of matching length, that account for offsets (out = in - offset)
+        outrows = list(range(max([0, 0 - offsets[c]]), min([numframes[c], numframes[c] - offsets[c]]), 1))
+        inrows = list(range(max([0, 0 + offsets[c]]), min([numframes[c], numframes[c] + offsets[c]]), 1))
+        iter = 3
+        if madlc:
+            for ind in individuals:
+                for i in range(len(tracks)):
+                    incol = i * iter
+                    outcol = (i * 2 * no_cameras_global) + (2 * c)
+                    if flipy:
+                        outdata[ind][outrows, outcol] = camdata[ind].iloc[inrows, incol]
+                        outdata[ind][outrows, outcol+1] = height - camdata[ind].iloc[inrows,incol+1]
+                    else:
+                        outdata[ind][outrows, outcol:outcol+2] = camdata[ind].iloc[inrows, incol:incol+2]
+                    # set out of range values to nan
+                    outdata[ind][outdata[ind] <= 0] = np.nan
+
+                    for xc in xcols:
+                        foo = outdata[ind][:, xc]
+                        foo[foo >= width] = np.nan
+                        outdata[ind][:, xc] = foo
+
+                    for yc in ycols:
+                        foo = outdata[ind][:, yc]
+                        foo[foo >= height] = np.nan
+                        outdata[ind][:, yc] = foo
+
+        else:
+            for i in range(len(tracks)):
+                incol = i * iter
+                outcol = (i * 2 * no_cameras_global) + (2 * c)
+                if flipy:
+                    outdata[0][outrows, outcol] = camdata.iloc[inrows, incol]
+                    outdata[0][outrows, outcol+1] = height - camdata.iloc[inrows, incol+1]
+                else:
+                    outdata[0][outrows, outcol:outcol+2] = camdata.iloc[inrows, incol:incol+2]
+
+    # convert outdata to the big array
+    if madlc:
+        if not splitind:
+            # all indivduals on one array - do all body parts for each individual
+            # Stack all individual data horizontally to create single combined array
+            # Update track_list_global to include all individuals and tracks
+            track_list_global = []
+            for ind in individuals:
+                for track in tracks:
+                    track_list_global.append(f'{ind}_{track}')
+
+            load_data_global = None
+            for idx, ind in enumerate(individuals):
+                outdata[ind] = outdata[ind].reshape((outdata[ind].shape[0], -1))
+                if idx == 0:
+                    load_data_global = outdata[ind]
+                else:
+                    load_data_global = np.concatenate((load_data_global, outdata[ind]), axis=1)
+        # allow user option to split individuals after asking, or with setting in options window, and select individual
+        # so maybe an option in the options window to "work on one individual at a time", that if checked had them enter a number? Or maybe have to load the files first to see what's available   
+    else:
+        # single individual, so just concatenate the data
+        load_data_global = outdata[0].reshape((outdata[0].shape[0], -1))
+        track_list_global = tracks
+
+    # then convert to csc_matrix
+    load_data_global[np.isnan(load_data_global)] = 0
+    load_data_global = csc_matrix(load_data_global, dtype=np.float32)
+    
+    # Set flag to indicate data was loaded from DLC
+    data_loaded_from_dlc = True
 
 # for sparse data files as TSVs
 def load_tsv(tsv):
@@ -510,6 +843,8 @@ def load_tsv(tsv):
     global no_cameras_global
     global track_list_global
     global current_track_global
+    global data_loaded_from_dlc
+    global dlc_scorer
 
     try:
         # load the file, expects a header
@@ -530,14 +865,13 @@ def load_tsv(tsv):
             track_list_global.append('Track ' + str(k + 1))
 
         current_track_global = track_list_global[0]
+        data_loaded_from_dlc = False
+        dlc_scorer = []  # Clear scorer list since this is not DLC data
     except:
         QtWidgets.QMessageBox.warning(None,
             "Error",
             "Could not load TSV! Make sure it is formatted according to the documentation."
         )
-
-
-# TODO: Implement abstract classes
 
 # main class which displays the movie's individual frames and allows users to mark points
 class ClickerWindow(pyglet.window.Window):
@@ -1355,7 +1689,6 @@ class ClickerWindow(pyglet.window.Window):
         :param dx: The distance the mouse was moved horizontally
         :param dy: The distance the mouse was moved vertically
         :param buttons: The buttons used in the drag
-        :param modifiers: // TODO Better doc.
         :return: None
         """
         # Move camera
@@ -1784,7 +2117,7 @@ class ClickerWindow(pyglet.window.Window):
         for coordinate in coordinates:
             # coordinate[1] is [0. 0.] if no point marked
             if np.any(coordinate[1] != 0):
-                dlc_coeff_1 = DLTCoefficients[coordinate[0] - 1]
+                dlt_coeff_1 = DLTCoefficients[coordinate[0] - 1]
                 x_cord = coordinate[1][0]
                 y_cord = coordinate[1][1]
                 # each coordinate is [n, [[x, y]]] the first value is the camera number
@@ -1808,7 +2141,7 @@ class ClickerWindow(pyglet.window.Window):
                         camera_profile = None
                         camera_filename = ""
 
-                slope, intercept = getDLTLine(x_cord, y_cord, dlc_coeff_1, dlt_coeff_2)
+                slope, intercept = getDLTLine(x_cord, y_cord, dlt_coeff_1, dlt_coeff_2)
                 if camera_profile is None:
                     tmp.append(np.asarray([0, intercept]))
                     tmp.append(np.asarray([self.frameFinder.ow, slope * self.frameFinder.ow + intercept]))
@@ -2353,7 +2686,9 @@ class ClickerWindow(pyglet.window.Window):
                 "rgb": rgb,
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
-                "init_track": track_list_global[0]
+                "init_track": track_list_global[0],
+                "data_loaded_from_dlc": data_loaded_from_dlc,
+                "dlc_scorer": dlc_scorer
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2491,7 +2826,9 @@ class ClickerWindow(pyglet.window.Window):
                 "rgb": rgb,
                 "output_sparse": outputSparse,
                 "bstrap": bstrap,
-                "init_track": track_list_global[0]
+                "init_track": track_list_global[0],
+                "data_loaded_from_dlc": data_loaded_from_dlc,
+                "dlc_scorer": dlc_scorer
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2503,7 +2840,179 @@ class ClickerWindow(pyglet.window.Window):
                                   dlt_coefficents=dlt_filename if dlt_filename else None,
                                   camera_profile=camera_filename if camera_filename else None,
                                   settings=settings)
+    
+    def save_dlc(self, saveas=True):
+        """Save the current points in DeepLabCut format as h5 files, one per camera."""
+        global global_filename
+        global dlt_filename
+        global camera_filename
+        
+        filename = ''
+        if saveas or global_filename == '':
+            app = QtWidgets.QApplication.instance()
+            if app is None:
+                app = QtWidgets.QApplication([])
+            w = SaveFilePopup("Select location and enter prefix for DeepLabCut files", global_filename.split('/')[-1], 'All files (*.*)')
+            if w.filename:
+                filename = clean_filename_for_prefix(w.filename)
+        else:
+            filename = global_filename
+        if filename == '':
+            return
+            
+        if filename != '' and isinstance(filename, str):
+            global_filename = filename
+            
+            # Get all camera windows
+            video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
+            video_windows.sort(key=lambda w: w.actual_camera_number)
+            
+            if not video_windows:
+                QtWidgets.QMessageBox.warning(None, "Error", "No video windows are currently open.")
+                return
+            
+            # Fill common dictionary with all data
+            for window in pyglet.app.windows:
+                if isinstance(window, ClickerWindow):
+                    window.fill_common_dictionary()
+            
+            try:
+                # Process each camera separately
+                success_count = 0
+                for window in video_windows:
+                    camera_num = window.actual_camera_number
+                    
+                    # Determine scorer name for this specific camera
+                    # Use original scorer if data was loaded from DLC and we have scorer info
+                    if data_loaded_from_dlc and dlc_scorer and len(dlc_scorer) >= camera_num:
+                        scorer_name = dlc_scorer[camera_num - 1]  # camera_num is 1-based, list is 0-based
+                    else:
+                        # This is original argus data or no scorer info available
+                        scorer_name = 'argus'
+                    
+                    # Get video file name for this camera
+                    video_name = window.movie.split('/')[-1] if window.movie else f"camera_{camera_num}"
+                    video_base = os.path.splitext(video_name)[0]
+                    
+                    # Extract directory path and base name from the user-selected filename
+                    file_dir = os.path.dirname(filename)
+                    filename_name = os.path.splitext(os.path.basename(filename))[0]
+                    
+                    # Construct filenames for this camera with full path
+                    if scorer_name != 'argus': #was originally dlc data
+                        camera_filename_h5 = os.path.join(file_dir, f"{video_base}_{scorer_name}_{filename_name}_argus.h5")
+                        camera_filename_csv = os.path.join(file_dir, f"{video_base}_{scorer_name}_{filename_name}_argus.csv")
+                    else:
+                        # If no specific dlcscorer, use just the video base name
+                        camera_filename_h5 = os.path.join(file_dir, f"{video_base}_{filename_name}_argus.h5")
+                        camera_filename_csv = os.path.join(file_dir, f"{video_base}_{filename_name}_argus.csv")
+                    
+                    # Extract data for this camera
+                    camera_data = self._extract_camera_data_for_dlc(window, scorer_name)
+                    
+                    if camera_data is not None:
+                        # Save as h5 file
+                        camera_data.to_hdf(camera_filename_h5, key='df_with_missing', mode='w')
+                        
+                        # Also save as CSV for convenience
+                        camera_data.to_csv(camera_filename_csv)
+                        
+                        success_count += 1
+                        print(f"Saved DLC data for camera {camera_num}: {camera_filename_h5}")
+                
+                if success_count > 0:
+                    QtWidgets.QMessageBox.information(None, "Success", 
+                        f'Successfully saved DeepLabCut data for {success_count} camera(s).\n'
+                        f'Files saved with prefix: {filename}')
+                else:
+                    QtWidgets.QMessageBox.warning(None, "Error", "No data was saved. Check that you have tracking data.")
+                    
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(None, "Error", f"Failed to save DeepLabCut data: {str(e)}")
 
+    def _extract_camera_data_for_dlc(self, window, scorer_name):
+        """Extract and format data for a single camera in DLC format."""
+        
+        try:
+            camera_num = window.actual_camera_number
+            
+            # Get the offset for this specific camera
+            offset = window.offsets[window.original_index]
+            
+            # Get the maximum number of frames from the window
+            max_frames = window.end
+            
+            # Create frame indices (0-based for DLC compatibility)
+            frame_indices = list(range(max_frames))
+            
+            # Prepare data structure for DLC multi-index format
+            data_dict = {}
+            
+            # Create columns for each track (bodypart)
+            for track in track_list_global:
+                # Extract x, y coordinates for this track and camera
+                x_col = f"{track}_cam_{camera_num}_x"
+                y_col = f"{track}_cam_{camera_num}_y"
+                
+                if x_col in common and y_col in common:
+                    x_data = common[x_col][:max_frames]
+                    y_data = common[y_col][:max_frames]
+                    
+                    # Convert 0s to NaN (DLC uses NaN for missing data)
+                    x_data = np.where(x_data == 0, np.nan, x_data)
+                    y_data = np.where(y_data == 0, np.nan, y_data)
+                    
+                    # Calculate likelihood (1.0 for marked points, 0.0 for unmarked)
+                    likelihood = np.where(np.isnan(x_data) | np.isnan(y_data), 0.0, 1.0)
+                    
+                    # Store in data dictionary with proper column names
+                    data_dict[(scorer_name, track, 'x')] = x_data
+                    data_dict[(scorer_name, track, 'y')] = y_data
+                    data_dict[(scorer_name, track, 'likelihood')] = likelihood
+                else:
+                    # No data for this track/camera combination, fill with NaN
+                    x_data = np.full(max_frames, np.nan)
+                    y_data = np.full(max_frames, np.nan)
+                    likelihood = np.zeros(max_frames)
+                    
+                    data_dict[(scorer_name, track, 'x')] = x_data
+                    data_dict[(scorer_name, track, 'y')] = y_data
+                    data_dict[(scorer_name, track, 'likelihood')] = likelihood
+            
+            if not data_dict:
+                return None
+            
+            # Create DataFrame with MultiIndex columns
+            df = pandas.DataFrame(data_dict, index=frame_indices)
+            
+            # Set up the MultiIndex for columns (scorer, bodyparts, coords)
+            df.columns = pandas.MultiIndex.from_tuples(df.columns, names=['scorer', 'bodyparts', 'coords'])
+            
+            # Ensure the index name is set for DLC compatibility
+            df.index.name = 'frames'
+            
+            # Apply offset adjustments to the DataFrame
+            if offset < 0:
+                # The DLT digitized value on the n-th row was actually digitized at n+offset frame
+                # e.g. if offset = -5, a point digitized in the first frame of the video will be placed
+                # on the 5th row of the xypts csv file, so negative offsets mean that many blank rows
+                # need to be removed from the front of the df
+                print(f'Dropping {-1*offset} rows from start due to negative offset for camera {camera_num}')
+                df.drop(range(-1*offset), inplace=True)
+                df.reset_index(drop=True, inplace=True)
+                # Update frame indices to reflect the dropped rows
+                df.index.name = 'frames'
+            elif offset > 0:
+                # Remove that many rows from the end of the df
+                print(f'Dropping {offset} rows from end due to positive offset for camera {camera_num}')
+                df.drop(range(len(df)-offset, len(df)), inplace=True)
+            
+            return df
+            
+        except Exception as e:
+            print(f"Error extracting camera data for camera {window.actual_camera_number}: {e}")
+            return None
+        
     # pretty self explanatory
     def updateSelf(self):
         if not self.safe_switch_to():
@@ -2612,6 +3121,7 @@ class ClickerWindow(pyglet.window.Window):
         global busy
         global bstrap
         global outputSparse
+        global outputDLC
         global rgb
         global vx
         global vy
@@ -2625,13 +3135,14 @@ class ClickerWindow(pyglet.window.Window):
         app = QtWidgets.QApplication.instance()
         if app is None:
             app = QtWidgets.QApplication([])
-        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, rgb, radius, thickness)
+        w = OptionsPopupWindow(sync, auto_advance, track_list_global, current_track_global, displaying_all_tracks, bstrap, outputSparse, outputDLC, rgb, radius, thickness)
         if w.exec() == QtWidgets.QDialog.Accepted:
             auto_advance = w.auto.isChecked()
             sync = w.sync.isChecked()
             new_disp = w.disp.isChecked()
             bstrap = w.bstrap.isChecked()
             outputSparse = w.o_sparse
+            outputDLC = w.o_dlc
             rgb = w.rgb
             rad = False
             thick = False
@@ -2727,10 +3238,71 @@ class ClickerWindow(pyglet.window.Window):
         self.change_marker()
 
     def on_key_press(self, symbol, modifiers):
-        """Manager for hotkeys
-        :param symbol: Symbol passed from pyglt (?) representing the key pressed //Todo: Verify
-        :param modifiers: // TODO: Document
-        :return:
+        """Manager for hotkeys - handles all keyboard input for the application
+        
+        Hotkey Reference:
+        ================
+        
+        NAVIGATION:
+        -----------
+        F               - Advance one frame forward
+        Shift+F         - Advance 50 frames forward  
+        B               - Go back one frame
+        Shift+B         - Go back 50 frames
+        G               - Go to specific frame (opens dialog)
+        Right Arrow     - Skip to next marked point in current track
+        Left Arrow      - Skip to previous marked point in current track
+        Up Arrow        - Increase frame offset by 1
+        Down Arrow      - Decrease frame offset by 1
+        
+        TRACK MANAGEMENT:
+        ----------------
+        . (Period)      - Switch to next track in list
+        , (Comma)       - Switch to previous track in list
+        Shift+D         - Delete current track (with confirmation)
+        C               - Clear all tracks for current camera (with confirmation)
+        
+        VIEW CONTROLS:
+        -------------
+        V               - Toggle viewfinder display
+        = (Plus)        - Zoom in at mouse position
+        - (Minus)       - Zoom out at mouse position  
+        R               - Reset view to original frame size
+        Ctrl+F          - Toggle frame number display
+        
+        AUTO-TRACKING:
+        -------------
+        A               - Toggle color-based contour auto-tracking
+        I               - Decrease viewfinder width (minimum 5)
+        Y               - Increase viewfinder width (maximum 30)
+        U               - Decrease viewfinder height (minimum 5)
+        7               - Increase viewfinder height (maximum 30)
+        
+        FILE OPERATIONS:
+        ---------------
+        S               - Save points (format depends on output settings)
+        Ctrl+S          - Save As (opens file dialog)
+        L               - Load points from CSV/TSV file
+        
+        IMAGE CAPTURE:
+        -------------
+        Shift+C         - Set capture directory for screenshots
+        Alt+C           - Capture current frame as image
+        
+        DATA MANIPULATION:
+        -----------------
+        D               - Delete point at current frame/track
+        O               - Open options/settings dialog
+        X               - Toggle window synchronization
+        
+        3D VISUALIZATION:
+        ----------------
+        P               - Plot all 3D tracks (requires DLT coefficients)
+        Ctrl+P          - Plot current track only in 3D
+        
+        :param symbol: Pyglet key symbol representing the key pressed
+        :param modifiers: Bitfield of modifier keys (Shift, Ctrl, Alt) pressed simultaneously
+        :return: None
         """
         global sync
         global auto_advance
@@ -2928,7 +3500,9 @@ class ClickerWindow(pyglet.window.Window):
                 saveas = False
 
             self.toggleBusy()
-            if outputSparse:
+            if outputDLC:
+                self.save_dlc(saveas)
+            elif outputSparse:
                 self.save_sparse(saveas)
             else:
                 self.save_non_sparse(saveas)
@@ -3035,7 +3609,11 @@ class ClickerWindow(pyglet.window.Window):
             app = QtWidgets.QApplication.instance()
             if app is None:
                 app = QtWidgets.QApplication([])
-            w = OpenFilePopup("Select _xypts.csv file", str(self.movie).split('/')[0],'CSV (*xypts.csv)')
+            w = OpenFilePopup(
+                "Select _xypts.csv or _xypts.tsv",
+                os.path.dirname(str(self.movie)),
+                "CSV/TSV Files (*xypts.csv *xypts.tsv)"
+            )
             if w.filename:
                 filename = w.filename
                 if type(filename) == str:
@@ -3044,7 +3622,6 @@ class ClickerWindow(pyglet.window.Window):
 
                     elif filename != '' and filename.split('.')[-1] == 'tsv':
                         outputSparse = True
-
                         load_tsv(filename)
 
             if load_data_global is not None:
@@ -3290,6 +3867,8 @@ def load_settings(settings):
     global rgb
     global outputSparse
     global bstrap
+    global data_loaded_from_dlc
+    global dlc_scorer
 
     sync = settings["sync"]
     displaying_all_tracks = settings["displaying_all_tracks"]
@@ -3299,6 +3878,10 @@ def load_settings(settings):
     rgb = settings["rgb"]
     outputSparse = settings["output_sparse"]
     bstrap = settings["bstrap"]
+    # Load DLC flag if present, default to False for backward compatibility
+    data_loaded_from_dlc = settings.get("data_loaded_from_dlc", False)
+    # Load DLC scorer list if present, default to empty list for backward compatibility
+    dlc_scorer = settings.get("dlc_scorer", [])
 
 
 def load_from_config(path):
