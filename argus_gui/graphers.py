@@ -4,24 +4,84 @@
 from __future__ import absolute_import
 from __future__ import print_function
 
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.patches import FancyArrowPatch
-from mpl_toolkits.mplot3d import proj3d
+# Fix Qt platform plugin path for Windows - MUST be done before any Qt imports
+import sys
+import os
+if sys.platform.startswith('win'):
+    try:
+        import PySide6
+        pyside6_path = os.path.dirname(PySide6.__file__)
+        
+        # Try multiple possible plugin directory structures
+        possible_plugin_paths = [
+            os.path.join(pyside6_path, 'Qt6', 'plugins'),
+            os.path.join(pyside6_path, 'Qt', 'plugins'),
+            os.path.join(pyside6_path, 'plugins'),
+            os.path.join(pyside6_path, '..', 'Library', 'plugins'),  # conda structure
+            os.path.join(pyside6_path, '..', 'Lib', 'site-packages', 'PySide6', 'Qt6', 'plugins')  # pip structure
+        ]
+        
+        qt_plugin_path = None
+        for path in possible_plugin_paths:
+            if os.path.exists(path):
+                qt_plugin_path = path
+                break
+        
+        if qt_plugin_path:
+            os.environ['QT_PLUGIN_PATH'] = qt_plugin_path
+            os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = qt_plugin_path
+            
+        # Additional Qt environment variables for Windows
+        os.environ['QT_QPA_PLATFORM'] = 'windows'
+        
+    except Exception as e:
+        pass  # Silent fallback if Qt plugin setup fails
+
+import matplotlib
+matplotlib.use('QtAgg')  # Use QtAgg for automatic Qt version detection, compatible with PySide6
+
+# commented for pyqtgraph
+# from mpl_toolkits.mplot3d import Axes3D
+# from matplotlib.patches import FancyArrowPatch
+# from mpl_toolkits.mplot3d import proj3d
+from PySide6.QtWidgets import QVBoxLayout, QWidget
+from PySide6.QtGui import QFont
+import pyqtgraph as pg
+import pyqtgraph.opengl as gl
+from pyqtgraph.opengl.items.GLTextItem import GLTextItem
+# from pyqtgraph import GraphicsLayoutWidget, LabelItem, PlotWidget
+try:
+    from moviepy.config import get_setting
+except ImportError:
+    # Fallback for newer moviepy versions
+    def get_setting(setting_name):
+        if setting_name == "FFMPEG_BINARY":
+            return "ffmpeg"  # Default to system ffmpeg
+        return None
+
 # import wandOutputter
 from .output import *
 import pandas
 import sys
 
 from numpy import *
+import numpy as np
 import scipy.signal
 import scipy.io.wavfile
 import scipy.spatial
 import scipy
 import sys
 import os.path
-import matplotlib.pyplot as plt
-from moviepy.config import get_setting
-import matplotlib.patches as mpatches
+# import matplotlib.pyplot as plt
+try:
+    from moviepy.config import get_setting
+except ImportError:
+    # Fallback for newer moviepy versions
+    def get_setting(setting_name):
+        if setting_name == "FFMPEG_BINARY":
+            return "ffmpeg"  # Default to system ffmpeg
+        return None
+# import matplotlib.patches as mpatches
 import random
 from .colors import *
 import subprocess
@@ -79,25 +139,410 @@ class Shower():
                 t.append(signals_[k][a])
                 a += 100
             signals.append(np.asarray(t))
-        a = 0
-        patches = list()
-        width = 35
-        height = 3 * len(signals)
-        plt.figure(figsize=(width, height))
-        frame1 = plt.gca()
-        frame1.axes.get_yaxis().set_visible(False)
-        # Make a plot with colors chosen by circularly pulling from the colors vector
+            
+        # Platform-specific rendering fixes - MUST be set before QApplication creation
+        # Import Qt classes needed for all platforms
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        
+        # Windows-specific PyQtGraph configuration - BEFORE QApplication
+        if sys.platform.startswith('win'):
+            # Force software rendering to avoid GPU driver issues on Windows
+            pg.setConfigOption('useOpenGL', False)
+            pg.setConfigOption('antialias', False)  # Disable antialiasing on Windows
+            pg.setConfigOption('background', 'w')
+            pg.setConfigOption('foreground', 'k')
+            pg.setConfigOption('crashWarning', True)
+            
+            # Additional Windows-specific configurations
+            pg.setConfigOption('leftButtonPan', False)  # Disable problematic pan behavior
+            pg.setConfigOption('enableExperimental', False)  # Disable experimental features
+            
+            # Set Qt application attributes BEFORE creating QApplication
+            try:
+                # Set attributes before QApplication creation
+                if hasattr(Qt, 'AA_UseDesktopOpenGL'):
+                    QApplication.setAttribute(Qt.AA_UseDesktopOpenGL, False)
+                if hasattr(Qt, 'AA_UseSoftwareOpenGL'):
+                    QApplication.setAttribute(Qt.AA_UseSoftwareOpenGL, True)
+                if hasattr(Qt, 'AA_ShareOpenGLContexts'):
+                    QApplication.setAttribute(Qt.AA_ShareOpenGLContexts, False)
+                if hasattr(Qt, 'AA_DisableShaderDiskCache'):
+                    QApplication.setAttribute(Qt.AA_DisableShaderDiskCache, True)
+            except Exception:
+                pass  # Silent fallback
+        else:
+            # Conservative configuration for Mac/Linux - Disable OpenGL to avoid hanging
+            pg.setConfigOption('useOpenGL', False)  # Disable OpenGL to prevent Mac hanging
+            pg.setConfigOption('antialias', True)
+            pg.setConfigOption('background', 'w')
+            pg.setConfigOption('foreground', 'k')
+            pg.setConfigOption('enableExperimental', False)
+            
+            # Mac-specific Qt application attributes to prevent hanging
+            try:
+                if hasattr(Qt, 'AA_DisableWindowContextHelpButton'):
+                    QApplication.setAttribute(Qt.AA_DisableWindowContextHelpButton, True)
+                if hasattr(Qt, 'AA_DontCreateNativeWidgetSiblings'):
+                    QApplication.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings, True)
+            except Exception:
+                pass  # Silent fallback
+        
+        # NOW create QApplication
+        app = QApplication([])
+        
+        # Post-application Windows setup
+        if sys.platform.startswith('win'):
+            # Force immediate style refresh on Windows
+            try:
+                app.setStyle('Fusion')  # Use cross-platform Fusion style
+            except Exception:
+                pass  # Silent fallback
+        
+        # Platform-specific widget creation - SIMPLIFIED Windows approach
+        if sys.platform.startswith('win'):
+            try:
+                # For Windows, try the most basic approach possible
+                win = pg.PlotWidget()
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - Windows Basic')
+                win.setBackground('white')  # Use string instead of 'w'
+                plot = win.getPlotItem()
+                
+                # Force basic Windows-compatible settings
+                plot.setMenuEnabled(enableMenu=False)
+                plot.setMouseEnabled(x=True, y=True)
+                plot.enableAutoRange('xy', False)
+                plot.setAutoVisible(y=False)
+                
+            except Exception:
+                win = pg.GraphicsLayoutWidget()
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - Windows Minimal')
+                win.setBackground('white')
+                plot = win.addPlot()
+                plot.setMenuEnabled(enableMenu=False)
+        else:
+            try:
+                # Mac/Linux: Optimized setup with hardware acceleration
+                win = pg.PlotWidget(title="Audio Streams")
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - PlotWidget')
+                win.setBackground('w')
+                plot = win.getPlotItem()
+                
+                # Enable better mouse interaction for Mac
+                plot.setMouseEnabled(x=True, y=True)
+                plot.setMenuEnabled(enableMenu=True)  # Enable context menu for Mac
+                
+                # Configure ViewBox for better responsiveness on Mac (software rendering)
+                view_box = plot.getViewBox()
+                if view_box:
+                    # Use conservative settings to prevent hanging
+                    view_box.setMouseEnabled(x=True, y=True)
+                    view_box.setDefaultPadding(0.05)  # Slightly more padding for stability
+                    # Use standard wheel zoom without custom scaling to avoid issues
+                    view_box.aspectLocked = False  # Allow independent x/y zoom
+                    
+            except Exception:
+                win = pg.GraphicsLayoutWidget(show=True, title="Audio Streams")
+                win.resize(1000, 600)
+                win.setWindowTitle('Audio Streams - GraphicsLayoutWidget')
+                win.setBackground('w')
+                plot = win.addPlot()
+                
+                # Configure for Mac stability (software rendering)
+                plot.setMouseEnabled(x=True, y=True)
+                view_box = plot.getViewBox()
+                if view_box:
+                    view_box.setMouseEnabled(x=True, y=True)
+                    view_box.setDefaultPadding(0.05)  # Conservative padding for stability
+                    # Use standard wheel zoom without custom scaling
+                    view_box.aspectLocked = False  # Allow independent x/y zoom
+        
+        plot.showGrid(x=True, y=True)
+        plot.setLabel('bottom', 'Minutes')
+        plot.getAxis('left').setTicks([])
+        plot.getAxis('left').setLabel('')
+        
+        legend = plot.addLegend(offset=(70, 30))
+        
+        # We'll set the range AFTER we calculate the actual data bounds
+        # For now, just disable auto-range
+        plot.disableAutoRange()
+        
+        # Calculate signal ranges and vertical offsets to avoid overflow
+        signal_ranges = []
+        for signal in signals:
+            # Handle edge cases with NaN or infinite values
+            finite_signal = signal[np.isfinite(signal)]
+            if len(finite_signal) > 0:
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_range = signal_max - signal_min
+                signal_ranges.append(signal_range)
+            else:
+                signal_ranges.append(1.0)  # fallback for all NaN/inf signals
+        
+        # Use float64 to avoid overflow and calculate reasonable vertical separation
+        if signal_ranges:
+            max_range = signal_ranges[0]
+            for sr in signal_ranges[1:]:
+                if sr > max_range:
+                    max_range = sr
+        else:
+            max_range = 1.0
+        # Clamp the max_range to prevent extremely large offsets
+        if max_range > 1e6:
+            max_range = 1e6
+        
+        # Use a more reasonable vertical separation - normalize to a reasonable scale
+        # Rather than using the full signal range, use a smaller multiplier for better visualization
+        if max_range > 10000:
+            # For large audio ranges, use a larger multiplier for better separation
+            vertical_offset = float(max_range * 0.8)  # 80% separation for large ranges
+        else:
+            vertical_offset = float(max_range * 2.5)  # 250% separation for smaller ranges
+        
+        # CRITICAL: Calculate plot ranges BEFORE plotting anything
+        # Calculate the overall coordinate bounds for all signals first
+        all_t_values = []
+        all_y_values = []
         for k in range(len(signals)):
-            color = colors[k % len(colors)]
-            patches.append(mpatches.Patch(color=color, label=self.files[k].split('/')[-1]))
             t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
-            plt.plot(t, signals[k] + float(a), color=color)
-            a += np.nanmax(signals[k]) * 2
-        plt.legend(handles=patches)
-        plt.title('Audio Streams')
-        plt.xlabel('Minutes')
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0
+            y_offset = k * vertical_offset
+            adjusted_signal = signals[k] - signal_center + y_offset
+            
+            all_t_values.extend([np.min(t), np.max(t)])
+            all_y_values.extend([np.min(adjusted_signal), np.max(adjusted_signal)])
+        
+        # Set plot ranges BEFORE creating any plot items
+        if all_t_values and all_y_values:
+            x_min, x_max = min(all_t_values), max(all_t_values)
+            y_min, y_max = min(all_y_values), max(all_y_values)
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            plot_x_min = x_min - x_padding
+            plot_x_max = x_max + x_padding  
+            plot_y_min = y_min - y_padding
+            plot_y_max = y_max + y_padding
+            
+            plot.setXRange(plot_x_min, plot_x_max, padding=0)
+            plot.setYRange(plot_y_min, plot_y_max, padding=0)
+        
+        for k in range(len(signals)):
+            # Use bright, contrasting colors for better visibility
+            bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            color = bright_colors[k % len(bright_colors)]
+            t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+            # Use the signal's offset from its center, then apply vertical separation
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0  # fallback for all NaN/inf signals
+            y_offset = k * vertical_offset
+            # Center the signal around zero, then add vertical offset for separation
+            adjusted_signal = signals[k] - signal_center + y_offset
+            
+        # CRITICAL WINDOWS FIX: Use matplotlib as fallback if PyQtGraph fails
+        matplotlib_plot_created = False
+        if sys.platform.startswith('win'):
+            # Try matplotlib as a backup for Windows - create ONE plot for ALL signals
+            try:
+                import matplotlib.pyplot as plt
+                
+                # Create matplotlib plot ONCE for all signals
+                fig, ax = plt.subplots(figsize=(12, 8))
+                ax.set_title('Audio Streams - Matplotlib Windows Fallback')
+                ax.set_xlabel('Minutes')
+                ax.grid(True)
+                
+                # Set the same ranges as PyQtGraph
+                ax.set_xlim(plot_x_min, plot_x_max)
+                ax.set_ylim(plot_y_min, plot_y_max)
+                
+                matplotlib_plot_created = True
+                
+            except Exception:
+                pass  # Silent fallback
+        
+        for k in range(len(signals)):
+            # Use bright, contrasting colors for better visibility
+            bright_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            color = bright_colors[k % len(bright_colors)]
+            t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+            # Use the signal's offset from its center, then apply vertical separation
+            finite_signal = signals[k][np.isfinite(signals[k])]
+            if len(finite_signal) > 0:
+                # Convert to float64 to prevent overflow in arithmetic operations
+                signal_min = float(np.min(finite_signal))
+                signal_max = float(np.max(finite_signal))
+                signal_center = (signal_max + signal_min) / 2.0
+            else:
+                signal_center = 0.0  # fallback for all NaN/inf signals
+            y_offset = k * vertical_offset
+            # Center the signal around zero, then add vertical offset for separation
+            adjusted_signal = signals[k] - signal_center + y_offset
+            
+            # Windows matplotlib plotting - add each signal to the SAME plot
+            if matplotlib_plot_created and sys.platform.startswith('win'):
+                try:
+                    # Plot with matplotlib using the same data
+                    bright_colors_mpl = ['red', 'green', 'blue', 'yellow', 'magenta', 'cyan']
+                    color_mpl = bright_colors_mpl[k % len(bright_colors_mpl)]
+                    
+                    # Plot the audio waveform with matplotlib on the existing axes
+                    ax.plot(t, adjusted_signal, color=color_mpl, linewidth=1, label=self.files[k].split('/')[-1])
+                    
+                except Exception:
+                    matplotlib_plot_created = False  # Fall back to PyQtGraph for remaining signals
+            
+            # Original PyQtGraph plotting (for non-Windows or if matplotlib fails)
+            if not matplotlib_plot_created or not sys.platform.startswith('win'):
+                # Optimized plotting approach - thin lines for better Mac performance
+                if sys.platform.startswith('win'):
+                    # Windows: Use thicker, simpler pen
+                    pen = pg.mkPen(color=color, width=10)
+                else:
+                    # Mac/Linux: Use thin lines for better performance and appearance
+                    pen = pg.mkPen(color=color, width=1)
+                
+                # Plot the audio signal
+                curve = plot.plot(t, adjusted_signal, pen=pen)
+                
+                # Force updates for Windows
+                if sys.platform.startswith('win'):
+                    plot.update()
+                    curve.update() 
+                    win.repaint()
+                    app.processEvents()
+                
+                legend.addItem(curve, self.files[k].split('/')[-1])
+        
+        # Show matplotlib plot if it was created (after all signals are added)
+        if matplotlib_plot_created and sys.platform.startswith('win'):
+            try:
+                # Add legend without test triangle
+                ax.legend()
+                plt.show()
+                
+                # Since matplotlib worked and is displayed, we can skip the PyQtGraph display
+                return  # Exit early since we have a working plot
+                
+            except Exception:
+                pass  # Continue with PyQtGraph display
+        # Platform-specific window management and final display
+        if sys.platform.startswith('win'):
+            # Critical Windows fix: Force ViewBox to recalculate bounds and redraw
+            view_box = plot.getViewBox()
+            if view_box:
+                # Force recalculation of data bounds
+                view_box.updateAutoRange()
+                view_box.enableAutoRange()
+                view_box.disableAutoRange()  # Reset to our manual range
+                
+                # Set our range again to make sure it sticks
+                if all_t_values and all_y_values:
+                    view_box.setRange(xRange=[plot_x_min, plot_x_max], yRange=[plot_y_min, plot_y_max], padding=0)
+                
+                # Force ViewBox scene to update
+                if hasattr(view_box, 'scene'):
+                    view_box.scene().update()
+            
+            # Force immediate processing of Qt events on Windows
+            for _ in range(5):
+                app.processEvents()
+            
+            # Show window with Windows-specific settings
+            win.show()
+            win.raise_()
+            win.activateWindow()
+            
+            # Force window to be topmost temporarily
+            try:
+                from PySide6.QtCore import Qt
+                win.setWindowFlags(win.windowFlags() | Qt.WindowStaysOnTopHint)
+                win.show()
+                app.processEvents()
+                # Remove topmost flag after a moment
+                win.setWindowFlags(win.windowFlags() & ~Qt.WindowStaysOnTopHint)
+                win.show()
+            except Exception:
+                pass  # Silent fallback
+        else:
+            # Optimized display for Mac/Linux with hardware acceleration
+            win.show()
+            win.raise_()
+            win.activateWindow()
+            
+            # Force OpenGL context refresh for better performance on Mac
+            if hasattr(win, 'getViewBox'):
+                view_box = win.getViewBox() if hasattr(win, 'getViewBox') else plot.getViewBox()
+                if view_box and hasattr(view_box, 'update'):
+                    view_box.update()
+        
+        # Final event processing
+        app.processEvents()
+        
+        # Platform-specific event loop handling
+        if sys.platform.startswith('win'):
+            # Windows-specific event loop with timeout to prevent hanging
+            try:
+                # Add a timer to prevent infinite hanging
+                from PySide6.QtCore import QTimer
+                
+                # Create a timer that will allow the app to be responsive
+                timer = QTimer()
+                timer.timeout.connect(lambda: None)  # Empty callback
+                timer.start(100)  # Process events every 100ms
+                
+                # Set a flag to allow graceful shutdown
+                win.closeEvent = lambda event: app.quit()
+                
+                # Start the application event loop with timeout handling
+                app.exec_()
+            except Exception:
+                try:
+                    app.quit()
+                except:
+                    pass
+        else:
+            # Standard event loop for Mac/Linux
+            app.exec_()
+            
+        # Cleanup
         signals_ = None
-        plt.show()
+        # a = 0
+        # patches = list()
+        # width = 35
+        # height = 3 * len(signals)
+        # plt.figure(figsize=(width, height))
+        # frame1 = plt.gca()
+        # frame1.axes.get_yaxis().set_visible(False)
+        # # Make a plot with colors chosen by circularly pulling from the colors vector
+        # for k in range(len(signals)):
+        #     color = colors[k % len(colors)]
+        #     patches.append(mpatches.Patch(color=color, label=self.files[k].split('/')[-1]))
+        #     t = np.linspace(0, len(signals_[k]) / 48000., num=len(signals[k])) / 60.
+        #     plt.plot(t, signals[k] + float(a), color=color)
+        #     a += np.nanmax(signals[k]) * 2
+        # plt.legend(handles=patches)
+        # plt.title('Audio Streams')
+        # plt.xlabel('Minutes')
+        # signals_ = None
+        # plt.show()
 
 
 # rigid_transform_3D
@@ -171,9 +616,30 @@ def DLTtoCamXYZ(dlts):
     return camXYZa
 
 # takes unpaired and paired points along with other information about the scene, and manipulates the data for outputting and graphing in 3D
-class wandGrapher():
-    def __init__(self, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
+class wandGrapher(QWidget):
+    def __init__(self, my_app, key, nppts, nuppts, scale, ref, indices, ncams, npframes, nupframes=None, name=None, temp=None,
                  display=True, uvs=None, nRef=0, order=None, report=True, cams=None, reference_type='Axis points', recording_frequency=100):
+        super().__init__()
+        self.my_app = my_app
+        layout = QVBoxLayout(self)
+        # Create a GL View widget for displaying 3D data with grid and axes (data will come later)
+        self.view = gl.GLViewWidget()
+        self.view.setWindowTitle('3D Graph')
+        self.view.setCameraPosition(distance=20)
+        # Create grid items for better visualization
+        grid = gl.GLGridItem()
+        grid.scale(2, 2, 1)
+        self.view.addItem(grid)
+        
+        # Add x, y, z axes lines
+        axis_length = 10
+        x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        self.view.addItem(x_axis)
+        self.view.addItem(y_axis)
+        self.view.addItem(z_axis)
+                
         self.nppts = nppts
         self.nuppts = nuppts
         self.scale = scale
@@ -423,7 +889,7 @@ class wandGrapher():
         for k in range(len(indices)):
             u = (np.dot(L[:3].T, xyz[indices[k]]) + L[3]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
             v = (np.dot(L[4:7].T, xyz[indices[k]]) + L[7]) / (np.dot(L[-3:].T, xyz[indices[k]]) + 1.)
-            reconsted[k] = [u, v]
+            reconsted[k] = [u[0], v[0]]
 
         errors = list()
         dof = float(self.ncams * 2 - 3)
@@ -509,13 +975,6 @@ class wandGrapher():
         xyzs = np.loadtxt(self.temp + '/' + self.key + '_np.txt')
         cam = np.loadtxt(self.temp + '/' + self.key + '_cn.txt')
 
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        # ax.set_aspect('equal') # doesn't look good for 3D
-        # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
-        # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
-
-
         qT = cam[:, -7:]
         quats = qT[:, :4]
         trans = qT[:, 4:]
@@ -561,7 +1020,6 @@ class wandGrapher():
             t = np.mean(xyzs, axis=0)
             for k in range(xyzs.shape[0]):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
-                
         # now that we've applied the scale and alignment, re-extract the paired points for proper display
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
@@ -585,79 +1043,213 @@ class wandGrapher():
 
         dlts = np.asarray(dlts)
         errs = np.asarray(errs)
+        self.dlterrors = errs
+        #print errors and wand score to the log
+        self.outputDLT(dlts, errs)
+        sys.stdout.flush()
+        
+        if self.nppts != 0:
+            self.wandscore = 100. * (std / dist)
+            print('\nWand score: ' + str(self.wandscore))
+            sys.stdout.flush()
+        else:
+            print('\nWand score: not applicable')
+        sys.stdout.flush()
+        
+        # start making the graph
+        # app = QApplication([])
+        # Create a main widget
 
-        # trim off the reference points as we don't want to graph them with the other xyz
+        # main_layout = QVBoxLayout()
+        # main_widget.setLayout(main_layout)
+        
+        # Create a GL View widget for displaying 3D data
+        # view = gl.GLViewWidget()
+        # view.show()
+        # view.setWindowTitle('3D Graph')
+        # view.setCameraPosition(distance=20)
+
+        # # Create grid items for better visualization
+        # grid = gl.GLGridItem()
+        # grid.scale(2, 2, 1)
+        # view.addItem(grid)
+
+        # # Add x, y, z axes lines
+        # axis_length = 10
+        # x_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [axis_length, 0, 0]]), color=(1, 0, 0, 1), width=2)  # Red line for x-axis
+        # y_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, axis_length, 0]]), color=(0, 1, 0, 1), width=2)  # Green line for y-axis
+        # z_axis = gl.GLLinePlotItem(pos=np.array([[0, 0, 0], [0, 0, axis_length]]), color=(0, 0, 1, 1), width=2)  # Blue line for z-axis
+        # view.addItem(x_axis)
+        # view.addItem(y_axis)
+        # view.addItem(z_axis)
+
+        # Add labels for x, y, z axes - not working
+        # font = QFont()
+        # font.setPointSize(20)
+        # x_label = GLTextItem(text='X', color=(1, 0, 0, 1), pos=(axis_length, 0, 0), font=font)
+        # y_label = GLTextItem(text='Y', color=(0, 1, 0, 1), pos=(0, axis_length, 0), font=font)
+        # z_label = GLTextItem(text='Z', color=(0, 0, 1, 1), pos=(0, 0, axis_length), font=font)
+        # view.addItem(x_label)
+        # view.addItem(y_label)
+        # view.addItem(z_label)
+        
+        # Trim off the reference points as we don't want to graph them with the other xyz
         xyzs = xyzs[self.nRef:, :]
 
-        # vP = vP
-        # x = vP[:,:3][:,0]
-        # y = vP[:,:3][:,1]
-        # z = vP[:,:3][:,2]
-
-        # plot unpaired points
-        # ax.scatter(x,y,z)
+        # Plot unpaired points
         if self.nuppts != 0:
             up = xyzs[self.nppts:, :]
             if self.display:
                 x = up[:, 0]
                 y = up[:, 1]
                 z = up[:, 2]
-                ax.scatter(x, y, z,c='c',label='Unpaired points')
-        else:
-            up = None
+                scatter = gl.GLScatterPlotItem(pos=np.array([x, y, z]).T, color=(0, 1, 1, 1), size=20)  # Cyan color, larger markers
+                scatter.setGLOptions('translucent')
+                self.view.addItem(scatter)
 
-        # plot the paired points if there are any. draw a line between each paired set.
+        # Plot paired points and draw lines between each paired set
         if self.nppts != 0 and self.display:
-            ax.set_xlabel('X (Meters)')
-            ax.set_ylabel('Y (Meters)')
-            ax.set_zlabel('Z (Meters)')
             for k in range(len(pairedSet1)):
-                _ = np.vstack((pairedSet1[k], pairedSet2[k]))
-                x = _[:, 0]
-                y = _[:, 1]
-                z = _[:, 2]
-                if k == 0:
-                    ax.plot(x, y, z,c='m',label='Paired points')
-                else:
-                    ax.plot(x, y, z,c='m')
-                
-        # plot the reference points if there are any
+                points = np.vstack((pairedSet1[k], pairedSet2[k]))
+                x = points[:, 0]
+                y = points[:, 1]
+                z = points[:, 2]
+                line = gl.GLLinePlotItem(pos=np.array([x, y, z]).T, color=(1, 0, 1, 1), width=5, antialias=True)  # Magenta color
+                self.view.addItem(line)
+
+        # Plot reference points
         if self.nRef != 0 and self.display:
-            ax.scatter(ref[:,0],ref[:,1],ref[:,2], c='r', label='Reference points')
-            
-        # get the camera locations as expressed in the DLT coefficients
+            scatter = gl.GLScatterPlotItem(pos=ref, color=(1, 0, 0, 1), size=20)  # Red color, larger markers
+            scatter.setGLOptions('translucent')
+            self.view.addItem(scatter)
+
+        # Get the camera locations as expressed in the DLT coefficients
         camXYZ = DLTtoCamXYZ(dlts)
-        ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
-            
-        # add the legend, auto-generated from label='' values for each plot entry
-        if self.display:
-            ax.legend()
+        plotcamXYZ = np.array(camXYZ).reshape(-1, 3)  # Ensure camXYZ is a 2D array of shape (n_points, 3)
+        scatter = gl.GLScatterPlotItem(pos=plotcamXYZ, color=(0, 1, 0, 1), size=10)  # Green color, larger markers
+        scatter.setGLOptions('translucent')
+        self.view.addItem(scatter)
 
-        self.outputDLT(dlts, errs)
-
+        # Calculate automatic orientation length based on data range
+        # Combine all visible 3D points to determine the overall scale
+        all_points = []
+        if len(plotcamXYZ) > 0:
+            all_points.append(plotcamXYZ)
+        if self.nRef != 0 and ref is not None:
+            all_points.append(ref)
         if self.nppts != 0:
-            print('\nWand score: ' + str(100. * (std / dist)))
-            sys.stdout.flush()
+            all_points.append(pairedSet1)
+            all_points.append(pairedSet2)
+        if self.nuppts != 0:
+            all_points.append(xyzs[self.nppts:, :])  # unpaired points
+        
+        if all_points:
+            all_coords = np.vstack(all_points)
+            # Calculate the range in each dimension
+            x_range = np.max(all_coords[:, 0]) - np.min(all_coords[:, 0])
+            y_range = np.max(all_coords[:, 1]) - np.min(all_coords[:, 1])
+            z_range = np.max(all_coords[:, 2]) - np.min(all_coords[:, 2])
+            # Use 5-10% of the maximum range as orientation length
+            max_range = max(x_range, y_range, z_range)
+            orientation_length = max_range * 0.1  # 10% of the data range
         else:
-            print('\nWand score: not applicable')
+            orientation_length = 1.0  # fallback value
 
-        sys.stdout.flush()
-
-        outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], up,
-                                  self.indices['unpaired'], self.nupframes)
+        # Add camera orientation lines (lollipop style)
+        # Calculate orientation vectors for each camera using quaternions
+        import scipy.spatial.transform
+        for k in range(len(plotcamXYZ)):
+            # Convert quaternion to rotation matrix
+            rotation = scipy.spatial.transform.Rotation.from_quat([quats[k][1], quats[k][2], quats[k][3], quats[k][0]])  # Note: scipy expects [x,y,z,w] format
+            R = rotation.as_matrix()
+            
+            # Camera optical axis is typically the negative z-axis in camera coordinates
+            optical_axis = np.array([0, 0, -1])
+            world_optical_axis = R @ optical_axis
+            
+            # Scale the orientation vector for visibility
+            start_point = plotcamXYZ[k]
+            end_point = start_point + world_optical_axis * orientation_length
+            
+            # Create line from camera position to show orientation
+            line_points = np.array([start_point, end_point])
+            orientation_line = gl.GLLinePlotItem(pos=line_points, color=(0, 0.8, 0, 1), width=3)  # Darker green line
+            self.view.addItem(orientation_line)
+        
+        outputter = WandOutputter(self.name, self.ncams, self.npframes, pairedSet1, pairedSet2, self.indices['paired'], up, self.indices['unpaired'], self.nupframes)
         outputter.output()
 
-        if self.display:
-            try:
-                if sys.platform == 'linux2':
-                    # have to block on Linux, looking for fix...
-                    plt.show()
-                else:
-                    if self.report:
-                        plt.show(block=False)
-                    else:
-                        plt.show()
-            except Exception as e:
-                print('Could not graph!\n' + e)
+        # if self.display:
+        #     app.exec_()
+            
+        
+        # fig = plt.figure()
+        # ax = fig.add_subplot(111, projection='3d')
+        # # ax.set_aspect('equal') # doesn't look good for 3D
+        # # main trick for getting axes to be equal (getting equal scaling) is to create "bounding box" points that set
+        # # upper and lower axis limits to the same values on all three axes (https://stackoverflow.com/questions/13685386/matplotlib-equal-unit-length-with-equal-aspect-ratio-z-axis-is-not-equal-to)
+        # # trim off the reference points as we don't want to graph them with the other xyz
+        # xyzs = xyzs[self.nRef:, :]
+
+        # # vP = vP
+        # # x = vP[:,:3][:,0]
+        # # y = vP[:,:3][:,1]
+        # # z = vP[:,:3][:,2]
+
+        # # plot unpaired points
+        # # ax.scatter(x,y,z)
+        # if self.nuppts != 0:
+        #     up = xyzs[self.nppts:, :]
+        #     if self.display:
+        #         x = up[:, 0]
+        #         y = up[:, 1]
+        #         z = up[:, 2]
+        #         ax.scatter(x, y, z,c='c',label='Unpaired points')
+        # else:
+        #     up = None
+
+        # # plot the paired points if there are any. draw a line between each paired set.
+        # if self.nppts != 0 and self.display:
+        #     ax.set_xlabel('X (Meters)')
+        #     ax.set_ylabel('Y (Meters)')
+        #     ax.set_zlabel('Z (Meters)')
+        #     for k in range(len(pairedSet1)):
+        #         _ = np.vstack((pairedSet1[k], pairedSet2[k]))
+        #         x = _[:, 0]
+        #         y = _[:, 1]
+        #         z = _[:, 2]
+        #         if k == 0:
+        #             ax.plot(x, y, z,c='m',label='Paired points')
+        #         else:
+        #             ax.plot(x, y, z,c='m')
+                
+        # # plot the reference points if there are any
+        # if self.nRef != 0 and self.display:
+        #     ax.scatter(ref[:,0],ref[:,1],ref[:,2], c='r', label='Reference points')
+            
+        # # get the camera locations as expressed in the DLT coefficients
+        # camXYZ = DLTtoCamXYZ(dlts)
+        # ax.scatter(camXYZ[:,0],camXYZ[:,1],camXYZ[:,2], c='g', label='Camera positions')
+            
+        # # add the legend, auto-generated from label='' values for each plot entry
+        # if self.display:
+        #     ax.legend()
+
+        # outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], up,
+        #                           self.indices['unpaired'], self.nupframes)
+        # outputter.output()
+
+        # if self.display:
+        #     try:
+        #         if sys.platform == 'linux2':
+        #             # have to block on Linux, looking for fix...
+        #             plt.show()
+        #         else:
+        #             if self.report:
+        #                 plt.show(block=False)
+        #             else:
+        #                 plt.show()
+        #     except Exception as e:
+        #         print('Could not graph!\n' + e)
 
         return outliers, ptsi

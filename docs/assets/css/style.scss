@@ -1,0 +1,77 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+/* GitHub-style alerts */
+.alert {
+  padding: 16px;
+  margin-bottom: 16px;
+  border-left: 4px solid #ddd;
+  border-radius: 6px;
+  position: relative;
+}
+
+.alert::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: text-bottom;
+}
+
+/* Note alert */
+.alert-note {
+  background-color: #dff2ff;
+  border-left-color: #0969da;
+  color: #0a3069;
+}
+
+.alert-note::before {
+  content: "ℹ️";
+}
+
+/* Warning alert */
+.alert-warning {
+  background-color: #fff8c5;
+  border-left-color: #d1242f;
+  color: #744500;
+}
+
+.alert-warning::before {
+  content: "⚠️";
+}
+
+/* Important alert */
+.alert-important {
+  background-color: #f1e5ff;
+  border-left-color: #8250df;
+  color: #4c2889;
+}
+
+.alert-important::before {
+  content: "❗";
+}
+
+/* Tip alert */
+.alert-tip {
+  background-color: #e6ffed;
+  border-left-color: #1a7f37;
+  color: #0f4c20;
+}
+
+.alert-tip::before {
+  content: "💡";
+}
+
+/* Caution alert */
+.alert-caution {
+  background-color: #fff1e5;
+  border-left-color: #d1242f;
+  color: #9a1e2a;
+}
+
+.alert-caution::before {
+  content: "🚨";
+}

@@ -1,0 +1,32 @@
+# _config.yml
+theme: minima
+title: Argus GUI Documentation
+description: Comprehensive documentation for Argus GUI - 3D camera calibration and reconstruction software
+
+# Site settings
+url: "https://backyardbiomech.github.io"
+baseurl: "/argus_gui"
+
+# Build settings
+markdown: kramdown
+highlighter: rouge
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+
+# Navigation
+header_pages:
+  - index.md
+  - installation.md
+  - quick-start.md
+  - user-guide.md
+  - troubleshooting.md
+
+# Exclude from processing
+exclude:
+  - README.md
+  - LICENSE
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/

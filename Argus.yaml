@@ -1,27 +1,28 @@
 name: argus
 channels:
   - anaconda
-  - free
   - conda-forge
 dependencies:
-  - python=3.6.2
+  - python>=3.10
   - pip
   - wxpython
   - git
   - ffmpeg
   - pandas
   - numpy
-  - six=1.12
-  - tk=8.5.18
   - libffi
+  - matplotlib
 
   - pip:
-    - argus==0.0.11
+    - argus
     - imageio
     - imageio-ffmpeg
-    - opencv-contrib-python==3.4.5.20
+    - opencv-contrib-python
     - pyglet
-    - sba==1.6.8pypi
-    - git+https://github.com/kilmoretrout/argus_gui.git
+    - pyside6
+    - pyopengl
+    - git+https://github.com/backyardbiomech/python-sba.git@python310
+    - git+https://github.com/backyardbiomech/argus.git@python310
+    - git+https://github.com/backyardbiomech/argus_gui.git
     
 

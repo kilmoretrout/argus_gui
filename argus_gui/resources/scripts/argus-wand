@@ -13,8 +13,6 @@ import numpy as np
 import pandas
 from argus.ocam import PointUndistorter, ocam_model
 from scipy.sparse import lil_matrix
-from six.moves import map
-from six.moves import range
 
 import argus_gui
 
@@ -45,7 +43,7 @@ def parseCSVs(csv):
         return ret
 
 
-def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
+def perform_wand_calibration(args, unpaired_points, paired_points, ref, cams):
     scale = float(args.scale)
     display = args.graph
     # print 'Graphing: {0}'.format(display)
@@ -60,8 +58,8 @@ def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
         tmp = tempfile.mkdtemp()
     # boolean for outlier analysis at the end
     rep = args.outliers
-    if paried_points is not None:
-        if paried_points.shape[1] != 4 * cams.shape[0]:
+    if paired_points is not None:
+        if paired_points.shape[1] != 4 * cams.shape[0]:
             print('Incorrect shape of paired points! Paired points file must have 4*(number of cameras) columns')
             sys.exit()
     if unpaired_points is not None:
@@ -71,16 +69,16 @@ def preform_wand_caliration(args, unpaired_points, paried_points, ref, cams):
             sys.exit()
     oCPs = args.output_camera_profiles
 
-    if (paried_points is None) and (unpaired_points is not None):
+    if (paired_points is None) and (unpaired_points is not None):
         print(unpaired_points)
     else:
-        print(paried_points[0][0])
+        print(paired_points[0][0])
         print(unpaired_points)
 
-    driver = argus_gui.sbaArgusDriver(paried_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
+    driver = argus_gui.sbaArgusDriver(paired_points, unpaired_points, cams, display, scale, mode, ref, name, tmp, rep,
                                       oCPs, args.choose_reference, args.reference_type, args.recording_frequency)
     driver.fix()
-
+    driver.showGraph()
     shutil.rmtree(tmp)
 
 
@@ -111,7 +109,7 @@ if __name__ == '__main__':
     parser.add_argument("output_name", help="Output filename for points and optimized camera profile")
 
     parser.add_argument("-g", "--graph", action="store_true",
-                        help="Graph points and camera positions with Matplotlib. Must have X11 running.")
+                        help="Graph points and camera positions with pyopengl.")
     parser.add_argument("--outliers", action="store_true",
                         help="Report on outliers and ask to re-calibrate without them")
     parser.add_argument("--tmp", default="None",
@@ -130,9 +128,9 @@ if __name__ == '__main__':
 
     # Get paired points from a CSV file as an array, no index column, with or without header
     if args.paired_points:
-        paried_points = parseCSVs(args.paired_points)
+        paired_points = parseCSVs(args.paired_points)
     else:
-        paried_points = None
+        paired_points = None
     # Get unpaired points 
     if args.unpaired_points:
         unpaired_points = parseCSVs(args.unpaired_points)
@@ -187,7 +185,7 @@ if __name__ == '__main__':
         # take out camera number column, image width and height, then add in skew
         cams = np.delete(cams, [0, 2, 3], 1)
         cams = np.insert(cams, 4, 0., axis=1)
-        preform_wand_caliration(args, unpaired_points, paried_points, ref, cams)
+        perform_wand_calibration(args, unpaired_points, paired_points, ref, cams)
 
     else:
         # Omnidirectional camera model
@@ -234,8 +232,8 @@ if __name__ == '__main__':
 
         # undistort paired points
         points_to_undis = {}
-        if type(paried_points) is not type(None):
-            for row_index, point_set in enumerate(paried_points):
+        if type(paired_points) is not type(None):
+            for row_index, point_set in enumerate(paired_points):
                 new_row = [0 for i in range(0, point_set.shape[0])]
                 for cam_number in range(1, cams.shape[0] + 1):
                     offest = cam_number - 2
@@ -250,7 +248,7 @@ if __name__ == '__main__':
                                                                                                           index + 1]]).reshape(
                             -1, 1))
                         index += (cams.shape[0] - 1) * 2 + 2
-                paried_points[row_index] = new_row
+                paired_points[row_index] = new_row
 
         # undistort unpaired points
         if type(unpaired_points) is not type(None):
@@ -290,7 +288,7 @@ if __name__ == '__main__':
                         index += (cams.shape[0] - 1) * 2 + 2
                 ref[row_index] = new_row
 
-        preform_wand_caliration(args, unpaired_points, paried_points, ref, wand_interpretable_cams)
+        perform_wand_calibration(args, unpaired_points, paired_points, ref, wand_interpretable_cams)
 
 
 else:

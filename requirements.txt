@@ -1,0 +1,29 @@
+# Core dependencies (these are in setup.py/pyproject.toml)
+numpy>=1.19.0
+pandas>=1.0.0
+matplotlib>=3.0.0
+pyopengl
+pyglet>=2.0.16,<2.1  # Pin to compatible version range
+moviepy>=1.0.0
+Pmw>=1.3.3
+texttable>=0.8.3
+audioread>=2.1.1
+psutil>=5.0.0
+pykalman
+future>=0.16.0
+PyYAML>=5.0
+pyside6>=6.4
+pyqtgraph>=0.13.7
+imageio>=2.0.0
+imageio-ffmpeg
+opencv-contrib-python>=4.0.0
+
+# Git dependencies (may need special installation)
+# For development, you might need to install these manually:
+# pip install git+https://github.com/backyardbiomech/python-sba.git@python310
+# pip install git+https://github.com/backyardbiomech/argus.git@python310
+
+# Note: The sba and argus packages should be available on PyPI
+# If not, consider publishing them or using dependency_links (deprecated)
+sba>=1.6.5.1
+argus>=0.0.6
