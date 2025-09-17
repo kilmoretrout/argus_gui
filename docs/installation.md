@@ -46,6 +46,12 @@ If you don't have Python installed or are unsure, you can use any instructions f
    - Type `python --version` and press Enter
    - You should see the Python version number
 
+4. **Install Git (if not already installed):**
+   - Go to [git-scm.com/download/win](https://git-scm.com/download/win)
+   - Download and run the installer (where it says "Click here to download")
+   - Keep all default settings during installation
+   - After installation, open a new Command Prompt and type `git --version` to verify
+
 ### Troubleshooting Python Installation
 
 **If "python" command is not recognized:**
