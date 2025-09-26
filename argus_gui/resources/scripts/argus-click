@@ -344,9 +344,106 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         layout.addWidget(self.okbutton, 20, 2)
 
     def accept(self):
-        """Override accept to save the likelihood threshold value to global variable"""
-        global dlc_likelihood_threshold
-        dlc_likelihood_threshold = self.dlc_likelihood_input.value()
+        """Override accept to save the likelihood threshold value and re-filter DLC data if needed"""
+        global dlc_likelihood_threshold, dlc_h5_file_paths, data_loaded_from_dlc
+        
+        # Check if likelihood threshold has changed and we have DLC data loaded
+        new_threshold = self.dlc_likelihood_input.value()
+        threshold_changed = abs(new_threshold - dlc_likelihood_threshold) > 1e-6  # Use small epsilon for float comparison
+        
+        # Update the global threshold value
+        dlc_likelihood_threshold = new_threshold
+        
+        # Re-filter DLC data if threshold changed and we have DLC data loaded
+        if threshold_changed and data_loaded_from_dlc and dlc_h5_file_paths:
+            try:
+                import pyglet
+                
+                # Store manually edited points before re-filtering
+                manual_edits = {}
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        manual_edits[window.actual_camera_number] = {}
+                        for track_name, track_data in window.points.items():
+                            # Store all current points (both DLC and manual)
+                            manual_edits[window.actual_camera_number][track_name] = track_data.copy()
+                
+                # Re-load DLC data with new threshold
+                load_dlc(dlc_h5_file_paths, like=dlc_likelihood_threshold)
+                
+                # Update all video windows with the newly filtered data while preserving manual edits
+                for window in pyglet.app.windows:
+                    if isinstance(window, ClickerWindow):
+                        # Load new DLC data first
+                        window.update_tracks()  # Create track keys
+                        window.load_points()    # Load newly filtered data from load_data_global
+                        
+                        # Restore manual edits by overlaying them on top of DLC data
+                        if window.actual_camera_number in manual_edits:
+                            for track_name, manual_track_data in manual_edits[window.actual_camera_number].items():
+                                if track_name in window.points:
+                                    # Get the newly filtered DLC data for comparison
+                                    new_dlc_data = window.points[track_name].copy()
+                                    
+                                    # Find all points that exist in the manual edits (current state before re-filtering)
+                                    manual_nonzeros = set(manual_track_data.nonzero()[0])
+                                    new_dlc_nonzeros = set(new_dlc_data.nonzero()[0])
+                                    
+                                    # We need to check what the original DLC data was at this threshold
+                                    # by reloading just this window's data temporarily
+                                    original_dlc_data = load_data_global[:,
+                                        2 * track_list_global.index(track_name) * no_cameras_global + 2 * window.original_index:
+                                        2 * track_list_global.index(track_name) * no_cameras_global + 2 * window.original_index + 2]
+                                    original_dlc_nonzeros = set(original_dlc_data.nonzero()[0])
+                                    
+                                    # For each point in manual edits, determine if it's a manual modification
+                                    for frame_idx in manual_nonzeros:
+                                        manual_point = manual_track_data[frame_idx].toarray()[0]
+                                        if manual_point[0] != 0 or manual_point[1] != 0:  # Valid manual point
+                                            should_preserve = False
+                                            
+                                            # Case 1: Point exists in manual but not in original DLC = manually added
+                                            if frame_idx not in original_dlc_nonzeros:
+                                                should_preserve = True
+                                            else:
+                                                # Case 2: Point exists in both, check if coordinates are different = manually corrected
+                                                original_dlc_point = original_dlc_data[frame_idx].toarray()[0]
+                                                # Any difference means it was manually edited (even 1 pixel)
+                                                if (abs(manual_point[0] - original_dlc_point[0]) > 0.1 or 
+                                                    abs(manual_point[1] - original_dlc_point[1]) > 0.1):
+                                                    should_preserve = True
+                                            
+                                            # Case 3: Check for manual deletions (point was in original DLC but removed manually)
+                                            # This is harder to detect, but we can infer it if:
+                                            # - Point exists in original DLC (would be in new DLC too if threshold allows)
+                                            # - Point exists in new DLC (threshold allows it)  
+                                            # - But point doesn't exist in manual edits
+                                            # This case is handled by NOT restoring points that were manually deleted
+                                            
+                                            if should_preserve:
+                                                window.points[track_name][frame_idx] = manual_point
+                                    
+                                    # Handle manual deletions: check for points that exist in new DLC but were removed manually
+                                    for frame_idx in new_dlc_nonzeros:
+                                        if (frame_idx in original_dlc_nonzeros and  # Point was in original DLC
+                                            frame_idx not in manual_nonzeros):     # But was removed manually
+                                            # This point was manually deleted, so remove it from the new DLC data
+                                            window.points[track_name][frame_idx] = np.array([0., 0.])
+                        
+                        # Redraw the tracks with preserved manual edits
+                        window.clearBatch()
+                        window.draw_tracks()
+                        window.update_drawings()
+                
+                print(f"DLC data re-filtered with likelihood threshold: {dlc_likelihood_threshold}")
+                print("Manual edits have been preserved where possible.")
+                
+            except Exception as e:
+                QtWidgets.QMessageBox.warning(None,
+                    "Error",
+                    f"Failed to re-filter DeepLabCut data: {str(e)}"
+                )
+        
         super().accept()
 
     # close with Return key
@@ -431,6 +528,7 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         Prompts user to select one h5 file per open video window.
         """
         import pyglet
+        global dlc_h5_file_paths
         
         # Get list of open video windows
         video_windows = [window for window in pyglet.app.windows if isinstance(window, ClickerWindow)]
@@ -476,6 +574,9 @@ class OptionsPopupWindow(QtWidgets.QDialog):
         
         # All files selected, now call load_dlc function
         try:
+            # Store H5 file paths globally for re-filtering when threshold changes
+            dlc_h5_file_paths = h5_file_paths.copy()
+            
             # Use the likelihood threshold from the input widget
             likelihood_threshold = self.dlc_likelihood_input.value()
             load_dlc(h5_file_paths, like=likelihood_threshold)
@@ -582,6 +683,7 @@ outputSparse = False
 outputDLC = False
 data_loaded_from_dlc = False  # Track if current data was loaded from DLC files
 dlc_scorer = []  # List of scorer names for each video/camera, empty if no DLC data loaded
+dlc_h5_file_paths = []  # Store H5 file paths for re-filtering when threshold changes
 global_filename = ''
 rgb = True
 vw = 15
@@ -648,6 +750,7 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     global current_track_global
     global data_loaded_from_dlc
     global dlc_scorer
+    global dlc_h5_file_paths
 
     # load dlc file for each camera
     # number of cameras is determined by how many windows are open
@@ -834,8 +937,9 @@ def load_dlc(h5_files, like=0.9, flipy=True, splitind = False):
     load_data_global[np.isnan(load_data_global)] = 0
     load_data_global = csc_matrix(load_data_global, dtype=np.float32)
     
-    # Set flag to indicate data was loaded from DLC
+    # Set flag to indicate data was loaded from DLC and store file paths
     data_loaded_from_dlc = True
+    dlc_h5_file_paths = h5_files.copy()  # Store the file paths for re-filtering
 
 # for sparse data files as TSVs
 def load_tsv(tsv):
@@ -845,6 +949,7 @@ def load_tsv(tsv):
     global current_track_global
     global data_loaded_from_dlc
     global dlc_scorer
+    global dlc_h5_file_paths
 
     try:
         # load the file, expects a header
@@ -867,6 +972,7 @@ def load_tsv(tsv):
         current_track_global = track_list_global[0]
         data_loaded_from_dlc = False
         dlc_scorer = []  # Clear scorer list since this is not DLC data
+        dlc_h5_file_paths = []  # Clear H5 file paths since this is not DLC data
     except:
         QtWidgets.QMessageBox.warning(None,
             "Error",
@@ -2688,7 +2794,8 @@ class ClickerWindow(pyglet.window.Window):
                 "bstrap": bstrap,
                 "init_track": track_list_global[0],
                 "data_loaded_from_dlc": data_loaded_from_dlc,
-                "dlc_scorer": dlc_scorer
+                "dlc_scorer": dlc_scorer,
+                "dlc_h5_file_paths": dlc_h5_file_paths
             }
 
             ClickerProject.create(proj_path=filename,
@@ -2828,7 +2935,8 @@ class ClickerWindow(pyglet.window.Window):
                 "bstrap": bstrap,
                 "init_track": track_list_global[0],
                 "data_loaded_from_dlc": data_loaded_from_dlc,
-                "dlc_scorer": dlc_scorer
+                "dlc_scorer": dlc_scorer,
+                "dlc_h5_file_paths": dlc_h5_file_paths
             }
 
             ClickerProject.create(proj_path=filename,
@@ -3869,6 +3977,7 @@ def load_settings(settings):
     global bstrap
     global data_loaded_from_dlc
     global dlc_scorer
+    global dlc_h5_file_paths
 
     sync = settings["sync"]
     displaying_all_tracks = settings["displaying_all_tracks"]
@@ -3882,6 +3991,8 @@ def load_settings(settings):
     data_loaded_from_dlc = settings.get("data_loaded_from_dlc", False)
     # Load DLC scorer list if present, default to empty list for backward compatibility
     dlc_scorer = settings.get("dlc_scorer", [])
+    # Load DLC H5 file paths if present, default to empty list for backward compatibility
+    dlc_h5_file_paths = settings.get("dlc_h5_file_paths", [])
 
 
 def load_from_config(path):
