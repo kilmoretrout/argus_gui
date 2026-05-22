@@ -2084,7 +2084,7 @@ class PygletDriver:
                 offset_string = offset_string + str(self.offsets[k])
 
         cmd = [sys.executable, os.path.join(RESOURCE_PATH, "scripts/argus-click")]
-        args = [movie_string, str(self.end), offset_string, self.res]
+        args = [movie_string, offset_string, self.res]
         cmd = cmd + args
         if hasattr(sys, "frozen"):
             proc = subprocess.Popen(
