@@ -1499,6 +1499,12 @@ class ClickerWindow(pyglet.window.Window):
 
         self.vf = int(np.round(self.frameFinder.oh / (vw * 3.)))
 
+    def on_resize(self, width, height):
+        """Override to guard against zero-dimension resize events (e.g. on macOS minimize)."""
+        if width == 0 or height == 0:
+            return
+        super(ClickerWindow, self).on_resize(width, height)
+
     def data_index(self, g0):
         """Convert a 0-based global-time index to a 0-based data array index.
 
