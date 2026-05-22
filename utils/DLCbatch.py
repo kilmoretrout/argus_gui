@@ -365,10 +365,11 @@ class DLCBatchProcessor:
         # [track1_cam1_x, track1_cam1_y, track1_cam2_x, track1_cam2_y, ..., track2_cam1_x, track2_cam1_y, ...]
         pts_data = np.full((max_frames, 2 * n_cameras * n_tracks), np.nan)
         
+        camera_list = sorted(all_data.keys())  # e.g. [1, 3] -> positions 0, 1
         for track_idx, track in enumerate(track_names):
-            for cam_num in sorted(all_data.keys()):
-                if cam_num in all_data and track in all_data[cam_num]:
-                    cam_idx = cam_num - 1  # Convert to 0-based index
+            for cam_pos, cam_num in enumerate(camera_list):
+                if track in all_data[cam_num]:
+                    cam_idx = cam_pos  # sequential position, not cam_num - 1
                     
                     # Calculate column indices for this camera and track
                     # argus-click format: each track gets (2 * n_cameras) columns
