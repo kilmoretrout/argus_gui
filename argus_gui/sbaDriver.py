@@ -1075,7 +1075,7 @@ class OutlierWindow(QtWidgets.QWidget):
 
         for k in range(len(errors)):
             if errors[k] >= 3 * stderr + merr:
-                if indices[k] not in ptsi:
+                if indices[k] >= self.nRef and indices[k] not in ptsi:
                     ptsi.append(indices[k])
 
                 if self.nRef - 1 < indices[k] < pb_1 + self.nRef:

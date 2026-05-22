@@ -44,6 +44,15 @@ class FrameFinder:
         self.oh = int(self.movie.get(cv2.CAP_PROP_FRAME_HEIGHT))
         self.frameCount = int(self.movie.get(cv2.CAP_PROP_FRAME_COUNT))
         self.frame_rate = self.movie.get(cv2.CAP_PROP_FPS)
+
+        if not self.movie.isOpened() or self.ow == 0 or self.oh == 0 or self.frame_rate == 0:
+            raise IOError(
+                f"OpenCV could not read '{ifile}'.\n"
+                "This is usually a codec incompatibility — the file may use HEVC/H.265, "
+                "Apple ProRes, or another format that OpenCV's FFmpeg build doesn't support.\n"
+                "Try re-encoding to H.264 MP4:  ffmpeg -i input.mov -c:v libx264 output.mp4"
+            )
+
         self.frame_msec = 1000. / self.frame_rate
         self.factor = factor
         self.kalman_observations = None
