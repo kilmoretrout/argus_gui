@@ -323,9 +323,9 @@ class DLCBatchProcessor:
                 # Apply likelihood threshold filtering
                 for track in track_names:
                     if track in cam_data.columns.get_level_values(0):
-                        likelihood = cam_data[track]['likelihood'].values
-                        x_vals = cam_data[track]['x'].values
-                        y_vals = cam_data[track]['y'].values
+                        likelihood = cam_data[track]['likelihood'].values.copy()
+                        x_vals = cam_data[track]['x'].values.copy()
+                        y_vals = cam_data[track]['y'].values.copy()
                         
                         # Flip Y coordinates from DeepLabCut (upper-left origin) to DLT (lower-left origin)
                         # Y_dlt = image_height - Y_dlc
