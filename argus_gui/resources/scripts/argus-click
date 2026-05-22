@@ -5111,8 +5111,26 @@ if __name__ == '__main__':
     if app is None:
         app = QtWidgets.QApplication([])
     
+    USAGE = """Usage: argus-click <videos> [offsets] [factor] [auto_focus]
+
+Arguments:
+  videos      @-separated list of video file paths  (e.g. cam1.mp4@cam2.mp4)
+  offsets     @-separated per-camera frame offsets  (default: 0 for each video)
+  factor      display downscale factor              (default: 1)
+  auto_focus  optional: true/false to enable auto-focus (default: false)
+
+Special modes:
+  argus-click configload@/path/to/config.yaml   load from a saved config file
+  argus-click --dlc-label [folder]              open in DLC labeling mode
+"""
+
+    # Check for help flag or no arguments
+    if len(sys.argv) < 2 or sys.argv[1] in ('-h', '--help'):
+        print(USAGE)
+        sys.exit(0)
+
     # Check for DLC labeling mode
-    if len(sys.argv) > 1 and sys.argv[1] == "--dlc-label":
+    if sys.argv[1] == "--dlc-label":
         # Check if folder path was provided as second argument
         folder_path = sys.argv[2] if len(sys.argv) > 2 else None
         launch_dlc_label_mode(folder_path)
@@ -5124,17 +5142,46 @@ if __name__ == '__main__':
         load_from_config(config_path)
 
     else:
-        end = int(sys.argv[2])
+        if len(sys.argv) < 2:
+            print(USAGE)
+            sys.exit(1)
         movies_global = sys.argv[1].split('@')
-
         movies = movies_global
-        offsets = list(map(int, sys.argv[3].split('@')))
-        factor = int(sys.argv[4])
-        
-        # Optional 5th argument for auto-focus (default False)
+        n_cams = len(movies)
+
+        # Parse optional positional args: offsets, factor, auto_focus
+        remaining = sys.argv[2:]
+        offsets = [0] * n_cams
+        factor = 1
         auto_focus = False
-        if len(sys.argv) > 5:
-            auto_focus = sys.argv[5].lower() in ('true', '1', 'yes', 'on')
+
+        arg_idx = 0
+        # offsets: present if the arg has the right number of @-separated parts
+        if arg_idx < len(remaining):
+            parts = remaining[arg_idx].split('@')
+            if len(parts) == n_cams:
+                try:
+                    offsets = list(map(int, parts))
+                    arg_idx += 1
+                except ValueError:
+                    pass  # not valid offsets, leave default
+
+        # factor: next integer arg
+        if arg_idx < len(remaining):
+            try:
+                factor = int(remaining[arg_idx])
+                arg_idx += 1
+            except ValueError:
+                pass
+
+        # auto_focus: next bool arg
+        if arg_idx < len(remaining):
+            auto_focus = remaining[arg_idx].lower() in ('true', '1', 'yes', 'on')
+
+        # Auto-detect end frame from the first video
+        _cap = cv2.VideoCapture(movies[0])
+        end = int(_cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        _cap.release()
 
         windows = []
         for index, movie in enumerate(movies):
