@@ -7,7 +7,7 @@ This script processes DeepLabCut H5 files in batch mode, performing 3D reconstru
 and exporting results to CSV format.
 
 Usage:
-    python DLCtest.py /path/to/data/directory --threshold 0.95
+    python DLCbatch.py /path/to/data/directory --threshold 0.95
 
 Directory structure expected:
 
