@@ -13,14 +13,7 @@ import numpy as np
 import scipy
 import scipy.io.wavfile
 import scipy.signal
-try:
-    from moviepy.config import get_setting
-except ImportError:
-    # Fallback for newer moviepy versions
-    def get_setting(setting_name):
-        if setting_name == "FFMPEG_BINARY":
-            return "ffmpeg"  # Default to system ffmpeg
-        return None
+import imageio_ffmpeg
 from texttable import *
 
 
@@ -67,12 +60,12 @@ class Syncer:
             print('Using sound from ' + self.start + ' to ' + self.end)
             sys.stdout.flush()
         for k in range(0, len(files)):
-            # If no wav with the same name as the file is found, rip one with moviepy's ffmpeg binary
+            # If no wav with the same name as the file is found, rip one with imageio-ffmpeg's ffmpeg binary
             if not os.path.isfile(tmpName + '/' + out[k]):
                 print('Ripping audio from file number ' + str(k + 1) + '...')
                 sys.stdout.flush()
                 cmd = [
-                    get_setting("FFMPEG_BINARY"),
+                    imageio_ffmpeg.get_ffmpeg_exe(),
                     '-loglevel', 'panic',
                     '-hide_banner',
                     '-i', files[k],
