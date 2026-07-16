@@ -51,8 +51,6 @@ import argus_gui
 def parseCSVs(csv):
     if csv.split('.')[-1] == 'csv':
         dataf = pandas.read_csv(csv, index_col=False)
-        dataf = dataf.dropna(how='all')  # remove nan rows
-        dataf = dataf.reset_index(drop=True)  # reset indices
         return dataf.values
     # else check if we have sparse data representation
     elif csv.split('.')[-1] == 'tsv':
@@ -264,6 +262,8 @@ if __name__ == '__main__':
         points_to_undis = {}
         if type(paired_points) is not type(None):
             for row_index, point_set in enumerate(paired_points):
+                if np.all(np.isnan(point_set)):
+                    continue
                 new_row = [0 for i in range(0, point_set.shape[0])]
                 for cam_number in range(1, cams.shape[0] + 1):
                     offest = cam_number - 2
@@ -283,6 +283,8 @@ if __name__ == '__main__':
         # undistort unpaired points
         if type(unpaired_points) is not type(None):
             for row_index, point_set in enumerate(unpaired_points):
+                if np.all(np.isnan(point_set)):
+                    continue
                 new_row = [0 for i in range(0, point_set.shape[0])]
                 for cam_number in range(1, cams.shape[0] + 1):
                     offest = cam_number - 2
@@ -302,6 +304,8 @@ if __name__ == '__main__':
         # undistort reference points
         if type(ref) is not type(None):
             for row_index, point_set in enumerate(ref):
+                if np.all(np.isnan(point_set)):
+                    continue
                 new_row = [0 for i in range(0, point_set.shape[0])]
                 for cam_number in range(1, cams.shape[0] + 1):
                     offest = cam_number - 2

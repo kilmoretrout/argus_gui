@@ -432,19 +432,24 @@ class sbaArgusDriver():
         tmp = self.indices['paired']
         # print 'Length of all paired indices: {0}'.format(len(tmp[0]) + len(tmp[1]))
         if tmp is not None:
-            for k in range(len(self.outliers)):
-                if '(set 1)' in self.outliers[k][2]:
+            for outlier in self.outliers:
+                if not isinstance(outlier, dict):
+                    print('Warning: skipping outlier in unexpected legacy format')
+                    continue
+                if outlier.get('kind') != 'paired':
+                    continue
+                if outlier.get('paired_point') == 1:
                     # print 'removed outlier'
                     try:
-                        tmp[0].remove(self.outliers[k][0] - 1)
+                        tmp[0].remove(outlier['frame'] - 1)
                         # a += 1
                         self.nppts -= 1
                     except:
                         pass
-                elif '(set 2)' in self.outliers[k][2]:
+                elif outlier.get('paired_point') == 2:
                     # print 'removed outlier'
                     try:
-                        tmp[1].remove(self.outliers[k][0] - 1)
+                        tmp[1].remove(outlier['frame'] - 1)
                         # a += 1
                         self.nppts -= 1
                     except:
@@ -457,10 +462,13 @@ class sbaArgusDriver():
 
         tmp = copy.copy(self.indices['unpaired'])
         if tmp is not None:
-            for k in range(len(self.outliers)):
-                if 'Unpaired' in self.outliers[k][2]:
+            for outlier in self.outliers:
+                if not isinstance(outlier, dict):
+                    print('Warning: skipping outlier in unexpected legacy format')
+                    continue
+                if outlier.get('kind') == 'unpaired':
                     try:
-                        tmp[self.outliers[k][-1]].remove(self.outliers[k][0] - 1)
+                        tmp[outlier['unpaired_track']].remove(outlier['frame'] - 1)
                         self.nuppts -= 1
                     except:
                         pass
@@ -551,9 +559,9 @@ class OutlierWindow(QtWidgets.QWidget):
         wslabel = QtWidgets.QLabel(f"Wand score: {self.wandscore}")
         label = QtWidgets.QLabel("Outliers")
         # Create a table widget
-        self.table = QtWidgets.QTableWidget(1, 4)
+        self.table = QtWidgets.QTableWidget(1, 6)
         # Set the column headers
-        self.table.setHorizontalHeaderLabels(['Frame', 'Undistorted Pixel Coordinate', 'Point Type', 'Error'])
+        self.table.setHorizontalHeaderLabels(['Frame', 'Undistorted Pixel Coordinate', 'Camera', 'Point', 'Track', 'Error'])
         right_layout.addWidget(errslabel)
         right_layout.addWidget(wslabel)
         right_layout.addWidget(label)
@@ -782,10 +790,18 @@ class OutlierWindow(QtWidgets.QWidget):
 
     def updateTable(self):
         self.table.setRowCount(len(self.outliers))
-        for row, row_data in enumerate(self.outliers):
-            if len(row_data) > 4:
-                row_data = row_data[0:4]
-            row_data[1] = np.array2string(row_data[1], separator=', ', formatter={'float_kind': lambda x: f"{x:.2f}"})
+        for row, outlier in enumerate(self.outliers):
+            uv_str = np.array2string(outlier['uv'], separator=', ', formatter={'float_kind': lambda x: f"{x:.2f}"})
+            point_str = {1: 'First', 2: 'Second'}.get(outlier['paired_point'], '')
+            track_str = 'U{0}'.format(outlier['unpaired_track'] + 1) if outlier['unpaired_track'] is not None else ''
+            row_data = [
+                outlier['frame'],
+                uv_str,
+                outlier['camera'],
+                point_str,
+                track_str,
+                outlier['error'],
+            ]
             # format and convert to strings
             items = [f"{x:.2f}" if isinstance(x, float) else str(x) for x in row_data]
             items = [QtWidgets.QTableWidgetItem(str(cell)) for cell in items]
@@ -1066,6 +1082,13 @@ class OutlierWindow(QtWidgets.QWidget):
         outliers = list()
         ptsi = list()
 
+        # user-facing camera number, consistent with the numbering used for
+        # per-camera profile output files (self.order[k] + 1)
+        if self.order is not None:
+            camera_number = self.order[cam_index] + 1
+        else:
+            camera_number = cam_index + 1
+
         # pickle.dump(self.indices['paired'], open('paired.pkl', 'w'))
 
         if self.indices['paired'] is not None:
@@ -1085,16 +1108,27 @@ class OutlierWindow(QtWidgets.QWidget):
 
                 if self.nRef - 1 < indices[k] < pb_1 + self.nRef:
                     # if not self.indices['paired'][0][k] in frames:
-                    outliers.append([self.indices['paired'][0][indices[k] - self.nRef] + 1,
-                                     redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0],
-                                     'Paired (set 1)', errors[k]])
+                    outliers.append({
+                        'frame': self.indices['paired'][0][indices[k] - self.nRef] + 1,
+                        'uv': redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0],
+                        'error': errors[k],
+                        'camera': camera_number,
+                        'kind': 'paired',
+                        'paired_point': 1,
+                        'unpaired_track': None,
+                    })
                     # frames.append(self.indices['paired'][0][k])
                 elif pb_1 + self.nRef <= indices[k] < self.nppts + self.nRef:
                     # if not self.indices['paired'][1][k - len(self.indices['paired'][0])] in frames:
-                    outliers.append(
-                        [self.indices['paired'][1][indices[k] - len(self.indices['paired'][0]) - self.nRef] + 1,
-                         redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0], 'Paired (set 2)',
-                         errors[k]])
+                    outliers.append({
+                        'frame': self.indices['paired'][1][indices[k] - len(self.indices['paired'][0]) - self.nRef] + 1,
+                        'uv': redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0],
+                        'error': errors[k],
+                        'camera': camera_number,
+                        'kind': 'paired',
+                        'paired_point': 2,
+                        'unpaired_track': None,
+                    })
                     # frames.append(self.indices['paired'][1][k - len(self.indices['paired'][0])])
                 elif self.nppts + self.nRef <= indices[k] < self.nuppts + self.nppts + self.nRef:
                     try:
@@ -1104,9 +1138,15 @@ class OutlierWindow(QtWidgets.QWidget):
 
                         while True:
                             if (indices[k] - self.nppts) - self.nRef < len(self.indices['unpaired'][i]) + _:
-                                outliers.append([upindices[(indices[k] - self.nppts) - self.nRef] + 1,
-                                                 redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0],
-                                                 'Unpaired ', errors[k], i])
+                                outliers.append({
+                                    'frame': upindices[(indices[k] - self.nppts) - self.nRef] + 1,
+                                    'uv': redistort_pts(np.array([uv[indices[k]]]), self.cams[cam_index])[0],
+                                    'error': errors[k],
+                                    'camera': camera_number,
+                                    'kind': 'unpaired',
+                                    'paired_point': None,
+                                    'unpaired_track': i,
+                                })
                                 break
                             else:
                                 _ += len(self.indices['unpaired'][i])
