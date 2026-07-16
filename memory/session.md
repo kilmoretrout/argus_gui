@@ -1,80 +1,130 @@
-# Session: DLCbatch vs Clicker reprojection error discrepancy
+# Session: Fix unpaired-only crash in OutlierWindow.buildData (sbaDriver.py)
 
 ## Task
-User reported `DLCbatch.py` reprojection errors are orders of magnitude higher
-than errors from loading the same DLC output into a Clicker window and saving.
-User confirmed camera frame offsets are not the cause (assumed 0 everywhere in
-DLCbatch, matching the comparison).
+Implement `memory/plan.md`: fix crashes in `argus_gui/sbaDriver.py`,
+`OutlierWindow.buildData`, that occur when Wand calibration is run with only
+unpaired points (no paired points file, `self.nppts == 0`). GUI/CLI/driver
+data-prep already support this; only `buildData` was broken.
 
-## Investigation
-Compared `utils/DLCbatch.py` against the reference implementation in
-`argus_gui/resources/scripts/argus-click` (Clicker's `load_camera`, `load_DLT`,
-`load_dlc`, `plotTracks`/`save_sparse`) and `argus_gui/tools.py`
-(`uv_to_xyz`, `get_repo_errors`, `undistort_pts`, `reconstruct_uv`).
+## Changes made (all in `argus_gui/sbaDriver.py`)
+1. Before the second `if self.nppts != 0:` block (was line 721), added:
+   ```python
+   paired = None
+   pairedSet1 = None
+   pairedSet2 = None
+   ```
+   so `self.paired = paired` / `self.pairedSet1 = ...` / `self.pairedSet2 = ...`
+   (a few lines later) never raise `NameError`/`UnboundLocalError` when
+   `nppts == 0`.
+2. Before `if self.nuppts != 0:` (was line 725), added `self.up = None` so
+   `WandOutputter(...)` always has a bound `self.up` (robust in general, not
+   just for the unpaired-only case).
+3. In the wand-score `else` branch (was lines 771-772), added
+   `self.wandscore = 'not applicable'` alongside the existing print, so
+   `init_UI`'s `f"Wand score: {self.wandscore}"` doesn't raise
+   `AttributeError` when `nppts == 0` and display is on.
 
-Confirmed identical between DLCbatch and Clicker:
-- Camera profile loading/formatting (pinhole column deletion, ocam model
-  construction) - [DLCbatch.py](utils/DLCbatch.py#L131) vs `load_camera` in
-  argus-click.
-- DLT coefficients loading (`np.loadtxt(..., delimiter=',').T`).
-- Y-coordinate flip (`height - y`) from DLC upper-left origin to DLT
-  lower-left origin.
-- Likelihood-threshold based NaN filtering.
-- Core math: both call the exact same `uv_to_xyz` / `get_repo_errors`
-  functions from `argus_gui/tools.py`.
+Exact diff:
+```diff
+--- a/argus_gui/sbaDriver.py
++++ b/argus_gui/sbaDriver.py
+@@ -718,13 +718,17 @@ class OutlierWindow(QtWidgets.QWidget):
+                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
+         # now that we've applied the scale and alignment, re-extract the paired points for proper display
+         # print(self.nRef, self.nppts, self.nuppts)
++        paired = None
++        pairedSet1 = None
++        pairedSet2 = None
+         if self.nppts != 0:
+             paired = xyzs[self.nRef:self.nppts + self.nRef]
+             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
+         # get unpaired points
++        self.up = None
+         if self.nuppts != 0:
+             self.up = xyzs[self.nRef + self.nppts:, :]
+-            
++
+         # save to class variables for use in graph
+         self.xyzs = xyzs
+         self.paired = paired
+@@ -769,6 +773,7 @@ class OutlierWindow(QtWidgets.QWidget):
+             print('\nWand score: ' + str(self.wandscore))
+             sys.stdout.flush()
+         else:
++            self.wandscore = 'not applicable'
+             print('\nWand score: not applicable')
+         sys.stdout.flush()
+         outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], self.up, self.indices['unpaired'], self.nupframes)
+```
 
-## Root cause found
-`DLCBatchProcessor._reconstruct_with_camera_optimization` (enabled by default
-via `optimize_cameras=True`) performs frame-by-frame outlier-camera detection
-for tracks with 3+ cameras: it excludes a camera's point from the
-triangulation if its individual reprojection error is a MAD-based outlier.
+Nothing else was touched. `argus-wand`, `Argus.py`, and the SBA/data-prep code
+were left unchanged per instructions (they already work correctly for
+unpaired-only input). Change 3 (graphers.py dead code) and Change 4
+(Argus.py UX autofill) from the plan were explicitly skipped per task scope.
 
-However, `_perform_3d_reconstruction` then computed the reported reprojection
-error by calling `get_repo_errors(xyz_all, pts_data, ...)` using the raw,
-**unfiltered** `pts_data` - i.e. including the excluded outlier camera's pixel
-coordinates. Since that camera was excluded specifically because it
-disagreed strongly with the other cameras, its large residual against the
-optimized xyz still got summed into the reported error, hugely inflating it.
+## Verification
+- `argus_env/bin/python -m py_compile argus_gui/sbaDriver.py` → succeeds
+  (`PY_COMPILE_OK`).
+- Functional test: since the real SBA pipeline requires a compiled
+  `libsbaprojs.dylib` that is not installed in this environment
+  (`import sba` fails with `OSError: dlopen(libsbaprojs.dylib...)`), a full
+  end-to-end `argus-wand` CLI run isn't possible here. Instead, wrote a
+  targeted script
+  (`/private/tmp/.../scratchpad/wandtest/test_builddata.py`, scratch dir, not
+  part of repo) that instantiates `OutlierWindow` directly with synthetic
+  `_np.txt`/`_cn.txt` temp files and synthetic `uvs`, with `nppts=0`,
+  `nuppts=10`, `display=True` — i.e. the exact unpaired-only, display-on
+  scenario the plan describes as failing.
+  - Against the **unpatched** code (verified via `git stash`): reproduces the
+    exact bug — `UnboundLocalError: cannot access local variable 'paired'
+    where it is not associated with a value` at the `self.paired = paired`
+    line.
+  - Against the **patched** code: `buildData` completes; `self.paired`,
+    `self.pairedSet1`, `self.pairedSet2` are `None`; `self.up` is a
+    `(10, 3)` array; `self.wandscore == 'not applicable'`; the
+    `f"Wand score: {self.wandscore}"` f-string (the exact expression used in
+    `init_UI` line ~551) evaluates without `AttributeError`. All assertions
+    pass ("ALL CHECKS PASSED").
+  - This confirms both the `NameError`/`UnboundLocalError` and the
+    `AttributeError` failure modes described in the plan are fixed, without
+    needing the unavailable `sba` C library or the full GUI event loop.
 
-Clicker has no equivalent "camera optimization" feature at all - it always
-triangulates and computes error using every valid camera consistently, so it
-never has this mismatch, which is why its errors looked much smaller.
-
-## Fix applied
-- `_reconstruct_with_camera_optimization` now also returns a
-  `used_camera_mask` (frames x cameras) marking exactly which cameras
-  contributed to each frame's xyz.
-- `_perform_3d_reconstruction` builds `pts_for_errors` (a copy of `pts_data`)
-  and blanks out (NaN) any camera's point for frames/tracks where that camera
-  was excluded from triangulation, then calls `get_repo_errors` against
-  `pts_for_errors` instead of raw `pts_data`.
-- This makes the reported error consistent with the cameras actually used to
-  compute xyz in all cases, matching Clicker's behavior when no outlier
-  exclusion occurs, and giving a sane (not inflated) error when it does.
-
-File changed: [utils/DLCbatch.py](utils/DLCbatch.py)
-
-Verified `python3 -m py_compile utils/DLCbatch.py` succeeds. Pre-existing
-Pylance warnings in the file (bare except, unused imports, `Optional` type
-narrowing on `self.camera_profile`) were left untouched as out of scope.
+## Files changed
+- `argus_gui/sbaDriver.py` (only file modified in the repo)
 
 ## Review
-- Status: Approved (fix implemented and verified in this session)
+- Round: 1
+- Status: Approved
 - Issues found:
-  - Blocking (fixed): reprojection error calculation used unfiltered
-    `pts_data` while xyz used a camera-optimized subset, inflating errors
-    whenever outlier-camera exclusion triggered.
-  - Nitpick (not fixed, pre-existing, out of scope): bare `except:` in
-    `main()`, unused `undistort_pts`/`reconstruct_uv` imports in
-    `_get_per_camera_errors`, unused `datetime` import, `argus` possibly
-    unbound in `_load_calibration` when `ARGUS_OCAM_AVAILABLE` is False.
+  - (nitpick, out of scope) Pre-existing latent edge case: if a paired points
+    file exists (`npframes` not None) but `nppts` drops to 0 via outlier
+    removal, `p1`/`p2` are None yet `WandOutputter.output()` would try to index
+    `self.pset1` (None). Not reachable in the pure unpaired-only flow
+    (`ppts is None` => `npframes is None` => paired output skipped) and not
+    introduced by this change; noting only.
 - Verdict: Ship it
+
+## Verification (Reviewer)
+- Traced all downstream reads:
+  - `self.paired`/`self.pairedSet1`/`self.pairedSet2` (None when nppts==0) are
+    only read in `updateGraph` lines 613-615, guarded by `if self.nppts != 0`.
+    Safe.
+  - `self.up` (None when nuppts==0) read in `updateGraph` line 606, guarded by
+    `if self.nuppts != 0` (line 600); passed to `WandOutputter`, whose
+    `output()` guards `if self.upset is not None`. Safe.
+  - `self.wandscore` read in `init_UI` line 551 f-string; now always set. Safe.
+  - `p1`/`p2` bound in the earlier else branch (line 702); in unpaired-only
+    runs `npframes is None` so paired output is skipped. Safe.
+  - `std`/`dist` only referenced inside `if self.nppts != 0`. Safe.
+- Regression: the three added lines are None-defaults before existing `if`
+  blocks plus one `else`-branch assignment; the `nppts != 0` paths reassign all
+  vars and are behaviorally unchanged.
+- `wandGrapher` (graphers.py:618) confirmed never instantiated
+  (`grep -rn "wandGrapher("` yields only the class def) => genuinely dead code,
+  plan's deprioritization is valid.
+- `argus_env/bin/python -m py_compile argus_gui/sbaDriver.py` => COMPILE_OK.
 
 ## Handoff
 - From: Reviewer
 - To: closed
-- Next action: cycle complete. If the user still sees inflated errors after
-  this fix, next investigate whether `--no-optimize-cameras` reproduces
-  Clicker's numbers exactly (isolating any remaining discrepancy), and check
-  multi-camera-subset indexing in `_reconstruct_single_frame` when fewer
-  cameras have H5 files than exist in the camera profile.
+- Next action: cycle complete — change is correct and ready to commit.
