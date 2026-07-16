@@ -5,8 +5,6 @@ from __future__ import absolute_import
 
 import argparse
 
-from moviepy.editor import VideoFileClip
-
 from argus_gui import PatternFinder
 
 if __name__ == '__main__':
@@ -38,9 +36,9 @@ if __name__ == '__main__':
         start = float(args.start)
         stop = float(args.stop)
     else:
-        clip = VideoFileClip(self.fnam.get())
-        start = 0.
-        stop = float(clip.duration)
+        # PatternFinder treats None as "use the whole video"
+        start = None
+        stop = None
 
     pat = PatternFinder(rows, cols, spacing, ofile, ifile, start, stop)
 

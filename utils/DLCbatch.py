@@ -7,7 +7,7 @@ This script processes DeepLabCut H5 files in batch mode, performing 3D reconstru
 and exporting results to CSV format.
 
 Usage:
-    python DLCtest.py /path/to/data/directory --threshold 0.95
+    python DLCbatch.py /path/to/data/directory --threshold 0.95
 
 Directory structure expected:
 
@@ -260,7 +260,13 @@ class DLCBatchProcessor:
         track_names = None
         max_frames = 0
         
-        for cam_num, h5_file in h5_files:
+        # h5_files is already sorted by camera number (see _find_trials). The
+        # camera profile/DLT coefficients only have one row per camera actually
+        # used in calibration, ordered positionally - the literal camera number
+        # parsed from the filename (e.g. 3 for cam3) does NOT necessarily match
+        # that row index (e.g. a 2-camera profile for cam1+cam3 has rows 0 and 1,
+        # not 0 and 2). Use the position within h5_files for that indexing.
+        for cam_pos, (cam_num, h5_file) in enumerate(h5_files):
             self.logger.info(f"  Loading camera {cam_num}: {os.path.basename(h5_file)}")
             
             try:
@@ -329,8 +335,10 @@ class DLCBatchProcessor:
                         
                         # Flip Y coordinates from DeepLabCut (upper-left origin) to DLT (lower-left origin)
                         # Y_dlt = image_height - Y_dlc
-                        if hasattr(self, 'image_heights') and cam_num-1 < len(self.image_heights):
-                            image_height = self.image_heights[cam_num-1]
+                        # Use cam_pos (position among sorted cameras present), not the literal
+                        # camera number, since the profile is indexed positionally.
+                        if hasattr(self, 'image_heights') and cam_pos < len(self.image_heights):
+                            image_height = self.image_heights[cam_pos]
                             y_vals = image_height - y_vals
                         
                         # Set coordinates to NaN where likelihood is below threshold
@@ -365,10 +373,11 @@ class DLCBatchProcessor:
         # [track1_cam1_x, track1_cam1_y, track1_cam2_x, track1_cam2_y, ..., track2_cam1_x, track2_cam1_y, ...]
         pts_data = np.full((max_frames, 2 * n_cameras * n_tracks), np.nan)
         
+        camera_list = sorted(all_data.keys())  # e.g. [1, 3] -> positions 0, 1
         for track_idx, track in enumerate(track_names):
-            for cam_num in sorted(all_data.keys()):
-                if cam_num in all_data and track in all_data[cam_num]:
-                    cam_idx = cam_num - 1  # Convert to 0-based index
+            for cam_pos, cam_num in enumerate(camera_list):
+                if track in all_data[cam_num]:
+                    cam_idx = cam_pos  # sequential position, not cam_num - 1
                     
                     # Calculate column indices for this camera and track
                     # argus-click format: each track gets (2 * n_cameras) columns
@@ -433,12 +442,22 @@ class DLCBatchProcessor:
             
         Returns:
             xyz: Frames x 3 array of optimized 3D coordinates
+            used_camera_mask: Frames x n_cameras boolean array, True where that
+                camera's point was actually used to compute xyz for that frame.
+                Cameras excluded as outliers (or unused/NaN) are False. This is
+                needed so reprojection error calculations stay consistent with
+                the cameras that contributed to each reconstruction - otherwise
+                an excluded outlier camera's large disagreement still gets
+                counted against the error even though it didn't inform xyz,
+                which inflates reported errors relative to argus-click (which
+                always uses every valid camera for both steps).
         """
         from argus_gui.tools import undistort_pts, reconstruct_uv
         
         n_cameras = len(self.camera_profile)
         n_frames = track_pts.shape[0]
         xyz_optimized = np.full((n_frames, 3), np.nan)
+        used_camera_mask = np.zeros((n_frames, n_cameras), dtype=bool)
         
         # Track optimization statistics
         n_optimized = 0  # frames where outlier camera(s) were excluded
@@ -465,6 +484,7 @@ class DLCBatchProcessor:
                 xyz_optimized[frame_idx] = self._reconstruct_single_frame(
                     frame_pts, cam_subset, track_pts[frame_idx:frame_idx+1, :]
                 )
+                used_camera_mask[frame_idx, cam_subset] = True
             else:
                 # 3+ cameras: detect outlier cameras and exclude them
                 # Default to using all cameras
@@ -494,13 +514,16 @@ class DLCBatchProcessor:
                         xyz_optimized[frame_idx] = self._reconstruct_single_frame(
                             frame_pts, good_cameras, track_pts[frame_idx:frame_idx+1, :]
                         )
+                        used_camera_mask[frame_idx, good_cameras] = True
                         n_optimized += 1
                     else:
                         # No significant outliers, use all cameras
                         xyz_optimized[frame_idx] = xyz_all
+                        used_camera_mask[frame_idx, valid_cameras] = True
                 else:
                     # Not enough cameras to detect outliers, use all
                     xyz_optimized[frame_idx] = xyz_all
+                    used_camera_mask[frame_idx, valid_cameras] = True
         
         # Print optimization summary
         n_multi_cam = np.sum([len([c for c in range(n_cameras) 
@@ -509,7 +532,7 @@ class DLCBatchProcessor:
         if n_multi_cam > 0:
             self.logger.info(f"      {track_name}: {n_optimized}/{n_multi_cam} frames had outlier camera(s) excluded")
         
-        return xyz_optimized
+        return xyz_optimized, used_camera_mask
     
     def _get_per_camera_errors(self, xyz, frame_pts, cam_indices):
         """Calculate reprojection error for each camera individually.
@@ -581,6 +604,7 @@ class DLCBatchProcessor:
         """
         n_tracks = len(track_names)
         max_frames = pts_data.shape[0]
+        n_cameras = len(self.camera_profile)
         
         if self.camera_profile is None:
             raise ValueError("Camera profile is None")
@@ -588,15 +612,35 @@ class DLCBatchProcessor:
         # Reconstruct each track separately
         xyz_results = []
         
+        # pts_for_errors starts as a copy of the raw pixel data. When camera
+        # optimization excludes an outlier camera from a frame's reconstruction,
+        # that camera's point is also blanked out here so the reprojection error
+        # calculation below only considers cameras that actually contributed to
+        # xyz. Without this, an excluded outlier camera's large disagreement with
+        # xyz still gets counted as error even though it was deliberately left out
+        # of the triangulation, which inflates reported errors far above what
+        # argus-click/Clicker would compute (Clicker always uses every valid
+        # camera for both triangulation and error calculation, so there's never
+        # a mismatch there).
+        pts_for_errors = pts_data.copy()
+        
         for track_idx in range(n_tracks):
             # Extract data for this track (all cameras) - exact argus-click pattern
             # argus-click: pts[:, j * 2 * len(camera_profile):(j + 1) * 2 * len(camera_profile)]
-            track_pts = pts_data[:, track_idx * 2 * len(self.camera_profile):(track_idx + 1) * 2 * len(self.camera_profile)]
+            track_pts = pts_data[:, track_idx * 2 * n_cameras:(track_idx + 1) * 2 * n_cameras]
             
             try:
-                if optimize_camera_selection and len(self.camera_profile) >= 3:
+                if optimize_camera_selection and n_cameras >= 3:
                     # Perform frame-by-frame camera optimization
-                    xyz = self._reconstruct_with_camera_optimization(track_pts, track_names[track_idx])
+                    xyz, used_camera_mask = self._reconstruct_with_camera_optimization(track_pts, track_names[track_idx])
+                    
+                    # Blank out excluded cameras' points for this track so error
+                    # calculation matches the cameras actually used for xyz
+                    track_base_col = track_idx * 2 * n_cameras
+                    for cam_idx in range(n_cameras):
+                        excluded_frames = ~used_camera_mask[:, cam_idx]
+                        col = track_base_col + cam_idx * 2
+                        pts_for_errors[excluded_frames, col:col + 2] = np.nan
                 else:
                     # Standard reconstruction using all cameras
                     xyz = uv_to_xyz(track_pts, self.camera_profile, self.dlt_coefficients)
@@ -614,8 +658,9 @@ class DLCBatchProcessor:
                 xyz_all = xyz_results[0]  # Start with first track
                 for k in range(1, len(xyz_results)):
                     xyz_all = np.hstack((xyz_all, xyz_results[k]))
-                # Calculate reprojection errors using exact same call as argus-click (line 2882)
-                all_errors = get_repo_errors(xyz_all, pts_data, self.camera_profile, self.dlt_coefficients)
+                # Calculate reprojection errors using exact same call as argus-click (line 2882),
+                # but against pts_for_errors so excluded outlier cameras don't inflate the error
+                all_errors = get_repo_errors(xyz_all, pts_for_errors, self.camera_profile, self.dlt_coefficients)
                 
                 # get_repo_errors returns (n_tracks, n_frames), so transpose like argus-click does
                 all_errors = all_errors.T  # Now (n_frames, n_tracks)

@@ -50,14 +50,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 from pyqtgraph.opengl.items.GLTextItem import GLTextItem
 # from pyqtgraph import GraphicsLayoutWidget, LabelItem, PlotWidget
-try:
-    from moviepy.config import get_setting
-except ImportError:
-    # Fallback for newer moviepy versions
-    def get_setting(setting_name):
-        if setting_name == "FFMPEG_BINARY":
-            return "ffmpeg"  # Default to system ffmpeg
-        return None
+import imageio_ffmpeg
 
 # import wandOutputter
 from .output import *
@@ -73,14 +66,6 @@ import scipy
 import sys
 import os.path
 # import matplotlib.pyplot as plt
-try:
-    from moviepy.config import get_setting
-except ImportError:
-    # Fallback for newer moviepy versions
-    def get_setting(setting_name):
-        if setting_name == "FFMPEG_BINARY":
-            return "ffmpeg"  # Default to system ffmpeg
-        return None
 # import matplotlib.patches as mpatches
 import random
 from .colors import *
@@ -106,12 +91,12 @@ class Shower():
         # Shuffle to make things interesting
         random.shuffle(colors)
         for k in range(len(self.files)):
-            # If we don't find a wav with the same name as the file, rip one using moviepy's ffmpeg binary
+            # If we don't find a wav with the same name as the file, rip one using imageio-ffmpeg's ffmpeg binary
             if not os.path.isfile(self.tmpName + '/' + self.out[k]):
                 print('Ripping audio from file number ' + str(k + 1) + ' of ' + str(len(self.files)))
                 sys.stdout.flush()
                 cmd = [
-                    get_setting("FFMPEG_BINARY"),
+                    imageio_ffmpeg.get_ffmpeg_exe(),
                     '-loglevel', 'panic',
                     '-hide_banner',
                     '-i', self.files[k],
