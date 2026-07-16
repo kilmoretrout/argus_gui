@@ -28,9 +28,7 @@ except (AttributeError, ImportError):
     # Fallback for older Python versions
     import pkg_resources
     RESOURCE_PATH = os.path.abspath(pkg_resources.resource_filename('argus_gui.resources', ''))
-    
-# from moviepy.config import get_setting
-# from moviepy.editor import *
+
 from PySide6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtCore import QThread, Signal

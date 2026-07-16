@@ -1,80 +1,104 @@
-# Session: DLCbatch vs Clicker reprojection error discrepancy
+# Session: Remove moviepy dependency
 
 ## Task
-User reported `DLCbatch.py` reprojection errors are orders of magnitude higher
-than errors from loading the same DLC output into a Clicker window and saving.
-User confirmed camera frame offsets are not the cause (assumed 0 everywhere in
-DLCbatch, matching the comparison).
+Remove the moviepy dependency entirely. It was unmaintained and only used to
+locate the ffmpeg binary via `moviepy.config.get_setting("FFMPEG_BINARY")`.
+Replace with `imageio_ffmpeg.get_ffmpeg_exe()` (already an unused declared
+dependency). Task given directly (no memory/plan.md existed; the prior
+session.md contents were for a separate, already-closed task and have been
+replaced here).
 
-## Investigation
-Compared `utils/DLCbatch.py` against the reference implementation in
-`argus_gui/resources/scripts/argus-click` (Clicker's `load_camera`, `load_DLT`,
-`load_dlc`, `plotTracks`/`save_sparse`) and `argus_gui/tools.py`
-(`uv_to_xyz`, `get_repo_errors`, `undistort_pts`, `reconstruct_uv`).
+## Changes made
 
-Confirmed identical between DLCbatch and Clicker:
-- Camera profile loading/formatting (pinhole column deletion, ocam model
-  construction) - [DLCbatch.py](utils/DLCbatch.py#L131) vs `load_camera` in
-  argus-click.
-- DLT coefficients loading (`np.loadtxt(..., delimiter=',').T`).
-- Y-coordinate flip (`height - y`) from DLC upper-left origin to DLT
-  lower-left origin.
-- Likelihood-threshold based NaN filtering.
-- Core math: both call the exact same `uv_to_xyz` / `get_repo_errors`
-  functions from `argus_gui/tools.py`.
+1. `argus_gui/sync.py` (was lines ~16-23, ~75)
+   - Removed `try: from moviepy.config import get_setting / except ImportError: def get_setting(...)` block.
+   - Added `import imageio_ffmpeg`.
+   - Changed the single call site `get_setting("FFMPEG_BINARY")` -> `imageio_ffmpeg.get_ffmpeg_exe()`.
+   - Confirmed via grep only one call site existed.
 
-## Root cause found
-`DLCBatchProcessor._reconstruct_with_camera_optimization` (enabled by default
-via `optimize_cameras=True`) performs frame-by-frame outlier-camera detection
-for tracks with 3+ cameras: it excludes a camera's point from the
-triangulation if its individual reprojection error is a MAD-based outlier.
+2. `argus_gui/graphers.py` (was lines ~53-60 and ~76-83, call site ~114)
+   - Removed BOTH duplicate try/except `get_setting` blocks.
+   - Added a single `import imageio_ffmpeg` near the top (with the other imports,
+     right after the pyqtgraph imports, replacing the first try/except block).
+   - Updated the one call site `get_setting("FFMPEG_BINARY")` -> `imageio_ffmpeg.get_ffmpeg_exe()`.
 
-However, `_perform_3d_reconstruction` then computed the reported reprojection
-error by calling `get_repo_errors(xyz_all, pts_data, ...)` using the raw,
-**unfiltered** `pts_data` - i.e. including the excluded outlier camera's pixel
-coordinates. Since that camera was excluded specifically because it
-disagreed strongly with the other cameras, its large residual against the
-optimized xyz still got summed into the reported error, hugely inflating it.
+3. `argus_gui/undistort.py` (was lines 32-33)
+   - Deleted the two commented-out dead import lines
+     (`# from moviepy.config import get_setting`, `# from moviepy.editor import *`).
 
-Clicker has no equivalent "camera optimization" feature at all - it always
-triangulates and computes error using every valid camera consistently, so it
-never has this mismatch, which is why its errors looked much smaller.
+4. Removed the moviepy line from:
+   - `requirements.txt` (was line 7: `moviepy>=1.0.0`)
+   - `setup.py` (was line 30: `"moviepy >= 1.0.0",`)
+   - `pyproject.toml` (was line 42: `"moviepy >= 1.0.0",`)
+   - imageio / imageio-ffmpeg lines were left untouched as instructed.
 
-## Fix applied
-- `_reconstruct_with_camera_optimization` now also returns a
-  `used_camera_mask` (frames x cameras) marking exactly which cameras
-  contributed to each frame's xyz.
-- `_perform_3d_reconstruction` builds `pts_for_errors` (a copy of `pts_data`)
-  and blanks out (NaN) any camera's point for frames/tracks where that camera
-  was excluded from triangulation, then calls `get_repo_errors` against
-  `pts_for_errors` instead of raw `pts_data`.
-- This makes the reported error consistent with the cameras actually used to
-  compute xyz in all cases, matching Clicker's behavior when no outlier
-  exclusion occurs, and giving a sane (not inflated) error when it does.
+5. Extra stray reference found beyond the task's file list (flagging per
+   instructions rather than silently expanding scope):
+   `argus_gui/resources/scripts/argus-patterns` had an ACTIVE (not
+   commented-out) `from moviepy.editor import VideoFileClip` and a call
+   `clip = VideoFileClip(self.fnam.get())`. This contradicts the task's
+   premise that "No VideoFileClip/moviepy.editor calls are actually active
+   anywhere." Judgment call made: `self.fnam.get()` was already broken code
+   (`self` undefined at module scope — clearly copy-pasted from a Tkinter GUI
+   context), and this `else` branch is actually the one taken by default
+   argparse values (`--start`/`--stop` default to the literal string
+   `"None"`, so `args.start != "None"` is False by default, so `else` always
+   runs unless a user explicitly overrides both flags) — meaning this script
+   was already non-functional out of the box before my changes.
+   `PatternFinder.__init__` (`argus_gui/patterns.py`) already natively treats
+   `start=None`/`stop=None` as "use the whole video" via its own
+   `cv2.VideoCapture` logic, duplicating exactly what the broken moviepy code
+   was trying to do. Fix: removed the `moviepy.editor` import and replaced
+   the broken `VideoFileClip`/`self.fnam.get()` lines with simply passing
+   `start = None`, `stop = None` through to `PatternFinder`. This both
+   removes moviepy and fixes the pre-existing `self` bug with no new
+   abstractions.
 
-File changed: [utils/DLCbatch.py](utils/DLCbatch.py)
+6. Also found `uv.lock` (untracked, per git status) still listed moviepy and
+   its sub-dependencies (decorator, proglog, python-dotenv, tqdm). Regenerated
+   it via `uv lock`, which cleanly removed all five.
 
-Verified `python3 -m py_compile utils/DLCbatch.py` succeeds. Pre-existing
-Pylance warnings in the file (bare except, unused imports, `Optional` type
-narrowing on `self.camera_profile`) were left untouched as out of scope.
+## Verification
+- `grep -rn "moviepy" --include="*.py" .` -> no matches.
+- `grep -rln "moviepy" . --exclude-dir=.git --exclude-dir=argus_env` -> no matches (repo-wide, zero remaining references).
+- `./argus_env/bin/python -c "import argus_gui.sync"` -> succeeds, no error at all.
+- `./argus_env/bin/python -c "import argus_gui.graphers"` -> succeeds, no error at all.
+- `./argus_env/bin/python -c "import argus_gui.undistort"` -> succeeds, no error at all.
+- `./argus_env/bin/python -m py_compile argus_gui/resources/scripts/argus-patterns` -> compiles OK.
+- Confirmed `imageio_ffmpeg.get_ffmpeg_exe()` resolves to a real, executable
+  ffmpeg-macos-aarch64 binary in the venv.
+
+## Files changed
+- argus_gui/sync.py
+- argus_gui/graphers.py
+- argus_gui/undistort.py
+- argus_gui/resources/scripts/argus-patterns
+- requirements.txt
+- setup.py
+- pyproject.toml
+- uv.lock (regenerated, was untracked)
 
 ## Review
-- Status: Approved (fix implemented and verified in this session)
-- Issues found:
-  - Blocking (fixed): reprojection error calculation used unfiltered
-    `pts_data` while xyz used a camera-optimized subset, inflating errors
-    whenever outlier-camera exclusion triggered.
-  - Nitpick (not fixed, pre-existing, out of scope): bare `except:` in
-    `main()`, unused `undistort_pts`/`reconstruct_uv` imports in
-    `_get_per_camera_errors`, unused `datetime` import, `argus` possibly
-    unbound in `_load_calibration` when `ARGUS_OCAM_AVAILABLE` is False.
+- Round: 1
+- Status: Approved
+- Issues found: none blocking, minor, or nitpick. All six verification
+  points confirmed:
+  1. Both graphers.py get_setting blocks removed; single `import
+     imageio_ffmpeg` added; both/all call sites (graphers, sync) now use
+     `imageio_ffmpeg.get_ffmpeg_exe()`. No leftover duplicate import or
+     stray `get_setting` reference in code (only in session.md prose).
+  2. Zero `moviepy` references in code, packaging, scripts, or lockfile.
+  3. argus-patterns None/None passes through to PatternFinder, which maps
+     it to frame 0 -> FRAME_COUNT (whole video) — equivalent to what a
+     working version of the old `clip.duration` code produced. No
+     regression; the pre-existing undefined-`self` bug is also resolved.
+  4. imageio (>=2.0.0) and imageio-ffmpeg remain declared in
+     requirements.txt, setup.py, and pyproject.toml.
+  5. sync, graphers, undistort all import cleanly with zero errors.
+  6. uv.lock has no moviepy entries.
 - Verdict: Ship it
 
 ## Handoff
 - From: Reviewer
 - To: closed
-- Next action: cycle complete. If the user still sees inflated errors after
-  this fix, next investigate whether `--no-optimize-cameras` reproduces
-  Clicker's numbers exactly (isolating any remaining discrepancy), and check
-  multi-camera-subset indexing in `_reconstruct_single_frame` when fewer
-  cameras have H5 files than exist in the camera profile.
+- Next action: cycle complete. Dependency swap is correct and complete.

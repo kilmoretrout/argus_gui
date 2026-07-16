@@ -27,7 +27,6 @@ setup(
         "opencv-contrib-python >= 4.0.0",
         "pyopengl",
         "pyglet >= 2.0.16, < 2.1",  # Pin to compatible version range
-        "moviepy >= 1.0.0",
         "Pmw >= 1.3.3",
         "texttable >= 0.8.3",
         "sba @ git+https://github.com/backyardbiomech/python-sba.git@python310",
