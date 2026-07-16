@@ -48,3 +48,6 @@ build/lib/argus_gui/resources/__init__.pyc
 
 # others
 *.DS_Store
+
+# Agent working memory (local only)
+memory/

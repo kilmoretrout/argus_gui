@@ -718,13 +718,17 @@ class OutlierWindow(QtWidgets.QWidget):
                 xyzs[k] = xyzs[k] - t # changed by Ty from + to - to center an unaligned calibration 2020-05-26 version 2.1.2
         # now that we've applied the scale and alignment, re-extract the paired points for proper display
         # print(self.nRef, self.nppts, self.nuppts)
+        paired = None
+        pairedSet1 = None
+        pairedSet2 = None
         if self.nppts != 0:
             paired = xyzs[self.nRef:self.nppts + self.nRef]
             p1, p2, pairedSet1, pairedSet2 = self.pairedIsomorphism(paired)
         # get unpaired points
+        self.up = None
         if self.nuppts != 0:
             self.up = xyzs[self.nRef + self.nppts:, :]
-            
+
         # save to class variables for use in graph
         self.xyzs = xyzs
         self.paired = paired
@@ -769,6 +773,7 @@ class OutlierWindow(QtWidgets.QWidget):
             print('\nWand score: ' + str(self.wandscore))
             sys.stdout.flush()
         else:
+            self.wandscore = 'not applicable'
             print('\nWand score: not applicable')
         sys.stdout.flush()
         outputter = WandOutputter(self.name, self.ncams, self.npframes, p1, p2, self.indices['paired'], self.up, self.indices['unpaired'], self.nupframes)
